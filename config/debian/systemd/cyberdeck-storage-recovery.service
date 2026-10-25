@@ -1,0 +1,14 @@
+[Unit]
+Description=Restore the original Cyberdeck data root after interrupted migration
+After=cyberdeck-storage-migration.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/lib/cyberdeck/storage-helper.py recover-after-failure
+TimeoutStartSec=120
+# Recovery edits host fstab and mount state; keep the host mount namespace.
+ProtectSystem=off
+ProtectHome=false
+NoNewPrivileges=false

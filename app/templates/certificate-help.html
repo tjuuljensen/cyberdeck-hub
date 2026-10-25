@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('ui.0028') }} · Cyberdeck{% endblock %}
+{% block content %}
+<a class="back" href="/">{{ t('ui.0193') }}</a>
+<section class="login-wrap certificate-help">
+<p class="eyebrow">{{ t('ui.0194') }}</p><h1>{{ t('ui.0028') }}</h1>
+<p class="lede">{{ t('ui.0195') }}</p>
+<section class="certificate-addresses"><h2>{{ t('ui.0674') }}</h2><p>{{ t('ui.0675') }}</p>
+{% if hub_addresses %}<ul>{% for item in hub_addresses %}<li><span>{{ t('ui.0677') if item.kind == 'lan' else t('ui.0678') }} · {{ item.device }}</span><a href="http://{{ item.address }}/"><code>{{ item.address }}</code></a></li>{% endfor %}</ul>
+{% else %}<p class="subtle">{{ t('ui.0676') }}</p>{% endif %}
+</section>
+<div class="certificate-steps">
+<section class="certificate-step"><h2>{{ t('ui.0196') }}</h2>
+<p>{{ t('ui.0197') }} <strong>Cyberdeck Local Library CA</strong>{{ t("ui.0198") }}</p>
+{% if fingerprint %}
+<p><a class="button primary" href="/trust/ca.cer">{{ t('ui.0199') }}</a></p>
+<details><summary>{{ t('ui.0200') }}</summary><p class="hostname-address"><code>{{ fingerprint }}</code></p></details>
+<p>{{ t('ui.0201') }}</p>
+{% else %}
+<p class="error">{{ t("ui.0202") }}</p>
+{% endif %}
+</section>
+<section class="certificate-step"><h2>{{ t('ui.0203') }}</h2>
+<details><summary>{{ t('ui.0204') }}</summary>
+<ol><li>{{ t('ui.0205') }}</li><li>{{ t('ui.0206') }}</li><li>{{ t('ui.0207') }}</li><li>{{ t('ui.0208') }}</li></ol>
+<p>{{ t('ui.0209') }}</p></details>
+<details><summary>{{ t('ui.0210') }}</summary>
+<ol><li>{{ t('ui.0211') }}</li><li>{{ t('ui.0212') }}</li><li>{{ t('ui.0213') }}</li><li>{{ t('ui.0214') }}</li></ol></details>
+<details><summary>{{ t('ui.0215') }}</summary><p>{{ t("ui.0216") }}</p></details>
+</section>
+<section class="certificate-step"><h2>{{ t('ui.0217') }}</h2>
+<p class="hostname-address"><a class="button" href="https://{{ cyberdeck_host }}/">{{ t('ui.0218') }} https://{{ cyberdeck_host }}/</a></p>
+</section>
+<section class="certificate-step"><h2>{{ t('ui.0219') }}</h2>
+<p>{{ t("ui.0220") }} <code>http://SERVER-IP/trust/ca.cer</code> {{ t('ui.0221') }}</p>
+<p>{{ t('ui.0222') }}</p>
+</section>
+<section class="certificate-step"><h2>{{ t('ui.0670') }}</h2><p>{{ t('ui.0671') }}</p></section>
+<p class="certificate-note">{{ t('ui.0672') }}</p>
+</div>
+<h2>{{ t('ui.0223') }}</h2>
+<p>{{ t('ui.0224') }}</p>
+<p>{{ t('ui.0225') }}</p>
+<p class="subtle">{{ t('ui.0226') }} <a href="https://support.apple.com/en-us/102390">{{ t('ui.0227') }}</a>, <a href="https://learn.microsoft.com/en-us/windows-hardware/drivers/install/trusted-root-certification-authorities-certificate-store">{{ t('ui.0228') }}</a>, <a href="https://support.mozilla.org/en-US/kb/automatically-trust-third-party-certificates">{{ t('ui.0229') }}</a>.</p>
+</section>
+{% endblock %}

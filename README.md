@@ -1,0 +1,79 @@
+# Cyberdeck Hub
+
+Cyberdeck Hub is a local-first library for keeping reference material available
+on a household network when the internet is unavailable. It provides subject
+groups for documents and offline Kiwix libraries, and an administrator area for
+managing content.
+
+## Candidate installation
+
+The candidate installer is intended for an existing Debian 13 amd64 or arm64
+system. It does not install Debian or repartition disks. The v0.2.0 source and
+package checks are complete, but no v0.2.0 physical-target acceptance is
+recorded yet; follow the runbook before relying on the candidate. An arm64
+installer is not evidence of support for a particular Raspberry Pi model.
+Pi support needs separate installation, performance, offline-use, update, and
+recovery checks.
+
+Build a source kit on a connected computer:
+
+```sh
+python3 scripts/debian/build-kit.py --output /path/to/cyberdeck-hub-debian-kit.tar.gz
+```
+
+Transfer and extract the kit on the Debian computer. Review the
+[installation and acceptance runbook](docs/runbooks/debian-install.md), then
+run the installer in preview mode before applying it:
+
+```sh
+bash scripts/debian/install.sh --hostname cyberdeck
+sudo bash scripts/debian/install.sh --apply --hostname cyberdeck
+```
+
+The first browser visit creates the administrator account. The generic starter
+configuration is at `config/debian/starter.json`. Three optional, subject-only
+starter profiles are included for Danish crisis preparedness, generic off-grid
+preparedness, and a family off-grid library. They do not bundle guidance or
+household data. See the [starter profile guide](docs/content/starter-profiles.md).
+
+The current online crisis-links group is curated for a Danish household and
+contains external services only. It is hidden when the Hub cannot reach the
+internet. See the [online links source note](docs/content/online-crisis-links.md).
+
+## Optional components
+
+CyberChef is a pinned optional module. An online full Debian install stages it
+and leaves its service disabled; Admin can start or stop it later. Use
+`--skip-cyberchef` or `--offline` to omit it. The module consumes no service
+resources while stopped, but its static files use disk space and staging needs
+internet access.
+
+The Docker files are an experimental preview. They are not a supported
+deployment until persistence, backups, updates, restart recovery, and optional
+services pass acceptance on a disposable Docker host.
+
+## Development and scope
+
+The parent `cyberdeck` project covers hardware experiments, offline solutions,
+research, and target evidence. This repository contains the Hub product and its
+supported installation path. Keep payloads, household documents, credentials,
+and device-specific private details outside this repository.
+
+From the repository root, run the workstation checks with Python 3, Flask,
+Node.js, and Bash available:
+
+```sh
+python -m unittest discover -s tests
+python -m unittest discover -s scripts/debian -p 'test_*.py'
+node tests/test_accent.js
+node tests/test_i18n.js
+node tests/test_online_crisis_links.js
+bash -n scripts/debian/install.sh
+```
+
+These checks use temporary data and mocks; they do not install packages or
+change a host. Hardware, Debian installation, disconnected startup,
+second-client, and backup/restore acceptance must be recorded separately from
+source and package checks. The reviewed manual content update workflow is
+documented in the [content refresh runbook](docs/runbooks/content-refresh.md).
+The local v0.2.0 candidate scope and remaining release gates are in the [candidate note](docs/releases/v0-2-0-candidate.md).

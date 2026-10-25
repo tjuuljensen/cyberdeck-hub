@@ -1,0 +1,18 @@
+{
+	admin off
+}
+
+{$CYBERDECK_HOSTNAME:cyberdeck.local} {
+	tls internal
+	reverse_proxy hub:8081
+}
+
+http://{$CYBERDECK_HOSTNAME:cyberdeck.local} {
+	handle /help/certificate {
+		reverse_proxy hub:8081
+	}
+	handle /trust/* {
+		reverse_proxy hub:8081
+	}
+	redir https://{$CYBERDECK_HOSTNAME:cyberdeck.local}{uri} 308
+}

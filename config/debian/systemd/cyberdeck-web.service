@@ -1,0 +1,31 @@
+[Unit]
+Description=Cyberdeck Hub secure offline library
+After=network.target cyberdeck-storage-boot-recovery.service
+Requires=cyberdeck-storage-boot-recovery.service
+RequiresMountsFor=@CYBERDECK_ROOT@
+
+[Service]
+User=cyberdeck
+Group=cyberdeck
+SupplementaryGroups=cyberdeck-tls
+EnvironmentFile=/etc/cyberdeck/environment
+WorkingDirectory=/usr/local/lib/cyberdeck/app
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ExecStart=/usr/bin/gunicorn --workers 2 --worker-class gthread --threads 4 --bind 0.0.0.0:443 --certfile /etc/cyberdeck/tls/server.crt --keyfile /etc/cyberdeck/tls/server.key webapp:app
+Restart=on-failure
+RestartSec=5
+# sudo is limited by /etc/sudoers.d/cyberdeck-web to exact helper and systemctl actions.
+# Keep privilege escalation available for those allowlisted host controls.
+ProtectSystem=strict
+ProtectHome=tmpfs
+BindPaths=@CYBERDECK_ROOT@
+@CYBERDECK_HOME_PROBE_BIND@
+PrivateTmp=true
+RuntimeDirectory=cyberdeck-web
+RuntimeDirectoryMode=0700
+ReadWritePaths=/etc/cyberdeck /run/cyberdeck-storage /run/cyberdeck-web
+ReadWritePaths=-/etc/NetworkManager/system-connections -/etc/NetworkManager/dnsmasq-shared.d
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

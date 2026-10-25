@@ -1,0 +1,58 @@
+{
+  "format": "cyberdeck-config",
+  "version": 1,
+  "name": "Generic off-grid preparedness",
+  "reserve_bytes": 1000000000,
+  "assets": [],
+  "offline_catalogues": [],
+  "subjects": [
+    {
+      "id": "preparedness",
+      "title": "Preparedness",
+      "description": "General plans and references for outages and disruptions.",
+      "display_order": 10
+    },
+    {
+      "id": "water-and-sanitation",
+      "title": "Water and sanitation",
+      "description": "Water storage, treatment, hygiene, and sanitation references.",
+      "display_order": 20
+    },
+    {
+      "id": "food-and-cooking",
+      "title": "Food and cooking",
+      "description": "Food storage, preparation, and safe cooking references.",
+      "display_order": 30
+    },
+    {
+      "id": "power-and-lighting",
+      "title": "Power and lighting",
+      "description": "Power, batteries, lighting, and energy equipment references.",
+      "display_order": 40
+    },
+    {
+      "id": "communications",
+      "title": "Communications",
+      "description": "Radio, local communications, and contact plans.",
+      "display_order": 50
+    },
+    {
+      "id": "navigation-and-maps",
+      "title": "Navigation and maps",
+      "description": "Maps, navigation, and route-planning references.",
+      "display_order": 60
+    },
+    {
+      "id": "equipment-and-repair",
+      "title": "Equipment and repair",
+      "description": "Manufacturer manuals, maintenance, and ordinary repairs.",
+      "display_order": 70
+    },
+    {
+      "id": "health-and-first-aid",
+      "title": "Health and first aid",
+      "description": "First-aid and health references from appropriate publishers.",
+      "display_order": 80
+    }
+  ]
+}

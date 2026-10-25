@@ -1,0 +1,18 @@
+[Unit]
+Description=Check Cyberdeck storage migration recovery before library services
+After=local-fs.target
+Before=cyberdeck-web.service cyberdeck-kiwix.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/lib/cyberdeck/storage-helper.py recover-check
+TimeoutStartSec=120
+# Recovery edits host fstab and mount state; keep the host mount namespace.
+ProtectSystem=off
+ProtectHome=false
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+# Repository text defaults; add narrow exceptions only for actual consumers.
+* text=auto eol=lf
+*.md text eol=lf
+*.ps1 text eol=lf
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.pdf binary

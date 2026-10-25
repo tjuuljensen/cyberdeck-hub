@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "description": "Empty runtime acquisition manifest; import a library profile through the Hub admin interface.",
+  "assets": []
+}

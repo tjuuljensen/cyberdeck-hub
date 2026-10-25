@@ -1,0 +1,52 @@
+{
+  "format": "cyberdeck-config",
+  "version": 1,
+  "name": "Lokalt kriseberedskab i Danmark",
+  "reserve_bytes": 1000000000,
+  "assets": [],
+  "offline_catalogues": [],
+  "subjects": [
+    {
+      "id": "myndighedsinformation",
+      "title": "Myndighedsinformation",
+      "description": "Officielle danske råd, kontaktveje og lokale beredskabsoplysninger.",
+      "display_order": 10
+    },
+    {
+      "id": "varsling-og-kommunikation",
+      "title": "Varsling og kommunikation",
+      "description": "Varslingskanaler, radio, telefoni og aftaler for husstanden.",
+      "display_order": 20
+    },
+    {
+      "id": "vand-og-sanitet",
+      "title": "Vand og sanitet",
+      "description": "Vandforsyning, hygiejne og sanitet ved afbrydelser.",
+      "display_order": 30
+    },
+    {
+      "id": "mad-og-opbevaring",
+      "title": "Mad og opbevaring",
+      "description": "Madlavning, opbevaring og husstandens egne beholdninger.",
+      "display_order": 40
+    },
+    {
+      "id": "sundhed-og-foerstehjaelp",
+      "title": "Sundhed og førstehjælp",
+      "description": "Førstehjælp, medicinske oplysninger og lokale sundhedskontakter.",
+      "display_order": 50
+    },
+    {
+      "id": "kort-og-transport",
+      "title": "Kort og transport",
+      "description": "Lokale kort, ruter, trafik og transportmuligheder.",
+      "display_order": 60
+    },
+    {
+      "id": "udstyr-og-energi",
+      "title": "Udstyr og energi",
+      "description": "Manualer og planer for lys, varme, strøm og almindeligt udstyr.",
+      "display_order": 70
+    }
+  ]
+}

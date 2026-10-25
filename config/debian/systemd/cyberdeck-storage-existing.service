@@ -1,0 +1,14 @@
+[Unit]
+Description=Mount an adopted Cyberdeck filesystem without formatting
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/lib/cyberdeck/storage-helper.py use-existing-worker
+TimeoutStartSec=infinity
+# Mount operations must remain visible in the host namespace.
+ProtectSystem=off
+ProtectHome=false
+NoNewPrivileges=false

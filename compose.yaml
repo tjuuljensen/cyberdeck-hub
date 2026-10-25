@@ -1,0 +1,40 @@
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      CYBERDECK_RUNTIME_MODE: container
+      CYBERDECK_ROOT: /srv/cyberdeck
+      CYBERDECK_PRIVATE: /srv/cyberdeck/private
+      CYBERDECK_STARTER_MANIFEST: /opt/cyberdeck/starter.json
+      CYBERDECK_HOSTNAME: ${CYBERDECK_HOSTNAME:-cyberdeck.local}
+      CYBERDECK_CA_CERT_FILE: /var/lib/caddy/pki/authorities/local/root.crt
+      CYBERDECK_SESSION_KEY_FILE: /srv/cyberdeck/private/session.key
+    volumes:
+      - cyberdeck-data:/srv/cyberdeck
+      - caddy-data:/var/lib/caddy:ro
+    restart: unless-stopped
+    expose:
+      - "8081"
+
+  gateway:
+    image: caddy:2
+    environment:
+      CYBERDECK_HOSTNAME: ${CYBERDECK_HOSTNAME:-cyberdeck.local}
+      XDG_DATA_HOME: /var/lib
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/var/lib/caddy
+      - caddy-config:/config
+    depends_on:
+      - hub
+    restart: unless-stopped
+
+volumes:
+  cyberdeck-data:
+  caddy-data:
+  caddy-config:

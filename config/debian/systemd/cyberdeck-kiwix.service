@@ -1,0 +1,22 @@
+[Unit]
+Description=Cyberdeck Kiwix library
+After=network.target cyberdeck-storage-boot-recovery.service
+Requires=cyberdeck-storage-boot-recovery.service
+RequiresMountsFor=@CYBERDECK_ROOT@
+ConditionPathExistsGlob=@CYBERDECK_ROOT@/zim/*.zim
+
+[Service]
+User=cyberdeck
+Group=cyberdeck
+EnvironmentFile=/etc/cyberdeck/environment
+ExecStart=/usr/local/lib/cyberdeck/serve-kiwix.sh
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=tmpfs
+BindReadOnlyPaths=@CYBERDECK_ROOT@
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

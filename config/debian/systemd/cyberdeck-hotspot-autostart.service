@@ -1,0 +1,10 @@
+[Unit]
+Description=Start Cyberdeck Wi-Fi hotspot only when all configured upstreams are unavailable
+After=NetworkManager.service
+ConditionPathExists=/usr/bin/nmcli
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/bin/systemctl is-active --quiet NetworkManager.service
+ExecStart=/usr/local/lib/cyberdeck/admin-helper.py hotspot-autostart
+NoNewPrivileges=true

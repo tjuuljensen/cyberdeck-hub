@@ -1,0 +1,11 @@
+[Unit]
+Description=Check configured upstream availability for the Cyberdeck hotspot
+After=NetworkManager.service
+
+[Timer]
+OnActiveSec=15s
+OnUnitActiveSec=30s
+Unit=cyberdeck-hotspot-autostart.service
+
+[Install]
+WantedBy=timers.target

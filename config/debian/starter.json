@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "Cyberdeck Hub Starter",
+  "reserve_bytes": 1000000000,
+  "assets": [
+    {
+      "path": "public/library-startup.html",
+      "source_file": "assets/hub/library-startup.html",
+      "title": "Library startup and recovery",
+      "description": "General operating guidance. Follow the runbook for your installation.",
+      "collection": "general-reference",
+      "max_bytes": 100000,
+      "expected_bytes": 912,
+      "sha256": "e7e99d8238bb522abfdb177814930f6f577d82c0c7d07d9d9f7213eaa84b84f7"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+{% extends 'base.html' %}{% block title %}{{ t('ui.0058') }} · Cyberdeck{% endblock %}
+{% block content %}<section class="login-wrap"><p class="eyebrow">{{ t('ui.0059') }}</p><h1>{{ t('ui.0060') }}</h1><p class="lede">{{ t('ui.0061') }}</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}<form class="form-card" method="post"><input type="hidden" name="csrf_token" value="{{ session.csrf }}"><label>{{ t('ui.0062') }}<input name="username" required autocomplete="username" maxlength="128"></label><label>{{ t('ui.0067') }}<input type="password" name="password" required autocomplete="current-password"></label><button class="button primary" type="submit">{{ t('ui.0068') }}</button></form></section>{% endblock %}

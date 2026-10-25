@@ -1,0 +1,58 @@
+{
+  "format": "cyberdeck-config",
+  "version": 1,
+  "name": "The family off-grid pack",
+  "reserve_bytes": 1000000000,
+  "assets": [],
+  "offline_catalogues": [],
+  "subjects": [
+    {
+      "id": "family-plan",
+      "title": "Family plan",
+      "description": "Household roles, meeting arrangements, and practical plans.",
+      "display_order": 10
+    },
+    {
+      "id": "contacts-and-communication",
+      "title": "Contacts and communication",
+      "description": "Contact methods and locally completed family communication plans.",
+      "display_order": 20
+    },
+    {
+      "id": "food-and-water",
+      "title": "Food and water",
+      "description": "Household food, drinking water, and safe preparation references.",
+      "display_order": 30
+    },
+    {
+      "id": "health-and-care",
+      "title": "Health and care",
+      "description": "First aid, care needs, and equipment instructions.",
+      "display_order": 40
+    },
+    {
+      "id": "home-safety-and-utilities",
+      "title": "Home safety and utilities",
+      "description": "Home safety, utility shutoffs, heating, and lighting references.",
+      "display_order": 50
+    },
+    {
+      "id": "documents-and-insurance",
+      "title": "Documents and insurance",
+      "description": "A place for locally selected records and insurer contact guidance.",
+      "display_order": 60
+    },
+    {
+      "id": "evacuation-and-meeting-points",
+      "title": "Evacuation and meeting points",
+      "description": "Local routes, meeting places, and transport references.",
+      "display_order": 70
+    },
+    {
+      "id": "equipment-manuals",
+      "title": "Equipment manuals",
+      "description": "Manuals for the household's actual equipment.",
+      "display_order": 80
+    }
+  ]
+}

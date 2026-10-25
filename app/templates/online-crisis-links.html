@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block title %}{{ t('ui.0751') }} · Cyberdeck Hub{% endblock %}
+{% block content %}<a class="back" href="/">← {{ t('ui.0044') }}</a>
+<div id="online-crisis-content" hidden>
+<section class="subject-hero"><p class="eyebrow">{{ t('ui.0750') }}</p><h1>{{ t('ui.0751') }}</h1><p class="lede">{{ t('ui.0752') }}</p></section>
+<section class="subject-items"><div class="item-list">{% for link in links %}<a class="public-item" href="{{ link.url }}" target="_blank" rel="noopener noreferrer"><span><b>{{ link.title }}</b><small>{{ t(link.description) }}</small></span><i>{{ t('ui.0754') }}</i></a>{% endfor %}</div></section>
+<section id="police-rss" class="panel rss-reader"><p class="eyebrow">{{ t('ui.0760') }}</p><h2>{{ t('ui.0761') }}</h2><p>{{ t('ui.0762') }}</p>
+<div class="rss-controls"><label for="police-rss-feed">{{ t('ui.0763') }}<select id="police-rss-feed">{% for feed in rss_feeds %}<option value="{{ feed.id }}">{{ feed.label }}</option>{% endfor %}</select></label><button id="police-rss-load" class="button primary" type="button">{{ t('ui.0764') }}</button></div>
+<p id="police-rss-status" class="subtle" role="status" aria-live="polite"></p><div id="police-rss-items" class="rss-items"></div>
+</section>
+<p class="subtle">{{ t('ui.0755') }}</p></div>
+<script src="{{ url_for('static', filename='online-crisis-links.js', v=app_version) }}" defer></script>{% endblock %}

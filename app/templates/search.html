@@ -1,0 +1,7 @@
+{% extends 'base.html' %}{% block title %}{{ t('ui.0683') }} · Cyberdeck Hub{% endblock %}
+{% block content %}<a class="back" href="/">← {{ t('ui.0044') }}</a>
+<section class="subject-hero"><p class="eyebrow">{{ t('ui.0683') }}</p><h1>{{ t('ui.0680') }}</h1>
+<form action="/search" method="get" class="search-results-form"><label for="search-query">{{ t('ui.0680') }}</label><div class="library-search-controls"><input id="search-query" name="q" type="search" minlength="2" maxlength="120" value="{{ query }}" required><button class="button primary" type="submit">{{ t('ui.0682') }}</button></div></form>
+{% if needs_query %}<p class="lede">{{ t('ui.0687') }}</p>{% elif results %}<p class="lede">{{ t('ui.0688', count=results|length) }}</p>{% else %}<p class="lede">{{ t('ui.0684') }}</p>{% endif %}</section>
+{% if results %}<section class="search-results" aria-label="{{ t('ui.0683') }}"><div class="item-list">{% for result in results %}<a class="public-item" href="{{ result.url }}"{% if result.filename and result.filename.lower().endswith('.pdf') and site_preferences.pdf_open_mode == 'new_tab' %} target="_blank" rel="noopener"{% endif %}><span><b>{{ result.title }}</b><small>{{ result.subject_title }}{% if result.filename %} · {{ result.filename }}{% endif %}</small>{% if result.description %}<small>{{ result.description }}</small>{% endif %}</span><i>{{ t('ui.0685') }}</i></a>{% endfor %}</div></section>{% endif %}
+{% endblock %}

@@ -1,0 +1,2982 @@
+{
+  "ui.0001": {
+    "default": "Library",
+    "context": "User interface text used in base.html. Preserve placeholders and product names."
+  },
+  "ui.0002": {
+    "default": "Browse ZIMs",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0003": {
+    "default": "Explore services",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0004": {
+    "default": "AVAILABLE SERVICES",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0005": {
+    "default": "SERVICE",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0006": {
+    "default": "Kiwix",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0007": {
+    "default": "Browse your offline ZIM libraries.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0008": {
+    "default": "Preparing offline libraries.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0009": {
+    "default": "ZIM libraries ready",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0010": {
+    "default": "downloads in progress",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0011": {
+    "default": "Preparing library",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0012": {
+    "default": "ZIM libraries",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0013": {
+    "default": "Open service",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0014": {
+    "default": "Analyze and transform data in your browser.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0015": {
+    "default": "CyberChef",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0016": {
+    "default": "Admin",
+    "context": "User interface text used in base.html. Preserve placeholders and product names."
+  },
+  "ui.0017": {
+    "default": "Sign out",
+    "context": "User interface text used in base.html. Preserve placeholders and product names."
+  },
+  "ui.0018": {
+    "default": "Admin login",
+    "context": "User interface text used in base.html. Preserve placeholders and product names."
+  },
+  "ui.0019": {
+    "default": "An administrator has already been created. Sign in instead.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0020": {
+    "default": "Choose a password with at least 14 characters.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0021": {
+    "default": "Confirm password",
+    "context": "User interface text used in first_admin_setup.html. Preserve placeholders and product names."
+  },
+  "ui.0022": {
+    "default": "Create administrator",
+    "context": "User interface text used in first_admin_setup.html. Preserve placeholders and product names."
+  },
+  "ui.0023": {
+    "default": "Create the first administrator",
+    "context": "User interface text used in first_admin_setup.html. Preserve placeholders and product names."
+  },
+  "ui.0024": {
+    "default": "FIRST RUN",
+    "context": "User interface text used in first_admin_setup.html. Preserve placeholders and product names."
+  },
+  "ui.0025": {
+    "default": "Language",
+    "context": "User interface text used in base.html, html-viewer.html. Preserve placeholders and product names."
+  },
+  "ui.0026": {
+    "default": "Set language",
+    "context": "User interface text used in html-viewer.html. Preserve placeholders and product names."
+  },
+  "ui.0027": {
+    "default": "Local reference library",
+    "context": "User interface text used in base.html. Preserve placeholders and product names."
+  },
+  "ui.0028": {
+    "default": "Certificate & connection help",
+    "context": "User interface text used in base.html, certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0029": {
+    "default": "THE COLLECTION",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0030": {
+    "default": "Explore by subject",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0031": {
+    "default": "Available on this local network",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0032": {
+    "default": "item",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0033": {
+    "default": "items",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0034": {
+    "default": "Explore collection",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0035": {
+    "default": "Knowledge for",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0036": {
+    "default": "when you need it.",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0037": {
+    "default": "Browse local reference material by subject. Open ZIM libraries in Kiwix; administrators can add libraries and upload personal documents for everyone to read.",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0038": {
+    "default": "Open the Kiwix library",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0039": {
+    "default": "Online Kiwix catalogue",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0040": {
+    "default": "YOUR LIBRARY",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0041": {
+    "default": "Keep useful knowledge close.",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0042": {
+    "default": "Personal documents are readable on the local network. Only an administrator can upload, edit, or remove them.",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0043": {
+    "default": "Administrator access",
+    "context": "User interface text used in index.html. Preserve placeholders and product names."
+  },
+  "ui.0044": {
+    "default": "All subjects",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0045": {
+    "default": "SUBJECT COLLECTION",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0046": {
+    "default": "AVAILABLE ON KIWIX",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0047": {
+    "default": "Offline libraries",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0048": {
+    "default": "Open full Kiwix library",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0049": {
+    "default": "Kiwix library · Opens directly in Kiwix",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0050": {
+    "default": "Open in Kiwix →",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0051": {
+    "default": "AVAILABLE HERE",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0052": {
+    "default": "Read →",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0053": {
+    "default": "Open →",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0054": {
+    "default": "NOTHING ADDED YET",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0055": {
+    "default": "This subject is ready for material",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0056": {
+    "default": "An administrator can add a Kiwix library or upload personal documents for everyone on this local network.",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0057": {
+    "default": "Administrator sign-in",
+    "context": "User interface text used in subject.html. Preserve placeholders and product names."
+  },
+  "ui.0058": {
+    "default": "Admin sign in",
+    "context": "User interface text used in login.html. Preserve placeholders and product names."
+  },
+  "ui.0059": {
+    "default": "RESTRICTED AREA",
+    "context": "User interface text used in login.html. Preserve placeholders and product names."
+  },
+  "ui.0060": {
+    "default": "Administrator sign in",
+    "context": "User interface text used in login.html. Preserve placeholders and product names."
+  },
+  "ui.0061": {
+    "default": "Public reference pages remain open to the local network. Management tools and personal files require an account.",
+    "context": "User interface text used in login.html. Preserve placeholders and product names."
+  },
+  "ui.0062": {
+    "default": "Username",
+    "context": "User interface text used in first_admin_setup.html, login.html. Preserve placeholders and product names."
+  },
+  "ui.0063": {
+    "default": "Password (at least 14 characters)",
+    "context": "User interface text used in first_admin_setup.html. Preserve placeholders and product names."
+  },
+  "ui.0064": {
+    "default": "Set up an administrator account to finish configuring this Cyberdeck Hub. This account manages the library and site settings.",
+    "context": "User interface text used in first_admin_setup.html. Preserve placeholders and product names."
+  },
+  "ui.0065": {
+    "default": "The passwords do not match.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0066": {
+    "default": "Use a username of 1 to 64 letters, numbers, dots, hyphens, or underscores.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0067": {
+    "default": "Password",
+    "context": "User interface text used in login.html. Preserve placeholders and product names."
+  },
+  "ui.0068": {
+    "default": "Sign in",
+    "context": "User interface text used in login.html. Preserve placeholders and product names."
+  },
+  "ui.0069": {
+    "default": "Loading current content...",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0070": {
+    "default": "Content to export",
+    "context": "User interface text used in admin.html, admin.js. Preserve placeholders and product names."
+  },
+  "ui.0071": {
+    "default": "My Offline Library",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0072": {
+    "default": "Maps, first aid, science…",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0073": {
+    "default": "Water safety",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0074": {
+    "default": "Safe drinking water, hygiene, and treatment.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0075": {
+    "default": "Home Wi-Fi",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0076": {
+    "default": "Online sources selected by default. Choose any local catalogues to include.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0077": {
+    "default": "No content is available to export.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0078": {
+    "default": "Library management",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0079": {
+    "default": "ADMIN CONSOLE",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0080": {
+    "default": "Signed in as {username}. Changes apply to this Cyberdeck Hub installation.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0081": {
+    "default": "Site",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0082": {
+    "default": "Subjects",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0083": {
+    "default": "ZIM archives",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0084": {
+    "default": "Documents",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0085": {
+    "default": "Edit",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0086": {
+    "default": "Hotspot",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0087": {
+    "default": "Export and import",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0088": {
+    "default": "System",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0089": {
+    "default": "Power",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0090": {
+    "default": "DISPLAY",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0091": {
+    "default": "Site preferences",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0092": {
+    "default": "These choices apply to everyone browsing the library.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0093": {
+    "default": "PDF and Kiwix links",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0094": {
+    "default": "Open in the same tab",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0095": {
+    "default": "Open in a new tab",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0096": {
+    "default": "This setting applies to PDF documents and all links that open Kiwix.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0097": {
+    "default": "Site accent color",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0098": {
+    "default": "Reset to default green",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0099": {
+    "default": "Choose a color; it saves for all visitors when you finish selecting it.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0100": {
+    "default": "Subject cards per row",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0101": {
+    "default": "3 columns",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0102": {
+    "default": "4 columns",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0103": {
+    "default": "5 columns",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0104": {
+    "default": "Library subtitle",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0105": {
+    "default": "Hide categories with no available items",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0106": {
+    "default": "Choose categories below that should remain visible even when empty.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0107": {
+    "default": "Always show these categories",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0108": {
+    "default": "Save preferences",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0109": {
+    "default": "COLLECTION STRUCTURE",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0110": {
+    "default": "Add categories to organize the public library. A subject can only be removed when no reference files, ZIMs, or uploaded documents are assigned to it.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0111": {
+    "default": "Subject ID",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0112": {
+    "default": "Display name",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0113": {
+    "default": "Add subject",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0114": {
+    "default": "CONTENT MANAGEMENT",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0115": {
+    "default": "Search the Kiwix catalog below or expand Add ZIM to enter a direct Kiwix download URL. Downloads are verified by the library manager.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0116": {
+    "default": "Add ZIM",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0117": {
+    "default": "Title",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0118": {
+    "default": "Direct HTTPS ZIM URL",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0119": {
+    "default": "KIWIX CATALOG",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0120": {
+    "default": "Find another offline library",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0121": {
+    "default": "Search the official Kiwix catalog. Review a result, choose its subject, and set a display title before downloading.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0122": {
+    "default": "Search by title or topic",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0123": {
+    "default": "Search catalog",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0124": {
+    "default": "Search titles and descriptions, for example maps, first aid, or science.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0125": {
+    "default": "SHARED REFERENCE FILES",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0126": {
+    "default": "Manage your documents in one place. Everyone on the local network can read them; only administrators can add, edit, or remove them.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0127": {
+    "default": "Add documents",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0128": {
+    "default": "Cover image",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0129": {
+    "default": "Upload attachments",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0130": {
+    "default": "Or download one attachment from a public HTTPS URL",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0131": {
+    "default": "Accepted files: PDF, DOCX, or ZIP containing HTML. You may upload files, provide a URL, or do both.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0132": {
+    "default": "Refresh documents",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0133": {
+    "default": "NETWORK ACCESS",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0134": {
+    "default": "Wi-Fi hotspot",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0135": {
+    "default": "Checking NetworkManager…",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0136": {
+    "default": "Wi-Fi adapter",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0137": {
+    "default": "Checking available adapters…",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0138": {
+    "default": "Network name (SSID)",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0139": {
+    "default": "Saved hotspot password",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0140": {
+    "default": "Configured upstream Wi-Fi SSIDs (one per line)",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0141": {
+    "default": "Hotspot allowed redundancy time (minutes)",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0142": {
+    "default": "Auto-start only when no wired link or configured Wi-Fi upstream is available",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0143": {
+    "default": "Save hotspot settings",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0144": {
+    "default": "Set a password, or reveal the saved one",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0145": {
+    "default": "Start hotspot",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0146": {
+    "default": "Stop hotspot",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0147": {
+    "default": "PORTABLE COLLECTIONS",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0148": {
+    "default": "Export configuration",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0149": {
+    "default": "Name a collection and choose its content. Files added by URL are exported as download links in one JSON file. Uploaded files and local repository files have separate ZIP downloads with metadata; URL-added files are not duplicated in those ZIPs.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0150": {
+    "default": "Export name",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0151": {
+    "default": "Include saved display preferences",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0152": {
+    "default": "Subject definitions are included. Accounts, passwords, network settings, and logs are excluded. Uploaded documents (including older URL imports with no retained source URL) are exported as local files. HTML ZIPs retain their original archive.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0153": {
+    "default": "Refresh content",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0154": {
+    "default": "Select all",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0155": {
+    "default": "Clear selection",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0156": {
+    "default": "Loading content...",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0157": {
+    "default": "Prepare downloads",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0158": {
+    "default": "Online sources require downloading before going air gapped; their payloads are not in these ZIPs. Each local entry gets a human-readable catalogue name. After preparing downloads, choose separate files or one ZIP bundle with the JSON and local catalogues. Building the combined ZIP needs temporary space for a second copy of the selected local content. Download links expire after one hour.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0159": {
+    "default": "Import configuration",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0160": {
+    "default": "Use an installed profile",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0161": {
+    "default": "Loading profiles...",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0162": {
+    "default": "Choose a profile",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0163": {
+    "default": "Configuration profile is unavailable",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0164": {
+    "default": "Choose either an installed profile or an uploaded JSON configuration.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0165": {
+    "default": "Select a profile or configuration/catalogue file.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0166": {
+    "default": "Preview a versioned configuration or acquisition-profile JSON, its local catalogue ZIPs, or one combined ZIP. Preview checks file hashes, paths, subject mappings, conflicts, and storage. Online source links are saved as configuration only; this step does not download them.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0167": {
+    "default": "Configuration and catalogue files",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0168": {
+    "default": "Apply saved site preferences from this configuration",
+    "context": "User interface text used in admin.html, admin.js. Preserve placeholders and product names."
+  },
+  "ui.0169": {
+    "default": "Preview import",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0170": {
+    "default": "SERVER STATUS",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0171": {
+    "default": "System overview",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0172": {
+    "default": "Host details, network connections, and local storage capacity.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0173": {
+    "default": "Library address",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0174": {
+    "default": "Server name",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0175": {
+    "default": "Changing the name briefly interrupts the library. If the hotspot is running, connected devices will need to reconnect. Finish exports and pause downloads first. Your trusted certificate authority stays the same. You will need to sign in again and update bookmarks. The Wi-Fi network name stays unchanged.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0176": {
+    "default": "Change server name",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0177": {
+    "default": "Loading the current address...",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0178": {
+    "default": "Network",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0179": {
+    "default": "Loading hotspot information...",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0180": {
+    "default": "Loading network interfaces...",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0181": {
+    "default": "Updates every 30 seconds. Connected interfaces do not necessarily have internet access.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0182": {
+    "default": "Loading system information…",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0183": {
+    "default": "POWER CONTROLS",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0184": {
+    "default": "Server power",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0185": {
+    "default": "These actions affect the whole server and interrupt anyone using the library.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0186": {
+    "default": "Reboot server",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0187": {
+    "default": "Shut down server",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0188": {
+    "default": "ZIM LIBRARY",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0189": {
+    "default": "Add library",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0190": {
+    "default": "Display title",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0191": {
+    "default": "Cancel",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0192": {
+    "default": "Start download",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0193": {
+    "default": "Back to the library",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0194": {
+    "default": "CONNECT YOUR DEVICE",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0195": {
+    "default": "Set up trusted access to this offline library on each device you use. No Internet connection or administrator login is needed to download the certificate.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0196": {
+    "default": "1. Download the library certificate",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0197": {
+    "default": "This is the public certificate for",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0198": {
+    "default": ", the authority that signs this server's HTTPS certificate.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0199": {
+    "default": "Download certificate (.cer)",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0200": {
+    "default": "Certificate fingerprint (SHA-256)",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0201": {
+    "default": "Before trusting it, ask the library owner to confirm this fingerprint from the server or a device they already trust. A matching value on this page alone does not verify an untrusted connection.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0202": {
+    "default": "The library certificate is unavailable. Ask the library owner to check the server's certificate setup.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0203": {
+    "default": "2. Trust it on your device",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0204": {
+    "default": "iPhone or iPad",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0205": {
+    "default": "Download the certificate in Safari and allow the profile download.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0206": {
+    "default": "Open Settings > General > VPN & Device Management and install the downloaded certificate profile.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0207": {
+    "default": "Open Settings > General > About > Certificate Trust Settings. Enable full trust for Cyberdeck Local Library CA.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0208": {
+    "default": "Return to your browser and reopen the library.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0209": {
+    "default": "Installing the profile alone does not enable HTTPS trust. The full-trust step also matters when using Firefox on iPhone.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0210": {
+    "default": "Windows",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0211": {
+    "default": "Open the downloaded .cer file and choose Install Certificate.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0212": {
+    "default": "Choose Current User, then Place all certificates in the following store.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0213": {
+    "default": "Choose Trusted Root Certification Authorities and finish the import after checking the certificate.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0214": {
+    "default": "Reopen the library. If Firefox still rejects it, check its certificate settings for trust in installed third-party roots.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0215": {
+    "default": "Other devices and managed browsers",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0216": {
+    "default": "Use your device or browser's certificate settings to import the verified file as a trusted certificate authority (CA). The names and available controls vary. On a managed device, ask its administrator if certificate installation is restricted.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0217": {
+    "default": "3. Open the library",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0218": {
+    "default": "Open",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0219": {
+    "default": "If HTTPS will not open yet",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0220": {
+    "default": "On your normal network, ask the library owner for the server's current IP address. Open",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0221": {
+    "default": "in your browser, replacing SERVER-IP with that address. If your browser upgrades this page to HTTPS before the certificate is trusted, use the IP address instead of the server name.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0222": {
+    "default": "This HTTP download works before certificate trust is set up. Confirm its fingerprint with the owner before installing it, then return to the HTTPS address above. If your browser forces HTTPS, the owner can transfer the public certificate by USB or another trusted device.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0223": {
+    "default": "After a server name change",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0224": {
+    "default": "Use the new library address and update bookmarks. Renaming keeps the same CA, so a device that already fully trusts it should not need a new root certificate. Check device date and time and the exact address if a warning remains; ask the owner to inspect the server certificate if it still fails.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0225": {
+    "default": "If subject pages work but admin lists are blank, check whether NoScript or another script blocker needs permission for the new library address.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0226": {
+    "default": "These instructions are available offline. Online references:",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0227": {
+    "default": "Apple certificate trust",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0228": {
+    "default": "Windows certificate store",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0229": {
+    "default": "Firefox certificate trust",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0230": {
+    "default": "Personal document reader",
+    "context": "User interface text used in html-viewer.html. Preserve placeholders and product names."
+  },
+  "ui.0231": {
+    "default": "Personal HTML document",
+    "context": "User interface text used in html-viewer.html. Preserve placeholders and product names."
+  },
+  "ui.0232": {
+    "default": "Unassigned",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0233": {
+    "default": "Unavailable",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0234": {
+    "default": "Active",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0235": {
+    "default": "Online source (JSON)",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0236": {
+    "default": "Local files (ZIP)",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0237": {
+    "default": "Preparing download choices...",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0238": {
+    "default": "Download {filename}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0239": {
+    "default": "Download ZIP: {title} ({size})",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0240": {
+    "default": "Download one ZIP bundle (JSON + local catalogues)",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0241": {
+    "default": "{online} online sources in JSON; {catalogues} optional offline catalogue downloads. Download the separate files or create one ZIP bundle. Keep online sources connected long enough to acquire them later.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0242": {
+    "default": "Checking configuration and catalogue files...",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0243": {
+    "default": "Preview: {name}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0244": {
+    "default": "{count} local catalogues; {online} online sources and {local} local source files. Private storage needed: {private_required} (including {expanded} extracted HTML); available: {private_available}. Library storage needed: {library_required} plus {reserve} reserve; available: {library_available}.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0245": {
+    "default": "Existing files would be overwritten: {paths}",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0246": {
+    "default": "Subject mapping",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0247": {
+    "default": "Use existing: {title}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0248": {
+    "default": "Create: {title}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0249": {
+    "default": "Map to: {title}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0250": {
+    "default": "Apply import",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0251": {
+    "default": "Applying import...",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0252": {
+    "default": "Preview passed. Review mappings and storage before applying.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0253": {
+    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. Sources still to acquire: {sources}.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0254": {
+    "default": "Description",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0255": {
+    "default": "Subject",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0256": {
+    "default": "Default: OFFLINE LIBRARY · {hostname}",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0257": {
+    "default": "Choose an adapter marked AP supported. The profile is pinned to that adapter. Each listed upstream must have a saved NetworkManager Wi-Fi profile with auto-connect enabled; hidden SSIDs cannot be detected. Auto mode treats wired carrier or a visible configured SSID as available. After an automatic fallback, the hotspot stops as soon as upstream returns and no clients remain. With clients connected, it stops after the configured redundancy time while upstream remains available. Manually started hotspots are not timed.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0258": {
+    "default": "Choose a name for this server, such as",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0259": {
+    "default": ". After changing it, use the new .local address on your home network and the hotspot.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0260": {
+    "default": "Hotspot settings",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0261": {
+    "default": "Import upload exceeds the 8 GiB request limit",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0262": {
+    "default": "Select a configuration JSON, catalogue ZIPs, or combined bundle",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0263": {
+    "default": "Import staging path is unsafe",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0264": {
+    "default": "An uploaded filename is invalid",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0265": {
+    "default": "Provide exactly one configuration JSON no larger than 1 MiB",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0266": {
+    "default": "Combined bundle has too many archive members",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0267": {
+    "default": "Combined bundle contains duplicate archive paths",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0268": {
+    "default": "Duplicate catalogue upload filename",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0269": {
+    "default": "Bundle has duplicate or oversized catalogues",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0270": {
+    "default": "Import files must be JSON or ZIP",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0271": {
+    "default": "Uploaded catalogue ZIPs do not match the configuration references",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0272": {
+    "default": "Select a configuration JSON or at least one offline catalogue ZIP",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0273": {
+    "default": "Offline catalogue has too many files",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0274": {
+    "default": "Offline catalogue contains duplicate, encrypted, or oversized files",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0275": {
+    "default": "Offline catalogue exceeds the 8 GiB limit",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0276": {
+    "default": "Offline catalogue does not match its configuration entry",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0277": {
+    "default": "Offline catalogue file list does not match its ZIP members",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0278": {
+    "default": "Offline catalogue document metadata is invalid",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0279": {
+    "default": "Offline catalogue has duplicate or invalid attachment metadata",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0280": {
+    "default": "Offline catalogue metadata paths do not match its entry",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0281": {
+    "default": "Offline catalogue has invalid file size or checksum metadata",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0282": {
+    "default": "Offline catalogue checksum verification failed",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0283": {
+    "default": "Storage reserve must be at least 1 GB",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0284": {
+    "default": "Unsupported configuration format or version",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0285": {
+    "default": "Configuration contains too many entries",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0286": {
+    "default": "Configuration has duplicate content paths",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0287": {
+    "default": "Invalid subject list",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0288": {
+    "default": "Subject {subject} already exists; map it to an existing subject",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0289": {
+    "default": "Map imported subject {title} to an existing subject or create it",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0290": {
+    "default": "Invalid or duplicate subject definition",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0291": {
+    "default": "Offline catalogue refers to an invalid subject or entry type",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0292": {
+    "default": "Expected an import preview token and subject mapping",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0293": {
+    "default": "Import preview expired; upload and preview the files again",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0294": {
+    "default": "Import preview is no longer available",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0295": {
+    "default": "This configuration import is already being applied; preview the files again",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0296": {
+    "default": "Choose how every imported subject should be handled",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0297": {
+    "default": "Insufficient free library storage for this import",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0298": {
+    "default": "Resume / retry",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0299": {
+    "default": "Stop this job and keep downloaded bytes for Resume.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0300": {
+    "default": "Continue from the retained download.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0301": {
+    "default": "It is in the starter collection and will be downloaded again the next time starter content is fetched.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0302": {
+    "default": "The file is missing; inspect its acquisition record.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0303": {
+    "default": "Loading documents...",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0304": {
+    "default": "No documents yet. Add documents above or fetch a content collection.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0305": {
+    "default": "In use",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0306": {
+    "default": "Move or remove all assigned content before deleting this subject.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0307": {
+    "default": "Network interface information unavailable.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0308": {
+    "default": "No network interfaces found.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0309": {
+    "default": "Not configured",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0310": {
+    "default": "Automatic fallback",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0311": {
+    "default": "Hotspot network",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0312": {
+    "default": "Operating system",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0313": {
+    "default": "CPU threads",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0314": {
+    "default": "Local storage",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0315": {
+    "default": "USB storage",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0316": {
+    "default": "No mounted local storage filesystems could be read.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0317": {
+    "default": "Edit library details",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0318": {
+    "default": "Save changes",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0319": {
+    "default": "Updates the title and subject shown in Cyberdeck. The archive, download progress, and titles inside Kiwix stay unchanged.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0320": {
+    "default": "Choose where this library appears in Cyberdeck. The download size and integrity will be verified before it becomes available.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0321": {
+    "default": "Edit document",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0322": {
+    "default": "Changes the display title and subject for everyone. The file stays unchanged. These edits take precedence over starter-content metadata.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0323": {
+    "default": "Changes the title, description, and subject for everyone. Attachments stay unchanged.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0324": {
+    "default": "Enter at least two characters to search.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0325": {
+    "default": "Searching the official Kiwix catalog…",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0326": {
+    "default": "Review and add",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0327": {
+    "default": "Site preferences saved.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0328": {
+    "default": "Hotspot profile saved.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0329": {
+    "default": "Hide password",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0330": {
+    "default": "No Wi-Fi adapters found",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0331": {
+    "default": "Saved password · use the eye to reveal",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0332": {
+    "default": "Could not load saved password · enter a new one or use the eye to retry",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0333": {
+    "default": "Upstream scan unavailable",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0334": {
+    "default": "No configured upstreams available",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0335": {
+    "default": "Use lowercase letters, digits and hyphens; start with a letter.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0336": {
+    "default": "The name change is in progress. Reconnect to Wi-Fi if needed, then open the new address.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0337": {
+    "default": "Choose a unique name to distinguish this library from other devices.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0338": {
+    "default": "Open the new library address",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0339": {
+    "default": "Choose a different server name.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0340": {
+    "default": "Checking the new name...",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0341": {
+    "default": "Previous address (if the change fails)",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0342": {
+    "default": "Connectivity check unavailable",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0343": {
+    "default": "Saving color…",
+    "context": "User interface text used in accent.js. Preserve placeholders and product names."
+  },
+  "ui.0344": {
+    "default": "Color was not saved: {error}",
+    "context": "User interface text used in accent.js. Preserve placeholders and product names."
+  },
+  "ui.0345": {
+    "default": "The server returned a different color.",
+    "context": "User interface text used in accent.js. Preserve placeholders and product names."
+  },
+  "ui.0346": {
+    "default": "Network request failed.",
+    "context": "User interface text used in i18n.js. Preserve placeholders and product names."
+  },
+  "ui.0347": {
+    "default": "Online sources are recorded for later acquisition; preview does not download content.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0348": {
+    "default": "ZIM downloads start after you apply the import. Other online sources are recorded for later acquisition.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0349": {
+    "default": "Cannot apply: destination files already exist. Resolve the listed conflicts first.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0350": {
+    "default": "Cannot apply: private storage is too low ({required} required, {available} available).",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0351": {
+    "default": "Cannot apply: library storage is too low for catalogues and ZIM downloads ({required} required including reserve, {available} available).",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0352": {
+    "default": "ZIM files to include",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0353": {
+    "default": "Clear any ZIM you want to defer. The remaining size estimate updates below. Deselected local ZIMs are left out; re-import the bundle to include them later.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0354": {
+    "default": "Size unknown",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0355": {
+    "default": "Selected ZIMs need {required} including reserve; {available} remains after current downloads.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0356": {
+    "default": "{count} local catalogues; {online} online sources and {local} local source files. Private storage needed: {private_required} (including {expanded} extracted HTML); available: {private_available}. Library storage available after active downloads: {library_available}.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0357": {
+    "default": "Cannot apply: destination files already exist. Resolve selected conflicts or clear those ZIMs.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0358": {
+    "default": "Cannot apply: selected ZIMs exceed available library storage ({required} required including reserve, {available} available).",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0359": {
+    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIMs included: {included}; deferred: {deferred}. Downloads started: {downloads}. Other sources still to acquire: {sources}.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0360": {
+    "default": "{mount}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0361": {
+    "default": "Host details, network connections, and capacity for each filesystem visible to Cyberdeck, including separately mounted root, home, and library data volumes.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0362": {
+    "default": "One or more online ZIM sources have no expected size; free-space preview may be low.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0363": {
+    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIM downloads started: {zim_downloads}. Other sources still to acquire: {sources}.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0364": {
+    "default": "Some ZIM downloads could not start: {errors}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0365": {
+    "default": "Preview a versioned configuration or acquisition-profile JSON, its local catalogue ZIPs, or one combined ZIP. Preview checks file hashes, paths, subject mappings, conflicts, and storage. Applying the import starts online ZIM downloads; other online sources are saved for later acquisition.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0366": {
+    "default": "The server returned a different color",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0367": {
+    "default": "Accent color saved for all visitors.",
+    "context": "User interface text used in accent.js. Preserve placeholders and product names."
+  },
+  "ui.0368": {
+    "default": "File missing",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0369": {
+    "default": "Show saved password",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0370": {
+    "default": "Name change scheduled. Allow about 30 seconds. Reconnect to the same Wi-Fi network if disconnected, then open the new library address. If it fails, return to the previous address to check the result.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0371": {
+    "default": "ready · {size}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0372": {
+    "default": "Pausing…",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0373": {
+    "default": "{received} / {total} ({percent}%)",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0374": {
+    "default": "{status} · Download complete; verifying archive",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0375": {
+    "default": "{status} · No new bytes for {elapsed}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0376": {
+    "default": "{status} · Waiting for first bytes",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0377": {
+    "default": "{status} · {progress}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0378": {
+    "default": "Remove {title} ({filename})? The archive will be deleted.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0379": {
+    "default": "Remove {title} ({filename})? This deletes the file.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0380": {
+    "default": " · {filename} · {availability}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0381": {
+    "default": "{subject} · {count} attachment · {size} total",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0382": {
+    "default": "{subject} · {count} attachments · {size} total",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0383": {
+    "default": "Remove {title} and all its files?",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0384": {
+    "default": "Documents could not be loaded. Use Refresh documents to retry.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0385": {
+    "default": "{count} document",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0386": {
+    "default": "{count} documents",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0387": {
+    "default": "{id} · assignment check unavailable",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0388": {
+    "default": "{id} · {count} assigned items",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0389": {
+    "default": "Delete the empty subject “{title}”?",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0390": {
+    "default": "{total} total · {available} available",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0391": {
+    "default": "{free} free of {total} ({percent}%)",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0392": {
+    "default": "{mount} {percent}% used",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0393": {
+    "default": "System information unavailable: {error}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0394": {
+    "default": "ready",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0395": {
+    "default": "queued",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0396": {
+    "default": "paused",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0397": {
+    "default": "downloading",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0398": {
+    "default": "interrupted",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0399": {
+    "default": "pausing",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0400": {
+    "default": "failed",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0401": {
+    "default": "Language: {value}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0402": {
+    "default": "Edition: {value}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0403": {
+    "default": "Variant: {value}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0404": {
+    "default": "Catalog size: ~{size}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0405": {
+    "default": "Saved, but could not refresh the list: {error}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0406": {
+    "default": "shut down",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0407": {
+    "default": "reboot",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0408": {
+    "default": "This will {action} the server. Type {confirmation} to confirm.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0409": {
+    "default": "The {action} request was sent.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0410": {
+    "default": "Current address: {url}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0411": {
+    "default": "New address: {url}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0412": {
+    "default": "Current library: {url}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0413": {
+    "default": "Open {url}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0414": {
+    "default": "Change the library address to {url}? This briefly interrupts the library. If you are connected through its hotspot, reconnect to the same Wi-Fi network, then use the new address and sign in again.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0415": {
+    "default": "{error} If the connection was interrupted, reload this page to check whether the change was scheduled before trying again.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0416": {
+    "default": "{device} — {state} — {support}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0417": {
+    "default": "AP supported",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0418": {
+    "default": "AP unavailable",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0419": {
+    "default": "Available upstreams: {names}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0420": {
+    "default": "Adapters: {count} · Selected: {selected} · {upstreams} · Hotspot: {state}{notice}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0421": {
+    "default": " · Save hotspot settings before starting.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0422": {
+    "default": "not saved",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0423": {
+    "default": "on",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0424": {
+    "default": "off",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0425": {
+    "default": "Hostname",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0426": {
+    "default": "Kernel",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0427": {
+    "default": "Architecture",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0428": {
+    "default": "Memory",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0429": {
+    "default": "Uptime",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0430": {
+    "default": "Running",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0431": {
+    "default": "Off",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0432": {
+    "default": "Enabled",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0433": {
+    "default": "Disabled",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0434": {
+    "default": "connected",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0435": {
+    "default": "disconnected",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0436": {
+    "default": "unavailable",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0437": {
+    "default": "unmanaged",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0438": {
+    "default": "Added",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0439": {
+    "default": "{title} was added to the download queue.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0440": {
+    "default": "No catalog results for “{query}”. Try another title or topic.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0441": {
+    "default": "{count} result found. Select a subject when adding a library.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0442": {
+    "default": "{count} results found. Select a subject when adding a library.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0443": {
+    "default": "Catalog search failed: {error}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0444": {
+    "default": "Preferences were not saved: {error}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0445": {
+    "default": "Always-show subjects must be valid subject IDs",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0446": {
+    "default": "Another catalogue is being prepared; retry after it finishes",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0447": {
+    "default": "Attachment URL must be no longer than 2048 characters",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0448": {
+    "default": "Cannot build catalogue: content changed, files are unsafe/missing, or temporary space is insufficient. Prepare the export again.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0449": {
+    "default": "Cannot build combined bundle: content changed, files are unsafe/missing, or temporary space is insufficient.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0450": {
+    "default": "Cannot read content metadata for export; inspect acquisition records.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0451": {
+    "default": "Cannot read the acquisition record",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0452": {
+    "default": "Cannot verify subject assignments; removal is blocked",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0453": {
+    "default": "Choose 3, 4, or 5 subject columns",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0454": {
+    "default": "Choose a six-digit hexadecimal accent color",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0455": {
+    "default": "Choose a supported interface language",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0456": {
+    "default": "Choose an existing subject",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0457": {
+    "default": "Choose whether PDFs open in this tab or a new tab",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0458": {
+    "default": "Confirm a valid hostname: lowercase letters, digits and hyphens, starting with a letter.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0459": {
+    "default": "Confirm removal by sending the exact ZIM filename",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0460": {
+    "default": "Confirm removal by sending the exact filename",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0461": {
+    "default": "Confirmation must match the requested action",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0462": {
+    "default": "Display title must contain 1 to 200 characters",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0463": {
+    "default": "Download is still running or pausing",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0464": {
+    "default": "Download selection expired or is invalid; prepare the export again",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0465": {
+    "default": "Expected a display title and subject",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0466": {
+    "default": "Expected a hostname and confirmation",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0467": {
+    "default": "Expected a title and subject",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0468": {
+    "default": "Expected an export selection",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0469": {
+    "default": "Export selection is too large",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0470": {
+    "default": "Hide empty subjects must be true or false",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0471": {
+    "default": "Invalid catalogue request",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0472": {
+    "default": "Pause active downloads before changing the hostname.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0473": {
+    "default": "Refusing to remove a file through a symlink",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0474": {
+    "default": "Selected metadata or local files are missing, unsafe, or exceed export limits. Refresh the list and review the selection.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0475": {
+    "default": "Crisis preparedness",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0476": {
+    "default": "Practical guidance for outages, weather, and emergencies.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0477": {
+    "default": "Medical and first aid",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0478": {
+    "default": "First aid, health references, and emergency care.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0479": {
+    "default": "Repair and equipment",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0480": {
+    "default": "Device manuals, repair guides, and workshop references.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0481": {
+    "default": "General reference",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0482": {
+    "default": "Wikipedia and broad reference collections.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0483": {
+    "default": "Games and activities",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0484": {
+    "default": "Low-equipment games and family activities.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0485": {
+    "default": "Knots and practical skills",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0486": {
+    "default": "Knots, lashings, and useful hands-on skills.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0487": {
+    "default": "Off-grid cooking",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0488": {
+    "default": "Cooking, food safety, and water hygiene.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0489": {
+    "default": "Maps and navigation",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0490": {
+    "default": "Regional maps and navigation resources.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0491": {
+    "default": "Linux platforms",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0492": {
+    "default": "Linux operating systems, server platforms, and administration references.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0493": {
+    "default": "Computing and recovery",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0494": {
+    "default": "Operating systems, software, and recovery material.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0495": {
+    "default": "Delete",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0496": {
+    "default": "Remove",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0497": {
+    "default": "unknown",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0498": {
+    "default": "Resuming…",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0499": {
+    "default": "Pause",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0500": {
+    "default": "View",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0501": {
+    "default": "Download",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0502": {
+    "default": "DOCUMENT",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0503": {
+    "default": "{action} {filename} ({size})",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0504": {
+    "default": "Subject ID must use lowercase letters, numbers, and hyphens",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0505": {
+    "default": "Subject description must be 1 to 300 characters",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0506": {
+    "default": "Subject details must be a JSON object",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0507": {
+    "default": "Subject title must be 1 to 80 characters",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0508": {
+    "default": "Subtitle must be 1–80 printable characters",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0509": {
+    "default": "Subtitle must be text",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0510": {
+    "default": "That subject ID already exists",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0511": {
+    "default": "The indexed archive file is missing; inspect the acquisition record first.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0512": {
+    "default": "The installed archive is missing or unavailable",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0513": {
+    "default": "This archive is already verified",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0514": {
+    "default": "This download is no longer running; refresh its status",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0515": {
+    "default": "Title and a known subject are required",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0516": {
+    "default": "Unknown hotspot action",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0517": {
+    "default": "Unsafe pause request path",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0518": {
+    "default": "Upload at least one attachment or provide an HTTPS file URL",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0519": {
+    "default": "Wait for the active download to finish or stop it before removal",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0520": {
+    "default": "Archive removal failed: {error}",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0521": {
+    "default": "Import would overwrite existing files: {files}",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0522": {
+    "default": "Kiwix catalog unavailable: {error}",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0523": {
+    "default": "Request failed ({status})",
+    "context": "User interface text used in i18n.js. Preserve placeholders and product names."
+  },
+  "ui.0524": {
+    "default": "Subject still has {count} assigned content record(s)",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0525": {
+    "default": "authentication required",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0526": {
+    "default": "PDF attachments to include",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0527": {
+    "default": "Internet PDFs to download",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0528": {
+    "default": "Choose which ZIMs, internet PDFs, and local PDF attachments to include. Other online sources are saved for later acquisition.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0529": {
+    "default": "The selected internet PDF list does not match the import preview",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0530": {
+    "default": "matches another internet PDF in this import",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0531": {
+    "default": "New ZIMs are selected. ZIMs matching installed or earlier imported files are cleared by default; select one only if you want another copy. Deselected local ZIMs are left out; re-import the bundle to include them later.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0532": {
+    "default": "New PDFs are selected. PDFs matching existing or earlier imported files are cleared by default; select one only if you want another copy.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0533": {
+    "default": "Duplicate PDF: {reason}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0534": {
+    "default": "Selected documents need {required}; {available} private storage available.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0535": {
+    "default": "The selected document list does not match the import preview",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0536": {
+    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIMs included: {included}; deferred: {deferred}. Downloads started: {downloads}. PDF attachments skipped: {skipped_pdfs}. Other sources still to acquire: {sources}.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0537": {
+    "default": "Duplicate ZIM: {reason}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0538": {
+    "default": "{path} is already installed or registered",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0539": {
+    "default": "matches installed {path}",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0540": {
+    "default": "matches another ZIM in this import ({path})",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0541": {
+    "default": "ZIM and internet PDF downloads start after you apply the import. Other online sources are saved for later acquisition.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0542": {
+    "default": "Selected ZIMs and {pdf_count} internet PDFs need {required} including reserve; {available} library storage remains.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0543": {
+    "default": "Cannot apply: selected content exceeds available library storage ({required} required including reserve, {available} available).",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0544": {
+    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIMs included: {included}; deferred: {deferred}. ZIM downloads started: {zim_downloads}. Internet PDF downloads started: {pdf_downloads}. PDF attachments skipped: {skipped_pdfs}. Other sources still to acquire: {sources}.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0545": {
+    "default": "Some internet PDF downloads could not start: {errors}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0546": {
+    "default": "Click a power action once to arm it, then click again to confirm.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0547": {
+    "default": "Click again within 8 seconds to {action} the server.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0548": {
+    "default": "Confirm reboot?",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0549": {
+    "default": "Confirm shutdown?",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0550": {
+    "default": "Sending reboot request…",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0551": {
+    "default": "Sending shutdown request…",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0552": {
+    "default": "Sending the {action} request…",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0553": {
+    "default": "Power action canceled. Click once to arm it again.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0554": {
+    "default": "Preview a versioned configuration or acquisition-profile JSON, its local catalogue ZIPs, or one combined ZIP. Preview checks file hashes, paths, subject mappings, conflicts, and storage. Applying the import starts online ZIM and internet PDF downloads; other online sources are saved for later acquisition.",
+    "context": "Default library subject text or server response. Preserve placeholders and product names."
+  },
+  "ui.0555": {
+    "default": "Settings preview: {name}",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0556": {
+    "default": "This import changes subject names, descriptions, ordering, and optionally site preferences. Content files and catalogue references are ignored.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0557": {
+    "default": "Ignored content references: {assets} assets and {catalogues} catalogues.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0558": {
+    "default": "None",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0559": {
+    "default": "Subjects to add",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0560": {
+    "default": "Subjects to update",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0561": {
+    "default": "Subjects to keep",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0562": {
+    "default": "Assignments could not be verified",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0563": {
+    "default": "{count} assigned items",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0564": {
+    "default": "Subjects to remove",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0565": {
+    "default": "Move assigned content before removing a subject",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0566": {
+    "default": "Choose a destination",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0567": {
+    "default": "Cannot remove omitted subjects while content assignments cannot be verified.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0568": {
+    "default": "Apply settings",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0569": {
+    "default": "Applying settings...",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0570": {
+    "default": "Settings applied. Added: {added}; updated: {updated}; removed: {removed}; content assignments moved: {remapped}.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0571": {
+    "default": "Settings preview ready. Review subject changes and content remapping before applying.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0572": {
+    "default": "New internet PDFs are selected. PDFs matching installed or earlier imported files are cleared by default; select one only if you want another copy.",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0573": {
+    "default": "download",
+    "context": "User interface text used in admin.js. Preserve placeholders and product names."
+  },
+  "ui.0574": {
+    "default": "Preview a versioned configuration or acquisition-profile JSON, its local catalogue ZIPs, or one combined ZIP. Preview checks file hashes, paths, subject mappings, conflicts, and storage. Choose which ZIMs, internet PDFs, and local PDF attachments to include. Other online sources are saved for later acquisition.",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0575": {
+    "default": "Import mode",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0576": {
+    "default": "Full content and settings",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0577": {
+    "default": "Settings only",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0578": {
+    "default": "Remove subjects omitted from these settings",
+    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+  },
+  "ui.0579": {
+    "default": "Order",
+    "context": "Field label for a subject's display order in a settings-only import preview."
+  },
+  "ui.0580": {
+    "default": "Resulting subject order",
+    "context": "Preview heading listing the subject order after settings are applied."
+  },
+  "ui.0581": {
+    "default": "Showing {shown} of {total} assigned items.",
+    "context": "Note below a truncated subject-remapping preview list."
+  },
+  "ui.0582": {
+    "default": "Storage",
+    "context": "Admin section for adopting disks, initializing filesystems, and moving the library data root."
+  },
+  "ui.0583": {
+    "default": "Adoption does not erase data. Initializing a disk erases it; moving library data interrupts Hub and Kiwix. Keep a verified backup.",
+    "context": "Safety note above disk management actions."
+  },
+  "ui.0584": {
+    "default": "Refresh disks",
+    "context": "Button to rescan attached physical disks."
+  },
+  "ui.0585": {
+    "default": "Loading disks...",
+    "context": "Initial loading status for the storage management section."
+  },
+  "ui.0586": {
+    "default": "Disk inventory unavailable: {error}",
+    "context": "Error shown when the privileged disk discovery helper is unavailable."
+  },
+  "ui.0587": {
+    "default": "{model} · {capacity}",
+    "context": "Physical disk model and capacity summary."
+  },
+  "ui.0588": {
+    "default": "Stable identity: {id}",
+    "context": "Stable disk identity shown for confirmation before initialization."
+  },
+  "ui.0589": {
+    "default": "Existing partitions: {summary}",
+    "context": "Disk partition and filesystem inventory."
+  },
+  "ui.0590": {
+    "default": "No partitions or filesystems detected.",
+    "context": "Inventory status for a clean, unallocated disk."
+  },
+  "ui.0591": {
+    "default": "Adopt disk",
+    "context": "Non-destructive action to register a disk for Cyberdeck storage management."
+  },
+  "ui.0592": {
+    "default": "Adopted",
+    "context": "Status label for a disk enrolled in Cyberdeck storage management."
+  },
+  "ui.0593": {
+    "default": "Initialize disk (erase all data)",
+    "context": "Destructive action to create a partition and ext4 filesystem on a disk."
+  },
+  "ui.0594": {
+    "default": "Use existing ext4 filesystem",
+    "context": "Non-destructive action to mount an existing ext4 filesystem persistently."
+  },
+  "ui.0595": {
+    "default": "Move library data",
+    "context": "Action that migrates all Cyberdeck data to the selected disk."
+  },
+  "ui.0596": {
+    "default": "No disks detected.",
+    "context": "Empty state when no physical disks are available for adoption."
+  },
+  "ui.0597": {
+    "default": "Internal system disk. Cannot be adopted or initialized.",
+    "context": "Safety status for the disk containing the running operating system."
+  },
+  "ui.0598": {
+    "default": "Adoption is non-destructive. Adopt this disk for Cyberdeck management?",
+    "context": "Confirmation for enrolling a disk without modifying its data."
+  },
+  "ui.0599": {
+    "default": "Type {id} to initialize this disk. Initialization erases all data on it.",
+    "context": "Typed confirmation prompt before partitioning and formatting a disk."
+  },
+  "ui.0600": {
+    "default": "Type {id} to move all library data to this disk. Hub and Kiwix will restart.",
+    "context": "Typed confirmation prompt before starting a storage migration."
+  },
+  "ui.0601": {
+    "default": "Preview: copy {bytes} from {source} to {destination}. Destination filesystem: {filesystem} at {mount} ({model}, {id}). Free space: {free}.",
+    "context": "Storage migration preview summary for any approved folder location."
+  },
+  "ui.0670": {
+    "default": "Cyberdeck hotspot IP address",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0602": {
+    "default": "Storage action completed: {message}",
+    "context": "Success status after adoption, initialization, or mounting an existing filesystem."
+  },
+  "ui.0603": {
+    "default": "Migration status: {status}",
+    "context": "Current state of an asynchronous library storage migration."
+  },
+  "ui.0604": {
+    "default": "Confirm that you have a current verified backup. No library writes or downloads should be active during migration.",
+    "context": "Warning in the data-root migration flow."
+  },
+  "ui.0605": {
+    "default": "Mounted at {mount}",
+    "context": "Mount point for an existing or initialized filesystem."
+  },
+  "ui.0606": {
+    "default": "{filesystem} filesystem · {size}",
+    "context": "Partition filesystem and size details."
+  },
+  "ui.0607": {
+    "default": "This disk contains existing storage. Initialization requires a separate confirmation and erases all its data.",
+    "context": "Warning for a disk with existing partitions or filesystem signatures."
+  },
+  "ui.0608": {
+    "default": "Moving library data...",
+    "context": "Progress status while asynchronous data migration runs."
+  },
+  "ui.0609": {
+    "default": "The old library copy is retained after migration. Do not remove it until backup and restore have been verified.",
+    "context": "Recovery note after successful storage migration."
+  },
+  "ui.0610": {
+    "default": "This folder must be on a writable, persistent ext4 filesystem with enough free space. A populated destination must exactly match the active library.",
+    "context": "Eligibility requirements for moving library data to an approved folder."
+  },
+  "ui.0611": {
+    "default": "Use an existing filesystem without formatting",
+    "context": "Non-destructive alternative after adopting a disk containing an ext4 filesystem."
+  },
+  "ui.0612": {
+    "default": "This disk contains the running system or active library data and cannot be initialized here.",
+    "context": "Safety status for a disk currently used by the operating system or active library."
+  },
+  "ui.0613": {
+    "default": "Translation support",
+    "context": "Heading for the administrator's temporary UI translation aid."
+  },
+  "ui.0614": {
+    "default": "Prefix matching UI text with its translation ID in this browser",
+    "context": "Enables a local diagnostic mode that prefixes recognized interface text with its stable catalogue ID."
+  },
+  "ui.0615": {
+    "default": "This erases every partition and file on {model} ({capacity}, stable ID {id}), creates one GPT partition with ext4, and mounts it persistently under /mnt/cyberdeck-disks/<filesystem UUID>. Continue?",
+    "context": "Destructive initialization confirmation shown before typed disk-identity confirmation."
+  },
+  "ui.0616": {
+    "default": "Connection: {transport}",
+    "context": "Physical connection type, such as USB, SATA, or NVMe, shown in the disk inventory."
+  },
+  "ui.0617": {
+    "default": "Management",
+    "context": "Admin navigation label and heading for host-level storage and power controls."
+  },
+  "ui.0618": {
+    "default": "Power controls",
+    "context": "Subheading for server reboot and shutdown actions."
+  },
+  "ui.0619": {
+    "default": "Library data storage",
+    "context": "System overview fact identifying the configured library data root and its filesystem."
+  },
+  "ui.0620": {
+    "default": "{path} on {mount} ({device} · {filesystem})",
+    "context": "Configured library data path, resolved mount point, source device, and filesystem type."
+  },
+  "ui.0621": {
+    "default": "Storage operation in progress",
+    "context": "Accessible label for the indeterminate progress indicator used during disk actions."
+  },
+  "ui.0622": {
+    "default": "Initializing disk: creating a partition, formatting it, and mounting it. Do not disconnect the disk while this is running.",
+    "context": "Persistent progress message while the explicitly confirmed disk initialization runs."
+  },
+  "ui.0623": {
+    "default": "Refresh adoption",
+    "context": "Non-destructive action to update the adopted disk layout after it changed."
+  },
+  "ui.0624": {
+    "default": "Disk layout changed since adoption. Refresh its adoption before using it.",
+    "context": "Status explaining why an adopted disk cannot currently be formatted or used."
+  },
+  "ui.0625": {
+    "default": "This updates the adopted disk identity to its current partition layout without formatting it. Continue?",
+    "context": "Confirmation before refreshing adoption metadata for a disk whose inventory changed."
+  },
+  "ui.0626": {
+    "default": "Updating disk adoption…",
+    "context": "Progress message shown while refreshing non-destructive disk adoption metadata."
+  },
+  "ui.0627": {
+    "default": "Mounting the existing filesystem…",
+    "context": "Progress message shown while configuring an adopted ext4 filesystem for use."
+  },
+  "ui.0628": {
+    "default": "Library data migration was started. Its status will update here.",
+    "context": "Persistent status shown after queuing an asynchronous library data migration."
+  },
+  "ui.0630": {
+    "default": "Approved storage folder locations",
+    "context": "Heading in Management listing supported folder locations and their backing filesystem mounts."
+  },
+  "ui.0631": {
+    "default": "These are folder paths and mounted locations, not disks assigned to the library. The library uses one current folder at a time; each entry shows the mount underneath it. Use Move library data here on an eligible adopted disk to change the location.",
+    "context": "Explains the difference between a data folder location and its underlying disk or filesystem."
+  },
+  "ui.0632": {
+    "default": "Click again within 8 seconds to confirm this action.",
+    "context": "Inline status message after the first click arms a destructive disk or library-storage action."
+  },
+  "ui.0633": {
+    "default": "Cancel",
+    "context": "Cancels an inline storage confirmation before it is submitted."
+  },
+  "ui.0634": {
+    "default": "Waiting for the storage operation to start…",
+    "context": "Storage status while the systemd job begins."
+  },
+  "ui.0635": {
+    "default": "Checking disk identity and safety…",
+    "context": "Storage initialization phase before any disk changes."
+  },
+  "ui.0636": {
+    "default": "Removing old filesystem signatures…",
+    "context": "Storage initialization phase after explicit confirmation."
+  },
+  "ui.0637": {
+    "default": "Creating a GPT partition…",
+    "context": "Storage initialization phase after explicit confirmation."
+  },
+  "ui.0638": {
+    "default": "Creating the ext4 filesystem…",
+    "context": "Storage initialization phase after explicit confirmation."
+  },
+  "ui.0639": {
+    "default": "Mounting the initialized disk…",
+    "context": "Storage initialization phase after explicit confirmation."
+  },
+  "ui.0640": {
+    "default": "Disk initialization failed. Inspect the disk and system logs before retrying.",
+    "context": "Fallback error when the initialization worker fails without a detailed message."
+  },
+  "ui.0641": {
+    "default": "Disk initialized",
+    "context": "Persistent completion status after disk initialization."
+  },
+  "ui.0642": {
+    "default": "Initialize disk and erase all data",
+    "context": "Inline confirmation heading before formatting a selected disk."
+  },
+  "ui.0643": {
+    "default": "Move library data to this disk",
+    "context": "Inline confirmation heading before migrating the full Cyberdeck data root."
+  },
+  "ui.0644": {
+    "default": "Move library data here",
+    "context": "Disk-card action that starts a preview and confirmation for moving library data to this disk."
+  },
+  "ui.0645": {
+    "default": "Click again to confirm",
+    "context": "Armed button label for an inline two-click confirmation, matching the Power controls."
+  },
+  "ui.0646": {
+    "default": "Confirmation expired or canceled. Start again when ready.",
+    "context": "Status after an inline storage action confirmation is canceled or expires."
+  },
+  "ui.0652": {
+    "default": "Path: {path} · mount: {mount} ({device} · {type})",
+    "context": "A storage folder path and the filesystem mount and device that back it."
+  },
+  "ui.0653": {
+    "default": "Path: {path} · mount: {mount}",
+    "context": "The active library data directory and the mount containing that directory."
+  },
+  "ui.0654": {
+    "default": "Root folder",
+    "context": "Approved folder location at the host root filesystem."
+  },
+  "ui.0655": {
+    "default": "Home folder",
+    "context": "Approved folder location under /home."
+  },
+  "ui.0656": {
+    "default": "Mounted filesystem folder",
+    "context": "A currently mounted filesystem location other than root, home, or an adopted disk."
+  },
+  "ui.0657": {
+    "default": "Adopted storage folder",
+    "context": "A folder reserved for Cyberdeck library data on an adopted and mounted disk."
+  },
+  "ui.0658": {
+    "default": "No mounted storage folder locations were found.",
+    "context": "Empty state for the approved storage location list."
+  },
+  "ui.0659": {
+    "default": "/home is a folder on the root filesystem, not a separate mount.",
+    "context": "Clarifies that /home does not have a distinct filesystem mount on this host."
+  },
+  "ui.0660": {
+    "default": "Disk initialized and mounted at {mount}. Its library data folder is listed below under Approved storage folder locations. Use Move library data here to move the current library onto it.",
+    "context": "Persistent completion status after disk initialization, pointing to the approved storage folder listed below."
+  },
+  "ui.0661": {
+    "default": "Existing filesystem mounted at {mount}. Its library data folder is listed below under Approved storage folder locations. Use Move library data here to move the current library onto it.",
+    "context": "Persistent completion status after mounting an existing filesystem, pointing to the approved storage folder listed below."
+  },
+  "ui.0662": {
+    "default": "Checking this storage folder and calculating the migration preview…",
+    "context": "Visible progress while validating a library data migration destination."
+  },
+  "ui.0663": {
+    "default": "Copying library data to {destination}…",
+    "context": "Progress while the initial copy runs during a library data migration."
+  },
+  "ui.0664": {
+    "default": "Pausing Hub and Kiwix for the final copy…",
+    "context": "Progress while services stop before the final library data copy."
+  },
+  "ui.0665": {
+    "default": "Verifying the copied library data…",
+    "context": "Progress while the migration worker verifies its destination copy."
+  },
+  "ui.0666": {
+    "default": "Switching the library data mount…",
+    "context": "Progress while the data root is switched to its new persistent bind mount."
+  },
+  "ui.0667": {
+    "default": "Restarting services and checking the new data location…",
+    "context": "Progress during post-migration service health checks."
+  },
+  "ui.0668": {
+    "default": "Destination is eligible. Review the migration details and confirm to start.",
+    "context": "Status after the destination preview succeeds and before confirmation."
+  },
+  "ui.0669": {
+    "default": "Library data now uses {destination}. The previous copy remains at {source}; keep it until backup and restore are verified.",
+    "context": "Persistent completion message after library data migration."
+  },
+  "ui.0671": {
+    "default": "The Cyberdeck hotspot IP address is 10.42.0.1. Anyone connected to the standard hotspot can open http://10.42.0.1/ to reach this Hub, or http://10.42.0.1/trust/ca.cer to download the certificate. This address is only for the Cyberdeck hotspot.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0672": {
+    "default": "If you have trouble opening the .local address over HTTP, try clearing your browser cache.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0673": {
+    "default": "Previous migration attempt failed: {error}. This is saved status from an earlier attempt, not a new action after restart.",
+    "context": "Clarifies that a persisted migration error is historical status shown after a page reload or host restart."
+  },
+  "ui.0674": {
+    "default": "This Hub on your local network",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0675": {
+    "default": "Share an address below with someone using the same local network. Wired LAN addresses are listed first, followed by Wi-Fi. These addresses can change when the network changes.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0676": {
+    "default": "No wired LAN or Wi-Fi address is available right now. On the standard Cyberdeck hotspot, this Hub is at 10.42.0.1.",
+    "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
+  },
+  "ui.0677": {
+    "default": "LAN",
+    "context": "Network interface label used in certificate-help.html."
+  },
+  "ui.0678": {
+    "default": "Wi-Fi",
+    "context": "Network interface label used in certificate-help.html."
+  },
+  "ui.0679": {
+    "default": "Adopted. Do not remove; this disk holds the active library data.",
+    "context": "Amber safety status for an adopted external disk currently holding active library data."
+  },
+  "ui.0680": {
+    "default": "Search this library",
+    "context": "Heading and accessible label for searching local Cyberdeck Hub catalogue metadata."
+  },
+  "ui.0681": {
+    "default": "Find titles, file names, subjects, and descriptions stored on this Cyberdeck.",
+    "context": "Explains that local search checks catalogue metadata, not the full text inside PDFs or ZIM files."
+  },
+  "ui.0682": {
+    "default": "Search",
+    "context": "Submit button for local library search."
+  },
+  "ui.0683": {
+    "default": "Search results",
+    "context": "Page heading for local library search results."
+  },
+  "ui.0684": {
+    "default": "No matching subjects or files were found.",
+    "context": "Empty state for local library search."
+  },
+  "ui.0685": {
+    "default": "Open",
+    "context": "Action label for a subject or file returned by local search."
+  },
+  "ui.0687": {
+    "default": "Enter at least two characters to search.",
+    "context": "Prompt shown when a local search query is too short."
+  },
+  "ui.0688": {
+    "default": "{count} matches found.",
+    "context": "Search result count; preserve the count placeholder."
+  },
+  "ui.0689": {
+    "default": "Internet PDF imports",
+    "context": "Heading for the administrator's persisted status list for PDFs acquired from online library imports."
+  },
+  "ui.0690": {
+    "default": "Queued",
+    "context": "Status for an online PDF waiting to download."
+  },
+  "ui.0691": {
+    "default": "Downloading",
+    "context": "Status for an online PDF currently downloading."
+  },
+  "ui.0692": {
+    "default": "Downloaded and verified",
+    "context": "Status for an online PDF saved and accepted by the acquisition verifier."
+  },
+  "ui.0693": {
+    "default": "Failed",
+    "context": "Status for an online PDF download that failed."
+  },
+  "ui.0694": {
+    "default": "Retry failed downloads",
+    "context": "Action to retry only the failed PDFs from a saved import."
+  },
+  "ui.0714": {
+    "default": "Preparedness",
+    "context": "Title of the default preparedness subject."
+  },
+  "ui.0715": {
+    "default": "Health and first aid",
+    "context": "Title of the default health and first aid subject."
+  },
+  "ui.0716": {
+    "default": "Equipment and repair",
+    "context": "Title of the default equipment and repair subject."
+  },
+  "ui.0717": {
+    "default": "The static module stays on disk, but uses no service resources while CyberChef is stopped.",
+    "context": "Admin help text describing the resource effect of disabling CyberChef."
+  },
+  "ui.0718": {
+    "default": "Checking CyberChef service status...",
+    "context": "Initial status shown while Admin checks whether the CyberChef module is installed or running."
+  },
+  "ui.0719": {
+    "default": "CyberChef is not installed. The installer could not stage it on this system.",
+    "context": "Status shown when the optional CyberChef module is absent."
+  },
+  "ui.0720": {
+    "default": "CyberChef is running.",
+    "context": "Status shown while the CyberChef service is active."
+  },
+  "ui.0721": {
+    "default": "CyberChef is installed but stopped.",
+    "context": "Status shown while the CyberChef service is inactive."
+  },
+  "ui.0722": {
+    "default": "Enable CyberChef",
+    "context": "Button that starts the CyberChef service."
+  },
+  "ui.0723": {
+    "default": "Disable CyberChef",
+    "context": "Button that stops and disables the CyberChef service."
+  },
+  "ui.0724": {
+    "default": "Starting CyberChef...",
+    "context": "Progress status while the administrator enables CyberChef."
+  },
+  "ui.0725": {
+    "default": "Stopping CyberChef...",
+    "context": "Progress status while the administrator disables CyberChef."
+  },
+  "ui.0726": {
+    "default": "CyberChef could not be enabled: {error}",
+    "context": "Error status after an attempt to enable CyberChef. Preserve the error placeholder."
+  },
+  "ui.0727": {
+    "default": "CyberChef could not be disabled: {error}",
+    "context": "Error status after an attempt to disable CyberChef. Preserve the error placeholder."
+  },
+  "ui.0728": {
+    "default": "Choose whether to enable or disable CyberChef",
+    "context": "Validation error for a CyberChef service-control request."
+  },
+  "ui.0729": {
+    "default": "CyberChef status could not be read: {error}",
+    "context": "Error status when Admin cannot read the CyberChef service state. Preserve the error placeholder."
+  },
+  "ui.0730": {
+    "default": "Choose whether omitted subjects should be removed",
+    "context": "Import option for removing subjects omitted from an imported configuration."
+  },
+  "ui.0731": {
+    "default": "This import has no failed PDF downloads",
+    "context": "Error shown when an administrator retries an import without failed PDFs."
+  },
+  "ui.0732": {
+    "default": "Could not start the ZIM download worker: {error}",
+    "context": "Error shown when the ZIM download worker cannot be started. Preserve the error placeholder."
+  },
+  "ui.0733": {
+    "default": "Expected a storage action",
+    "context": "Validation error for a storage operation request."
+  },
+  "ui.0734": {
+    "default": "Pause active downloads before moving library storage",
+    "context": "Safety error shown when storage is moved while downloads are active."
+  },
+  "ui.0735": {
+    "default": "Storage migration health checks are running; try again shortly",
+    "context": "Status returned while a storage migration is being checked."
+  },
+  "ui.0736": {
+    "default": "The saved ZIM download request is missing or unsafe",
+    "context": "Error for a missing or unsafe ZIM download request."
+  },
+  "ui.0737": {
+    "default": "Unknown",
+    "context": "Fallback label for an unavailable device or system value."
+  },
+  "ui.0738": {
+    "default": "PDF import status storage is unsafe",
+    "context": "Error shown when the saved PDF import status cannot be safely accessed."
+  },
+  "ui.0739": {
+    "default": "PDF import status is invalid",
+    "context": "Error shown when saved PDF import status data is malformed."
+  },
+  "ui.0740": {
+    "default": "Hostname recovery is required on the server before another change can be made.",
+    "context": "Status shown when a hostname change needs server-side recovery."
+  },
+  "ui.0741": {
+    "default": "The selected ZIM list does not match the import preview",
+    "context": "Import validation error when selected ZIMs differ from the preview."
+  },
+  "ui.0742": {
+    "default": "Select a disk with a stable identity",
+    "context": "Storage validation error for a disk without a stable identity."
+  },
+  "ui.0743": {
+    "default": "Settings-only import requires exactly one configuration JSON file",
+    "context": "Import validation error for a settings-only archive."
+  },
+  "ui.0744": {
+    "default": "Create the first administrator to finish setup",
+    "context": "Setup status shown until the initial administrator account is created."
+  },
+  "ui.0745": {
+    "default": "Wait for this PDF import to finish before retrying",
+    "context": "Status shown when a PDF import retry is already running."
+  },
+  "ui.0746": {
+    "default": "Review a valid storage destination before confirming",
+    "context": "Storage safety error shown before confirming a destination."
+  },
+  "ui.0747": {
+    "default": "Select an approved storage folder",
+    "context": "Validation error when a storage folder is not approved."
+  },
+  "ui.0748": {
+    "default": "Choose a supported import mode",
+    "context": "Import validation error for an unsupported import mode."
+  },
+  "ui.0749": {
+    "default": "Unknown storage action",
+    "context": "Validation error for an unrecognized storage action."
+  },
+  "ui.0750": {
+    "default": "Internet-required sources",
+    "context": "Eyebrow for online-only crisis information links."
+  },
+  "ui.0751": {
+    "default": "Online news and crisis overview",
+    "context": "Home group linking to external crisis/news services."
+  },
+  "ui.0752": {
+    "default": "Live information from external services. These links are hidden when the Hub cannot reach the internet.",
+    "context": "Explains online-only availability and offline behavior."
+  },
+  "ui.0753": {
+    "default": "links",
+    "context": "Count label for external information links."
+  },
+  "ui.0754": {
+    "default": "Online",
+    "context": "Availability label for an external link."
+  },
+  "ui.0755": {
+    "default": "These services require internet access and may be unavailable during a disruption. Use local emergency instructions and radio where appropriate.",
+    "context": "Safety note below online crisis links."
+  },
+  "ui.0756": {
+    "default": "Interactive global context from independent online sources. It is not an emergency alert service.",
+    "context": "Description of the World Monitor external link."
+  },
+  "ui.0757": {
+    "default": "Danish public-service news. Requires internet access.",
+    "context": "Description of the DR Nyheder external link."
+  },
+  "ui.0758": {
+    "default": "Danish public-service radio streams. Streaming requires internet; use an FM radio if networks or power fail.",
+    "context": "Description of the DR Lyd and P4 external link."
+  },
+  "ui.0759": {
+    "default": "Danish news. Requires internet access.",
+    "context": "Description of the TV 2 Nyheder external link."
+  },
+  "ui.0760": {
+    "default": "Official updates",
+    "context": "Eyebrow for the police RSS reader."
+  },
+  "ui.0761": {
+    "default": "Danish Police Update RSS",
+    "context": "Heading for the read-only police RSS reader."
+  },
+  "ui.0762": {
+    "default": "Load recent public operational updates from the Danish police. This reader does not send notifications and is not an emergency alert channel.",
+    "context": "Scope and limitations of the police RSS reader."
+  },
+  "ui.0763": {
+    "default": "Police district or feed",
+    "context": "Label for selecting an official police RSS feed."
+  },
+  "ui.0764": {
+    "default": "Load updates",
+    "context": "Button to fetch the selected RSS feed."
+  },
+  "ui.0765": {
+    "default": "Loading the selected feed…",
+    "context": "Status while fetching police RSS updates."
+  },
+  "ui.0766": {
+    "default": "Retrieved (UTC):",
+    "context": "Timestamp showing when the RSS feed was retrieved."
+  },
+  "ui.0767": {
+    "default": "showing a cached copy",
+    "context": "Warning when the RSS source is unavailable and cached updates are shown."
+  },
+  "ui.0768": {
+    "default": "No updates were returned for this feed.",
+    "context": "Empty RSS feed result."
+  },
+  "ui.0770": {
+    "default": "The feed is unavailable right now. Check your connection or try again later.",
+    "context": "RSS feed retrieval error."
+  },
+  "ui.0771": {
+    "default": "Open official update",
+    "context": "Link to the original police update item."
+  },
+  "ui.0772": {
+    "default": "Official RSS feed list for Danish police districts.",
+    "context": "Description of the official police RSS directory link."
+  }
+}

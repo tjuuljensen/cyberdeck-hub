@@ -1,0 +1,15 @@
+[Unit]
+Description=Cyberdeck verified library storage migration
+After=local-fs.target
+OnFailure=cyberdeck-storage-recovery.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/lib/cyberdeck/storage-helper.py migrate-worker
+TimeoutStartSec=infinity
+# Mount and bind-mount operations must remain visible in the host namespace.
+ProtectSystem=off
+ProtectHome=false
+NoNewPrivileges=false
