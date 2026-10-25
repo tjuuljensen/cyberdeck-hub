@@ -965,6 +965,9 @@ function openZimEditor(item,editing,sourceButton=null,kind='zim'){
   zimEditorForm.reset();zimEditorError.hidden=true;
   document.querySelector('#document-description').hidden=kind!=='document';
   zimEditorForm.elements.description.value=kind==='document'?item.description:'';
+  document.querySelector('#document-search-terms').hidden=!['document','archive'].includes(kind);
+  document.querySelector('#document-search-help').hidden=!['document','archive'].includes(kind);
+  zimEditorForm.elements.search_terms.value=['document','archive'].includes(kind)?(item.search_terms||''):'';
   zimEditorForm.elements.title.value=item.title;
   const subjects=zimEditorForm.elements.subject;
   subjects.value=item.subject||([...subjects.options].some(option=>option.value==='general-reference')?'general-reference':subjects.options[0]?.value||'');
@@ -992,6 +995,7 @@ zimEditorForm.addEventListener('submit',async event=>{
   const body={title:zimEditorForm.elements.title.value.trim(),subject:zimEditorForm.elements.subject.value};
   if(!editing)body.url=item.url;
   if(kind==='document')body.description=zimEditorForm.elements.description.value;
+  if(kind==='document'||kind==='archive')body.search_terms=zimEditorForm.elements.search_terms.value;
   zimEditorBusy=true;zimEditorSave.disabled=true;zimEditorCancel.disabled=true;zimEditorError.hidden=true;
   try{
     const endpoint=kind==='document'?`/api/admin/items/${encodeURIComponent(item.id)}`:kind==='archive'?`/api/admin/archive/${encodeURIComponent(item.filename)}`:editing?`/api/admin/zims/${encodeURIComponent(item.id)}`:'/api/admin/zims';

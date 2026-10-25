@@ -27,6 +27,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 import xml.etree.ElementTree as ET
 import urllib.error
 import urllib.parse
@@ -45,7 +46,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.7'
+APP_VERSION = '0.2.0-beta.8'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -583,6 +584,7 @@ def connect_db():
         username TEXT PRIMARY KEY, password_hash TEXT NOT NULL)''')
     db.execute('''CREATE TABLE IF NOT EXISTS item (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
+        search_terms TEXT NOT NULL DEFAULT '',
         subject TEXT NOT NULL, cover TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)''')
     db.execute('''CREATE TABLE IF NOT EXISTS attachment (
         id TEXT PRIMARY KEY, item_id TEXT NOT NULL REFERENCES item(id) ON DELETE CASCADE,
@@ -608,8 +610,14 @@ def connect_db():
                        [(slug, title, description, order)
                         for order, (slug, title, description) in enumerate(DEFAULT_SUBJECTS)])
     db.execute('''CREATE TABLE IF NOT EXISTS archive_metadata (
-        filename TEXT PRIMARY KEY, title TEXT NOT NULL,
+        filename TEXT PRIMARY KEY, title TEXT NOT NULL, search_terms TEXT NOT NULL DEFAULT '',
         subject TEXT NOT NULL REFERENCES library_subject(id) ON DELETE CASCADE)''')
+    item_columns = {row['name'] for row in db.execute('PRAGMA table_info(item)')}
+    if 'search_terms' not in item_columns:
+        db.execute("ALTER TABLE item ADD COLUMN search_terms TEXT NOT NULL DEFAULT ''")
+    archive_columns = {row['name'] for row in db.execute('PRAGMA table_info(archive_metadata)')}
+    if 'search_terms' not in archive_columns:
+        db.execute("ALTER TABLE archive_metadata ADD COLUMN search_terms TEXT NOT NULL DEFAULT ''")
     db.executescript('''
         CREATE TRIGGER IF NOT EXISTS item_subject_insert
         BEFORE INSERT ON item
@@ -1154,10 +1162,13 @@ def public_items(subject):
         if path.startswith('public/'):
             result.append({'title': asset.get('title', filename), 'kind': 'document',
                            'filename': filename, 'description': asset.get('description', ''),
+                           'search_terms': overrides.get(filename, {}).get(
+                               'search_terms', asset.get('search_terms', '')),
                            'url': '/library/' + urllib.parse.quote(filename)})
         elif path.startswith('zim/'):
             result.append({'title': asset.get('title', filename), 'kind': 'zim',
                            'filename': filename, 'description': asset.get('description', ''),
+                           'search_terms': asset.get('search_terms', ''),
                            'url': kiwix_viewer_url(filename)})
     for zim in database_zims.values():
         if zim['subject'] == subject and zim['status'] == 'ready':
@@ -1165,14 +1176,15 @@ def public_items(subject):
                            'url': kiwix_viewer_url(zim['filename'])})
     # Personal documents are public reference material once uploaded, but their
     # metadata and files can only be created or changed through admin routes.
-    for item in g.db.execute('SELECT id,title,description,cover FROM item WHERE subject=? ORDER BY created_at DESC',
+    for item in g.db.execute('SELECT id,title,description,search_terms,cover FROM item WHERE subject=? ORDER BY created_at DESC',
                              (subject,)).fetchall():
         for attachment in g.db.execute(
                 'SELECT id,filename,kind FROM attachment WHERE item_id=? ORDER BY filename',
                 (item['id'],)).fetchall():
             is_html = attachment['kind'] == 'html-zip'
             result.append({'id': item['id'], 'title': item['title'],
-                           'description': item['description'], 'kind': 'document',
+                           'description': item['description'], 'search_terms': item['search_terms'],
+                           'kind': 'document',
                            'attachment_kind': attachment['kind'],
                            'url': (f"/documents/{item['id']}/{attachment['id']}/viewer" if is_html
                                    else f"/documents/{item['id']}/{attachment['id']}"),
@@ -1181,42 +1193,79 @@ def public_items(subject):
     return result
 
 
+def _search_tokens(value):
+    normalized = unicodedata.normalize('NFKC', str(value)).casefold()
+    return re.findall(r'[^\W_]+', normalized, flags=re.UNICODE)
+
+
+def _catalogue_match_score(query_terms, fields):
+    """Require every query word and score matches by the field users value most."""
+    weights = {'title': 100, 'search_terms': 80, 'subject': 50,
+               'description': 30, 'filename': 20}
+    token_fields = {name: _search_tokens(value) for name, value in fields.items()}
+    score = 0
+    for term in query_terms:
+        best = 0
+        for name, tokens in token_fields.items():
+            weight = weights[name]
+            if any(token == term for token in tokens):
+                best = max(best, weight)
+            elif len(term) >= 3 and any(token.startswith(term) for token in tokens):
+                best = max(best, weight - 10)
+        if not best:
+            return 0
+        if term in token_fields['title']:
+            best += 20
+        score += best
+    query_text = ' '.join(query_terms)
+    title_text = ' '.join(token_fields['title'])
+    if title_text == query_text:
+        score += 100
+    elif title_text.startswith(query_text):
+        score += 40
+    return score
+
+
 def search_local_library(query, limit=50):
-    """Search local catalogue metadata without reading document payloads."""
-    needle = query.casefold()
+    """Search indexed catalogue metadata without reading document payloads."""
+    query_terms = _search_tokens(query)
+    if not query_terms:
+        return []
     results = []
     seen = set()
     for slug, title, description in get_subjects():
         title_text = translate(title)
         description_text = translate(description)
-        if needle in ' '.join((slug, title_text, description_text)).casefold():
-            key = ('subject', slug)
-            results.append({'kind': 'subject', 'title': title_text,
+        subject_fields = {'title': title_text, 'search_terms': '',
+                          'subject': slug + ' ' + title_text,
+                          'description': description_text, 'filename': ''}
+        subject_score = _catalogue_match_score(query_terms, subject_fields)
+        if subject_score:
+            results.append((subject_score, {'kind': 'subject', 'title': title_text,
                             'description': description_text, 'subject': slug,
-                            'subject_title': title_text, 'url': '/subjects/' + slug})
-            seen.add(key)
+                            'subject_title': title_text, 'url': '/subjects/' + slug}))
         for item in public_items(slug):
             key = (item.get('kind'), item.get('url'))
             if key in seen:
                 continue
             subject_text = title_text
-            searchable = ' '.join(str(item.get(field, ''))
-                                  for field in ('title', 'description', 'filename'))
-            searchable += ' ' + slug + ' ' + subject_text + ' ' + description_text
-            if needle not in searchable.casefold():
+            fields = {'title': item.get('title', ''),
+                      'search_terms': item.get('search_terms', ''),
+                      'subject': slug + ' ' + subject_text,
+                      'description': str(item.get('description', '')) + ' ' + description_text,
+                      'filename': item.get('filename', '')}
+            score = _catalogue_match_score(query_terms, fields)
+            if not score:
                 continue
-            results.append({'kind': item.get('kind', 'document'),
+            results.append((score, {'kind': item.get('kind', 'document'),
                             'title': item.get('title', ''),
                             'description': item.get('description', ''),
                             'filename': item.get('filename', ''),
                             'subject': slug, 'subject_title': subject_text,
-                            'url': item.get('url', '/subjects/' + slug)})
+                            'url': item.get('url', '/subjects/' + slug)}))
             seen.add(key)
-            if len(results) >= limit:
-                return results
-        if len(results) >= limit:
-            break
-    return results
+    results.sort(key=lambda row: row[0], reverse=True)
+    return [entry for _score, entry in results[:limit]]
 
 
 @app.get('/library/<path:name>')
@@ -1264,7 +1313,7 @@ def active_starter_paths():
 
 def archive_metadata():
     return {row['filename']: dict(row) for row in
-            g.db.execute('SELECT filename,title,subject FROM archive_metadata')}
+            g.db.execute('SELECT filename,title,subject,search_terms FROM archive_metadata')}
 
 
 def export_inventory():
@@ -1280,7 +1329,8 @@ def export_inventory():
         library.validate_asset(asset)
         local = overrides.get(path.removeprefix('public/'), {}) if path.startswith('public/') else {}
         asset.update({key: local[value] for key, value in
-                      [('title', 'title'), ('collection', 'subject')] if value in local})
+                      [('title', 'title'), ('collection', 'subject'),
+                       ('search_terms', 'search_terms')] if value in local})
         entries[path] = asset
     for row in g.db.execute('SELECT * FROM zim ORDER BY filename'):
         path = 'zim/' + row['filename']
@@ -1314,7 +1364,8 @@ def export_inventory():
             if source:
                 asset = json.loads(source['asset'])
                 asset.update(title=row['title'] + ' - ' + attachment['filename'],
-                             collection=row['subject'], description=row['description'])
+                             collection=row['subject'], description=row['description'],
+                             search_terms=row['search_terms'])
                 library.validate_asset(asset)
                 result.append({'id': 'source:' + attachment['id'], 'title': asset['title'],
                                'subject': row['subject'], 'mode': 'online', 'asset': asset})
@@ -1744,9 +1795,12 @@ def _validate_import_config(config):
             paths.add(entry['asset']['path'])
         else:
             item = entry['item']
+            item_search_terms = item.get('search_terms', '')
             if (not isinstance(item.get('attachments'), list) or not item['attachments'] or
                     not isinstance(item.get('title'), str) or len(item['title']) > 200 or
-                    not isinstance(item.get('id'), str) or not re.fullmatch(r'[0-9a-fA-F-]{36}', item['id'])):
+                    not isinstance(item.get('id'), str) or not re.fullmatch(r'[0-9a-fA-F-]{36}', item['id']) or
+                    not isinstance(item_search_terms, str) or len(item_search_terms) > 1000 or
+                    any(ord(char) < 32 and char not in '\t\r\n' for char in item_search_terms)):
                 raise ValueError('Invalid local document metadata')
     allowed_settings = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns',
                         'hide_empty_subjects', 'always_show_subjects'}
@@ -2854,16 +2908,18 @@ def import_apply():
                                          (str(uuid.uuid4()), title, asset.get('collection', 'general-reference'), filename,
                                           asset.get('url', ''), info['bytes'], info['sha256'], 'ready'))
                         else:
-                            g.db.execute('INSERT INTO archive_metadata(filename,title,subject) VALUES(?,?,?)',
+                            g.db.execute('INSERT INTO archive_metadata(filename,title,subject,search_terms) VALUES(?,?,?,?)',
                                          (Path(source_path).name, asset.get('title', Path(source_path).name),
-                                          asset.get('collection', 'general-reference')))
+                                          asset.get('collection', 'general-reference'),
+                                          asset.get('search_terms', '')))
                     else:
                         old_item = entry['item']
                         item_id = planned_item_ids[path]
                         files = {item['path']: item for item in metadata['files']}
-                        g.db.execute('INSERT INTO item(id,title,description,subject,cover) VALUES(?,?,?,?,NULL)',
+                        g.db.execute('INSERT INTO item(id,title,description,subject,cover,search_terms) VALUES(?,?,?,?,NULL,?)',
                                      (item_id, old_item['title'], old_item.get('description', ''),
-                                      resolved.get(old_item.get('subject'), old_item.get('subject', 'general-reference'))))
+                                      resolved.get(old_item.get('subject'), old_item.get('subject', 'general-reference')),
+                                      old_item.get('search_terms', '')))
                         cover = None
                         old_cover_path = f"files/{old_item['id']}/{old_item['cover']}" if old_item.get('cover') else None
                         item_dir = PRIVATE_ROOT / 'files' / item_id
@@ -3126,6 +3182,7 @@ def archive_list():
         result.append({'filename': filename,
                        'title': local.get('title', asset.get('title', filename)),
                        'subject': local.get('subject', asset.get('collection', '')),
+                       'search_terms': local.get('search_terms', asset.get('search_terms', '')),
                        'bytes': file_size if file_size is not None else record.get('bytes'),
                        'available': file_size is not None,
                        'managed': name in managed})
@@ -3160,10 +3217,14 @@ def archive_edit(filename):
     if not isinstance(body, dict):
         return jsonify(error='Expected a display title and subject'), 400
     title, subject = body.get('title'), body.get('subject')
+    search_terms = body.get('search_terms', '')
     if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
         return jsonify(error='Display title must contain 1 to 200 characters'), 400
     if not isinstance(subject, str) or subject not in {row[0] for row in get_subjects()}:
         return jsonify(error='Choose an existing subject'), 400
+    if (not isinstance(search_terms, str) or len(search_terms) > 1000 or
+            any(ord(char) < 32 and char not in '\t\r\n' for char in search_terms)):
+        return jsonify(error='Search terms must be at most 1000 characters of text'), 400
     try:
         records = acquired_records()
     except (OSError, ValueError) as error:
@@ -3171,11 +3232,13 @@ def archive_edit(filename):
     if 'public/' + filename not in records:
         abort(404)
     # Display overrides never rewrite acquisition identity or downloaded bytes.
-    g.db.execute('''INSERT INTO archive_metadata(filename,title,subject) VALUES(?,?,?)
-        ON CONFLICT(filename) DO UPDATE SET title=excluded.title,subject=excluded.subject''',
-                 (filename, title.strip(), subject))
+    g.db.execute('''INSERT INTO archive_metadata(filename,title,subject,search_terms) VALUES(?,?,?,?)
+        ON CONFLICT(filename) DO UPDATE SET title=excluded.title,subject=excluded.subject,
+        search_terms=excluded.search_terms''',
+                 (filename, title.strip(), subject, search_terms.strip()))
     g.db.commit()
-    return jsonify(filename=filename, title=title.strip(), subject=subject)
+    return jsonify(filename=filename, title=title.strip(), subject=subject,
+                   search_terms=search_terms.strip())
 
 
 @app.delete('/api/admin/archive/<filename>')
@@ -4687,11 +4750,15 @@ def validate_and_extract_zip(data, output):
 def item_create():
     title = request.form.get('title', '').strip()[:200]
     description = request.form.get('description', '').strip()[:5000]
+    search_terms = request.form.get('search_terms', '').strip()
     subject = request.form.get('subject', '')
     attachment_url = request.form.get('attachment_url', '').strip()
     uploads = [upload for upload in request.files.getlist('attachments') if upload and upload.filename]
     if not title or subject not in {row[0] for row in get_subjects()}:
         return jsonify(error='Title and a known subject are required'), 400
+    if (len(search_terms) > 1000 or
+            any(ord(char) < 32 and char not in '\t\r\n' for char in search_terms)):
+        return jsonify(error='Search terms must be at most 1000 characters of text'), 400
     if not uploads and not attachment_url:
         return jsonify(error='Upload at least one attachment or provide an HTTPS file URL'), 400
     if len(attachment_url) > 2048:
@@ -4700,8 +4767,8 @@ def item_create():
     base = PRIVATE_ROOT / 'files' / item_id
     base.mkdir(parents=True, mode=0o700)
     cover = None
-    g.db.execute('INSERT INTO item(id,title,description,subject,cover) VALUES(?,?,?,?,NULL)',
-                 (item_id, title, description, subject))
+    g.db.execute('INSERT INTO item(id,title,description,subject,cover,search_terms) VALUES(?,?,?,?,NULL,?)',
+                 (item_id, title, description, subject, search_terms))
     try:
         def save_attachment(filename, stream, content_length=None, source_url=None):
             filename = secure_filename(filename or '')
@@ -4734,7 +4801,8 @@ def item_create():
             if source_url:
                 asset = {'path': 'public/' + stored, 'url': source_url,
                          'title': title + ' - ' + filename, 'collection': subject,
-                         'description': description, 'filename': filename, 'kind': kind,
+                         'description': description, 'search_terms': search_terms,
+                         'filename': filename, 'kind': kind,
                          'max_bytes': total, 'expected_bytes': total, 'sha256': digest.hexdigest(),
                          'hash_provenance': 'Computed locally from the imported attachment; not a publisher-signed checksum.'}
                 library.validate_asset(asset)
@@ -4788,7 +4856,8 @@ def item_list():
                 PRIVATE_ROOT, f"files/{row['id']}/{item.pop('stored_path')}")
             attachments.append(item)
         result.append({'id': row['id'], 'title': row['title'],
-                       'description': row['description'], 'subject': row['subject'],
+                       'description': row['description'], 'search_terms': row['search_terms'],
+                       'subject': row['subject'],
                        'cover_url': f"/private/{row['id']}/cover" if row['cover'] else None,
                        'attachments': attachments})
     return jsonify(result)
@@ -4813,11 +4882,15 @@ def item_update(item_id):
     body = request.get_json(silent=True) or {}
     title = str(body.get('title', '')).strip()[:200]
     description = str(body.get('description', '')).strip()[:5000]
+    search_terms = body.get('search_terms', '')
     subject = str(body.get('subject', ''))
     if not title or subject not in {row[0] for row in get_subjects()}:
         return jsonify(error='Title and a known subject are required'), 400
-    cursor = g.db.execute('UPDATE item SET title=?,description=?,subject=? WHERE id=?',
-                          (title, description, subject, item_id))
+    if (not isinstance(search_terms, str) or len(search_terms) > 1000 or
+            any(ord(char) < 32 and char not in '\t\r\n' for char in search_terms)):
+        return jsonify(error='Search terms must be at most 1000 characters of text'), 400
+    cursor = g.db.execute('UPDATE item SET title=?,description=?,search_terms=?,subject=? WHERE id=?',
+                          (title, description, search_terms.strip(), subject, item_id))
     if not cursor.rowcount:
         abort(404)
     g.db.commit()

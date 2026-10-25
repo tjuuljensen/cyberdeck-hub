@@ -92,6 +92,10 @@ def validate_asset(asset):
         raise ValueError('Specify exactly one URL, source file, or already-imported local payload')
     if 'url' in asset and urllib.parse.urlparse(asset['url']).scheme != 'https':
         raise ValueError('Downloads must use HTTPS')
+    search_terms = asset.get('search_terms', '')
+    if (not isinstance(search_terms, str) or len(search_terms) > 1000 or
+            any(ord(char) < 32 and char not in '\t\r\n' for char in search_terms)):
+        raise ValueError('Search terms must be at most 1000 characters of text')
     if 'url_resolver' in asset:
         page = urllib.parse.urlparse(asset.get('url', ''))
         if (asset['url_resolver'] != 'mediafire' or page.netloc != 'www.mediafire.com' or

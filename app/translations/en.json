@@ -2696,7 +2696,7 @@
     "context": "Heading and accessible label for searching local Cyberdeck Hub catalogue metadata."
   },
   "ui.0681": {
-    "default": "Find titles, file names, subjects, and descriptions stored on this Cyberdeck.",
+    "default": "Find titles, file names, subjects, short overviews, and search terms stored on this Cyberdeck. All entered words must match. This does not search inside PDFs or ZIM files.",
     "context": "Explains that local search checks catalogue metadata, not the full text inside PDFs or ZIM files."
   },
   "ui.0682": {
@@ -3126,5 +3126,21 @@
   "ui.0810": {
     "default": "Read updates",
     "context": "Action link on an RSS card that opens its detail page."
+  },
+  "ui.0811": {
+    "default": "To search article content inside an installed ZIM library, open Kiwix and use its search bar. Full-text search depends on the archive and Kiwix support.",
+    "context": "Explains when to use Kiwix search and that full-text search is not available for every archive."
+  },
+  "ui.0812": {
+    "default": "Search terms (comma-separated)",
+    "context": "Admin field for optional keywords and alternate names used by local catalogue search."
+  },
+  "ui.0813": {
+    "default": "Add keywords, alternate names, or common phrases. These are used for search and are not shown as the document overview.",
+    "context": "Help text for the document search terms field."
+  },
+  "ui.0814": {
+    "default": "Short overview",
+    "context": "Reader-facing brief description of a document, shown in subject views and search results."
   }
 }

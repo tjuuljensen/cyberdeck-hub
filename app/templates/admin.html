@@ -12,7 +12,7 @@
 </article>
 <article class="admin-panel" id="documents"><p class="eyebrow">SHARED REFERENCE FILES</p><h2>Documents</h2><p>Manage your documents in one place. Everyone on the local network can read them; only administrators can add, edit, or remove them.</p>
 <details class="content-add"><summary>Add Document</summary>
-<form id="item-form" class="stack" enctype="multipart/form-data"><label>Title<input name="title" required maxlength="200"></label><label>Description<textarea name="description" rows="3" maxlength="5000"></textarea></label><label>Subject<select name="subject">{% for id,title,desc in config_subjects %}<option value="{{ id }}">{{ title }}</option>{% endfor %}</select></label><label>Cover image<input name="cover" type="file" accept="image/jpeg,image/png,image/webp"></label><label>Upload attachments<input name="attachments" type="file" multiple accept=".pdf,.docx,.zip"></label><label>Or download one attachment from a public HTTPS URL<input name="attachment_url" type="url" maxlength="2048" placeholder="https://example.org/guide.pdf"></label><p class="subtle">Accepted files: PDF, DOCX, or ZIP containing HTML. You may upload files, provide a URL, or do both.</p><button class="button primary">Add Document</button></form></details>
+<form id="item-form" class="stack" enctype="multipart/form-data"><label>Title<input name="title" required maxlength="200"></label><label>{{ t('ui.0814') }}<textarea name="description" rows="3" maxlength="5000"></textarea></label><label>{{ t('ui.0812') }}<textarea name="search_terms" rows="2" maxlength="1000"></textarea></label><p class="subtle">{{ t('ui.0813') }}</p><label>Subject<select name="subject">{% for id,title,desc in config_subjects %}<option value="{{ id }}">{{ title }}</option>{% endfor %}</select></label><label>Cover image<input name="cover" type="file" accept="image/jpeg,image/png,image/webp"></label><label>Upload attachments<input name="attachments" type="file" multiple accept=".pdf,.docx,.zip"></label><label>Or download one attachment from a public HTTPS URL<input name="attachment_url" type="url" maxlength="2048" placeholder="https://example.org/guide.pdf"></label><p class="subtle">Accepted files: PDF, DOCX, or ZIP containing HTML. You may upload files, provide a URL, or do both.</p><button class="button primary">Add Document</button></form></details>
 <p id="documents-status" class="subtle" role="status" aria-live="polite"></p><div class="button-row"><button id="documents-reload" class="button" type="button">Refresh documents</button><button id="pdf-retry-all" class="button" type="button" hidden>{{ t('ui.0694') }}</button></div>
 <div id="documents-list" class="item-list"></div>
 </article>
@@ -88,7 +88,9 @@
 <div id="zim-editor-details" class="zim-details"></div>
 <label>Display title<input name="title" required maxlength="200"></label>
 <label>Subject<select name="subject" required>{% for id,title,desc in config_subjects %}<option value="{{ id }}">{{ title }}</option>{% endfor %}</select></label>
-<label id="document-description" hidden>Description<textarea name="description" rows="3" maxlength="5000"></textarea></label>
+<label id="document-description" hidden>{{ t('ui.0814') }}<textarea name="description" rows="3" maxlength="5000"></textarea></label>
+<label id="document-search-terms" hidden>{{ t('ui.0812') }}<textarea name="search_terms" rows="2" maxlength="1000"></textarea></label>
+<p class="subtle" id="document-search-help" hidden>{{ t('ui.0813') }}</p>
 <p class="subtle" id="zim-editor-note"></p>
 <p id="zim-editor-error" class="form-error" role="alert" hidden></p>
 <div class="button-row"><button type="button" class="button" id="zim-editor-cancel">Cancel</button><button type="submit" class="button primary" id="zim-editor-save">Start download</button></div>

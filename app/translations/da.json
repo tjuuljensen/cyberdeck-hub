@@ -673,7 +673,7 @@
   "ui.0678": "Wi-Fi",
   "ui.0679": "Overtaget. Fjern ikke disken; den indeholder de aktive biblioteksdata.",
   "ui.0680": "Søg i dette bibliotek",
-  "ui.0681": "Find titler, filnavne, emner og beskrivelser, der er gemt på denne Cyberdeck.",
+  "ui.0681": "Find titler, filnavne, emner, korte beskrivelser og søgeord, der er gemt på denne Cyberdeck. Alle søgeord skal matche. Søgningen læser ikke indholdet i PDF- eller ZIM-filer.",
   "ui.0682": "Søg",
   "ui.0683": "Søgeresultater",
   "ui.0684": "Ingen emner eller filer matchede søgningen.",
@@ -780,5 +780,9 @@
   "ui.0807": "Kortet er gemt.",
   "ui.0808": "Denne konfiguration indeholder {sources} kort med onlinekilder og {feeds} RSS-kort.",
   "ui.0809": "Åbn kilder",
-  "ui.0810": "Læs opdateringer"
+  "ui.0810": "Læs opdateringer",
+  "ui.0811": "Hvis du vil søge i artikler i et installeret ZIM-bibliotek, skal du åbne Kiwix og bruge søgefeltet dér. Fuldtekstsøgning afhænger af arkivet og Kiwix-understøttelsen.",
+  "ui.0812": "Søgeord (adskilt med komma)",
+  "ui.0813": "Tilføj nøgleord, alternative navne eller almindelige søgeudtryk. De bruges til søgning og vises ikke som dokumentets korte beskrivelse.",
+  "ui.0814": "Kort beskrivelse"
 }

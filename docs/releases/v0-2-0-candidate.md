@@ -18,11 +18,16 @@ and labels each card with a translated type and sequence number.
 `0.2.0-beta.7` makes online-source and RSS home cards open dedicated detail
 pages. The pages show every configured online link and the complete bounded set
 of fetched RSS items, and disappear when internet access is unavailable.
+`0.2.0-beta.8` adds separate search terms for documents, token-based matching,
+and relevance ordering. Hub search remains a metadata catalogue search; use the
+Kiwix search bar to look inside installed ZIM libraries.
 
 ## Included scope
 
-- Local catalogue search covers stored titles, descriptions, filenames, and
-  subject metadata. It does not index PDF or ZIM full text.
+- Local catalogue search matches all query words across titles, filenames,
+  subjects, short overviews, and optional search terms. Title matches rank
+  highest. It does not index PDF or ZIM full text; Kiwix search can search ZIM
+  titles and, for supported archives, full text.
 - Internet PDF imports show per-file progress and failure state in Admin, with
   retry for failed downloads. Configuration exports preserve online source
   links and metadata, not remote PDF payloads. The optional, manually started
