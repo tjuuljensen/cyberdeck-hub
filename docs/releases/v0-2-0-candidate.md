@@ -8,7 +8,10 @@ section, but a late browser scroll restoration still moved it to the previous
 position. `0.2.0-beta.3` disables scroll restoration before Admin page parsing
 and resets to the top after the page is shown. `0.2.0-beta.4` places Internet
 PDF import rows alongside managed Documents, adds per-file retry and cancel,
-and keeps a retry-all-failed action.
+and keeps a retry-all-failed action. `0.2.0-beta.5` combines Internet PDF
+imports with the Documents list, adds visible transfer progress and Remove,
+aligns Edit, Download, and Remove controls, and reapplies Admin fragments after
+page restoration.
 
 ## Included scope
 

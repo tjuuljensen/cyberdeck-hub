@@ -2759,6 +2759,18 @@
     "default": "Canceled",
     "context": "Status for an Internet PDF download canceled by an administrator."
   },
+  "ui.0698": {
+    "default": "Confirm Remove",
+    "context": "Second-click confirmation for removing a document or stopping its import."
+  },
+  "ui.0699": {
+    "default": "Download · {size}",
+    "context": "Download button label for a managed document; preserve the size placeholder."
+  },
+  "ui.0700": {
+    "default": "{received} / {total} ({percent}%)",
+    "context": "Progress text for an Internet PDF download; preserve all placeholders."
+  },
   "ui.0714": {
     "default": "Preparedness",
     "context": "Title of the default preparedness subject."

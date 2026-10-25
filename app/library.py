@@ -461,6 +461,9 @@ def fetch(root, manifest, missing_only=False, continue_on_error=False, status_ca
         dest = safe_path(root, name)
         expected = asset.get('sha256')
         if cancel_check and cancel_check(name):
+            partial = safe_path(root, name + '.part')
+            partial.unlink(missing_ok=True)
+            partial.with_name(partial.name + '.json').unlink(missing_ok=True)
             report_status(name, 'canceled')
             continue
         if name in lock and name not in missing_locked:
@@ -481,12 +484,16 @@ def fetch(root, manifest, missing_only=False, continue_on_error=False, status_ca
             print(f'Acquiring: {name}', flush=True)
             stream_download(asset, partial, cancel_check=(
                 (lambda: cancel_check(name)) if cancel_check else None))
+            if cancel_check and cancel_check(name):
+                raise AcquisitionCancelled('Download canceled by administrator')
             digest = sha256(partial)
             if expected and digest.lower() != expected.lower():
                 raise ValueError(f'Expected SHA-256 mismatch: {name}; inspect partial before retrying')
             os.replace(partial, dest)
             dest.chmod(0o644)
         except AcquisitionCancelled:
+            partial.unlink(missing_ok=True)
+            partial.with_name(partial.name + '.json').unlink(missing_ok=True)
             report_status(name, 'canceled')
             print(f'Canceled: {name}', flush=True)
             continue

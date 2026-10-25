@@ -45,7 +45,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.4'
+APP_VERSION = '0.2.0-beta.5'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -2849,6 +2849,7 @@ def import_apply():
                     'files': [{'path': asset['path'],
                                'title': str(asset.get('title') or Path(asset['path']).name),
                                'subject': str(asset.get('collection') or ''),
+                               'expected_bytes': asset.get('expected_bytes'),
                                'status': 'queued', 'error': ''} for asset in pdf_assets]})
                 start_pdf_import_worker(request_id)
                 result['pdf_downloads_started'] = len(pdf_assets)
@@ -4820,6 +4821,14 @@ def pdf_import_paths(request_id):
             library.safe_path(PRIVATE_ROOT, f'logs/import-pdfs-{request_id}.log'))
 
 
+def pdf_import_removed_path(request_id, file_index):
+    pdf_import_paths(request_id)  # Validate the request id before composing a marker path.
+    if type(file_index) is not int or file_index < 0:
+        raise ValueError('Invalid PDF import file index')
+    return library.safe_path(PRIVATE_ROOT,
+                             f'requests/import-pdfs-{request_id}-{file_index}.removed')
+
+
 def read_pdf_import_status(request_id):
     _manifest, status_path, _log = pdf_import_paths(request_id)
     if status_path.is_symlink() or not status_path.is_file():
@@ -4828,20 +4837,39 @@ def read_pdf_import_status(request_id):
     if (not isinstance(status, dict) or status.get('id') != request_id or
             not isinstance(status.get('files'), list)):
         raise ValueError('PDF import status is invalid')
-    valid_states = {'queued', 'downloading', 'downloaded', 'failed', 'canceled'}
+    valid_states = {'queued', 'downloading', 'downloaded', 'failed', 'canceled', 'removed'}
     for item in status['files']:
         if (not isinstance(item, dict) or not isinstance(item.get('path'), str) or
                 not isinstance(item.get('title'), str) or item.get('status') not in valid_states or
                 not isinstance(item.get('error', ''), str) or
-                not isinstance(item.get('subject', ''), str)):
+                not isinstance(item.get('subject', ''), str) or
+                (item.get('expected_bytes') is not None and
+                 (type(item['expected_bytes']) is not int or item['expected_bytes'] <= 0))):
             raise ValueError('PDF import status contains an invalid file record')
     return status
 
 
 def refresh_pdf_import_liveness(status):
+    changed = False
+    for index, item in enumerate(status['files']):
+        try:
+            removed = pdf_import_removed_path(status['id'], index)
+            if removed.exists() and item.get('status') != 'removed':
+                item['status'], item['error'] = 'removed', ''
+                changed = True
+        except (OSError, ValueError):
+            pass
+        try:
+            partial = library.safe_path(DATA_ROOT, item['path'] + '.part')
+            item['received_bytes'] = partial.stat().st_size if partial.is_file() else 0
+        except (OSError, ValueError):
+            item['received_bytes'] = 0
     active = [item for item in status['files']
               if item.get('status') in {'queued', 'downloading'}]
     if not active:
+        if changed:
+            _manifest, status_path, _log = pdf_import_paths(status['id'])
+            library.write_json(status_path, status)
         return status
     pid = status.get('worker_pid')
     alive = isinstance(pid, int) and not isinstance(pid, bool) and pid > 0
@@ -4853,6 +4881,9 @@ def refresh_pdf_import_liveness(status):
         except OSError:
             alive = False
     if alive:
+        if changed:
+            _manifest, status_path, _log = pdf_import_paths(status['id'])
+            library.write_json(status_path, status)
         return status
     for item in active:
         item['status'] = 'failed'
@@ -4980,21 +5011,34 @@ def admin_pdf_import_file_retry(request_id, file_index):
 
 
 @app.post('/api/admin/import/pdf/<request_id>/files/<int:file_index>/cancel')
+@app.post('/api/admin/import/pdf/<request_id>/files/<int:file_index>/remove')
 @admin_required
 @csrf_required
-def admin_pdf_import_file_cancel(request_id, file_index):
+def admin_pdf_import_file_remove(request_id, file_index):
     try:
         status = read_pdf_import_status(request_id)
         if file_index >= len(status['files']):
             abort(404)
         item = status['files'][file_index]
-        if item.get('status') not in {'queued', 'downloading'}:
-            return jsonify(error='This PDF is no longer active'), 409
-        item['status'], item['error'] = 'canceled', ''
+        if item.get('status') in {'downloaded', 'removed'}:
+            return jsonify(error='This PDF is no longer an import-only document'), 409
+        was_downloading = item.get('status') == 'downloading'
+        removed_marker = pdf_import_removed_path(request_id, file_index)
+        if removed_marker.is_symlink():
+            return jsonify(error='Refusing a PDF removal marker symlink'), 409
+        try:
+            removed_marker.touch(exist_ok=True)
+        except OSError as error:
+            return jsonify(error=str(error) or 'Could not remove this PDF import'), 503
+        item['status'], item['error'] = 'removed', ''
         item['updated_at'] = time.time()
         status['updated_at'] = time.time()
         _manifest, status_path, _log = pdf_import_paths(request_id)
         library.write_json(status_path, status)
+        if not was_downloading:
+            partial = library.safe_path(DATA_ROOT, item['path'] + '.part')
+            partial.unlink(missing_ok=True)
+            partial.with_name(partial.name + '.json').unlink(missing_ok=True)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         return jsonify(error=str(error) or 'Could not cancel this PDF download'), 503
     return jsonify(status=status)
@@ -5006,9 +5050,10 @@ def fetch_import_pdfs(request_id):
 
     def report(path, state, error):
         status = read_pdf_import_status(request_id)
-        for item in status['files']:
+        for index, item in enumerate(status['files']):
             if item.get('path') == path:
-                if item.get('status') == 'canceled' and state not in {'canceled', 'downloaded'}:
+                removed = pdf_import_removed_path(request_id, index).exists()
+                if (item.get('status') == 'removed' or removed) and state != 'downloaded':
                     return
                 item['status'], item['error'] = state, error[:500]
                 item['updated_at'] = time.time()
@@ -5018,8 +5063,11 @@ def fetch_import_pdfs(request_id):
 
     def is_canceled(path):
         status = read_pdf_import_status(request_id)
-        return any(item.get('path') == path and item.get('status') == 'canceled'
-                   for item in status['files'])
+        for index, item in enumerate(status['files']):
+            if item.get('path') == path:
+                return (item.get('status') == 'removed' or
+                        pdf_import_removed_path(request_id, index).exists())
+        return False
 
     while True:
         with closing(connect_db()) as db:

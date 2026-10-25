@@ -370,62 +370,63 @@ let hotspotPasswordLoaded=false;
 let zimPolling=false;
 async function requestJson(url, options={}) { let response;try{response=await fetch(url,{...options,headers:{...headers,...options.headers}})}catch{throw new Error(window.cyberdeckNetworkError())}if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(window.cyberdeckApiError(body,response.status))}return response.status===204?null:response.json(); }
 let pdfImportPoll;
+let adminDocumentEntries=[];
+let pdfImportJobs=[];
 async function refreshPdfImports(){
-  const panel=document.querySelector('#pdf-import-status');if(!panel)return;
   try{
-    const {imports}=await requestJson('/api/admin/import/pdf');panel.replaceChildren();
-    if(!imports.length){clearTimeout(pdfImportPoll);return;}
-    const heading=document.createElement('h3');heading.textContent=t('ui.0689');panel.append(heading);
-    let active=false;
-    for(const job of imports){
-      let jobActive=job.files.some(file=>file.status==='queued'||file.status==='downloading');
-      const group=document.createElement('section');group.className='pdf-import-job';
-      const list=document.createElement('div');list.className='item-list';
-      for(const [fileIndex,file] of job.files.entries()){
-        const row=document.createElement('div');row.className='item-row pdf-import-row';
-        const label=document.createElement('div');const title=document.createElement('strong');title.textContent=file.title;
-        const state=document.createElement('span');state.className=`pdf-import-state is-${file.status}`;
-        const stateKey={queued:'ui.0690',downloading:'ui.0691',downloaded:'ui.0692',failed:'ui.0693',canceled:'ui.0697'}[file.status]||'ui.0690';
-        state.textContent=t(stateKey);label.append(title,state);
-        if(file.subject){const subject=document.createElement('small');subject.className='pdf-import-subject';subject.textContent=subjectName(file.subject);label.append(subject)}
-        if(file.error){const error=document.createElement('small');error.className='error';error.textContent=file.error;label.append(error)}
-        const actions=document.createElement('div');actions.className='button-row';
-        const pending=file.status==='queued'||file.status==='downloading';
-        if(pending){
-          active=true;
-          const cancel=document.createElement('button');cancel.type='button';cancel.className='button';cancel.textContent=t('ui.0696');
-          cancel.onclick=async()=>{cancel.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/cancel`,{method:'POST'});await refreshPdfImports()}catch(error){cancel.disabled=false;const message=document.createElement('p');message.className='error';message.textContent=error.message;group.append(message)}};
-          actions.append(cancel);
-        }else if(!jobActive&&(file.status==='failed'||file.status==='canceled')){
-          const retry=document.createElement('button');retry.type='button';retry.className='button';retry.textContent=t('ui.0695');
-          retry.onclick=async()=>{retry.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/retry`,{method:'POST'});await refreshPdfImports()}catch(error){retry.disabled=false;const message=document.createElement('p');message.className='error';message.textContent=error.message;group.append(message)}};
-          actions.append(retry);
-        }
-        row.append(label);if(actions.childElementCount)row.append(actions);list.append(row);
-      }
-      group.append(list);
-      if(!jobActive&&job.files.some(file=>file.status==='failed')){
-        const retry=document.createElement('button');retry.type='button';retry.className='button';retry.textContent=t('ui.0694');
-        retry.onclick=async()=>{retry.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/retry`,{method:'POST'});await refreshPdfImports()}catch(error){retry.disabled=false;const message=document.createElement('p');message.className='error';message.textContent=error.message;group.append(message)}};
-        const actions=document.createElement('div');actions.className='button-row';actions.append(retry);group.append(actions);
-      }
-      panel.append(group);
-    }
+    const previouslyDownloaded=new Set(pdfImportJobs.flatMap(job=>job.files
+      .filter(file=>file.status==='downloaded').map(file=>file.path)));
+    const {imports}=await requestJson('/api/admin/import/pdf');pdfImportJobs=imports;
+    renderAdminDocuments();
+    const newlyDownloaded=imports.some(job=>job.files.some(file=>file.status==='downloaded'&&!previouslyDownloaded.has(file.path)));
+    if(newlyDownloaded)await refreshDocuments();
+    const active=imports.some(job=>job.files.some(file=>file.status==='queued'||file.status==='downloading'));
+    document.querySelector('#pdf-retry-all').hidden=!imports.some(job=>
+      !job.files.some(file=>file.status==='queued'||file.status==='downloading')&&
+      job.files.some(file=>file.status==='failed'));
     clearTimeout(pdfImportPoll);if(active)pdfImportPoll=setTimeout(refreshPdfImports,3000);
-  }catch(error){panel.replaceChildren();const message=document.createElement('p');message.className='error';message.textContent=error.message;panel.append(message)}
+  }catch(error){console.error('Could not load Internet PDF status:',error)}
 }
 function row(title, detail, buttonText, callback) { const el=document.createElement('div');el.className='item-row';const label=document.createElement('div');const strong=document.createElement('strong');strong.textContent=title;const small=document.createElement('span');small.textContent=` ${detail||''}`;label.append(strong,small);const button=document.createElement('button');button.className='button';button.type='button';button.textContent=t(buttonText);button.onclick=callback;el.append(label,button);return el; }
+function recordActions(){const actions=document.createElement('div');actions.className='record-actions';return actions}
+const armedRemovals=new Map();
+function armRemoval(button,remove,key){
+  const label=button.textContent;
+  button.dataset.removalKey=key;button.dataset.removalLabel=label;
+  const disarm=()=>{
+    armedRemovals.delete(key);
+    document.querySelectorAll('[data-removal-key]').forEach(candidate=>{
+      if(candidate.dataset.removalKey===key){delete candidate.dataset.armed;candidate.textContent=candidate.dataset.removalLabel;candidate.classList.remove('danger')}
+    });
+  };
+  const expires=armedRemovals.get(key);
+  if(expires>Date.now()){
+    button.dataset.armed='true';button.textContent=t('ui.0698');button.classList.add('danger');
+    setTimeout(()=>{if(armedRemovals.get(key)===expires&&Date.now()>=expires)disarm()},expires-Date.now());
+  }else if(expires)armedRemovals.delete(key);
+  button.onclick=async()=>{
+    if(!(armedRemovals.get(key)>Date.now())){
+      const nextExpiry=Date.now()+8000;armedRemovals.set(key,nextExpiry);
+      button.dataset.armed='true';button.textContent=t('ui.0698');button.classList.add('danger');
+      setTimeout(()=>{if(armedRemovals.get(key)===nextExpiry&&Date.now()>=nextExpiry)disarm()},8000);return;
+    }
+    disarm();button.disabled=true;
+    try{await remove()}catch(error){alert(error.message)}finally{button.disabled=false}
+  };
+}
 function zimProgressText(item){const status=item.status.startsWith('pid:')?t('ui.0397'):item.status.startsWith('failed')?t('ui.0400'):t(item.status);if(item.status==='ready')return t('ui.0371',{size:formatBytes(item.bytes)});if(item.status.startsWith('failed'))return `${status} · ${item.failure_reason||item.status.replace(/^failed:\s*/, '')}`;if(item.pause_requested)return t('ui.0372');if(!item.expected_bytes)return status;const received=item.received_bytes||0;const progress=t('ui.0373',{received:formatBytes(received),total:formatBytes(item.expected_bytes),percent:Math.floor(received*100/item.expected_bytes)});if(item.phase==='verifying')return t('ui.0374',{status});if(item.phase==='stalled')return t('ui.0375',{status,elapsed:formatUptime(item.progress_age_seconds)});if(item.phase==='connecting')return t('ui.0376',{status});return t('ui.0377',{status,progress})}
 function createZimRow(item){
-  const el=row(item.title,'','Remove',async()=>{
-    const current=el.zimItem;
-    if(!confirm(t('ui.0378',{title:current.title,filename:current.filename})))return;
-    try{await requestJson(`/api/admin/zims/${current.id}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:current.filename})});await refreshZims();await refreshSubjects()}catch(error){alert(error.message)}
-  });
+  const el=row(item.title,'','Remove',()=>{});
   el.classList.add('zim-row');el.dataset.zimId=item.id;el.zimItem=item;
-  const remove=el.querySelector('button');remove.dataset.zimAction='remove';
+  const remove=el.querySelector('button');remove.classList.add('remove-action');remove.dataset.zimAction='remove';remove.remove();
+  const actions=recordActions();
+  armRemoval(remove,async()=>{
+    const current=el.zimItem;
+    await requestJson(`/api/admin/zims/${current.id}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:current.filename})});
+    await refreshZims();await refreshSubjects();
+  },`zim:${item.id}`);
   const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(el.zimItem,true);
-  el.insertBefore(edit,remove);
+  actions.append(edit,remove);el.append(actions);
   const detail=document.createElement('small');detail.className='zim-file-detail';el.firstElementChild.append(detail);
   return el;
 }
@@ -446,7 +447,7 @@ function updateZimRow(el,item){el.zimItem=item;el.querySelector('.zim-file-detai
       }catch(error){alert(error.message)}
       finally{delete el.dataset.actionPending;updateZimRow(el,el.zimItem)}
     };
-    el.append(retry);
+    el.querySelector('.record-actions').append(retry);
   }else if(item.status==='ready'&&retry){retry.remove();retry=null}
   if(retry&&!el.dataset.actionPending){
     retry.textContent=t(item.pause_requested?'Pausing…':active?'Pause':'Resume / retry');
@@ -457,39 +458,96 @@ function updateZimRow(el,item){el.zimItem=item;el.querySelector('.zim-file-detai
 }
 
 async function refreshZims(){const list=document.querySelector('#zim-list');const items=await requestJson('/api/admin/zims');zimPolling=items.some(item=>item.status.startsWith('pid:')||item.status==='downloading');const previous=new Map(Array.from(list.children,el=>[el.dataset.zimId,el]));const ordered=[];for(const item of items){const el=previous.get(item.id)||createZimRow(item);previous.delete(item.id);updateZimRow(el,item);ordered.push(el)}for(const el of previous.values())el.remove();const current=Array.from(list.children);if(current.length!==ordered.length||current.some((el,index)=>el!==ordered[index]))for(const el of ordered)list.append(el)}
-function createManagedDocumentRow(item){
-  const el=row(item.title,'','Remove',async()=>{
-    const warning=item.managed?' '+t('ui.0301'):'';
-    if(!confirm(t('ui.0379',{title:item.title,filename:item.filename})+warning))return;
-    try{await requestJson(`/api/admin/archive/${encodeURIComponent(item.filename)}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:item.filename})});await refreshDocuments();await refreshSubjects()}catch(error){alert(error.message)}
-  });
+function createManagedDocumentRow(item,importStatus=null){
+  const el=row(item.title,'','Remove',()=>{});
   const subject=subjectName(item.subject);
   const subjectLabel=document.createElement('span');subjectLabel.textContent=subject||'Unassigned';
   if(!subject)subjectLabel.className='archive-unassigned';
   el.querySelector('span').replaceChildren(' ',subjectLabel,document.createTextNode(t('ui.0380',{filename:item.filename,availability:item.available?formatBytes(item.bytes):t('ui.0368')})));
-  const remove=el.querySelector('button');
-  if(!item.available){remove.disabled=true;remove.title=t('ui.0302')}
-  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'archive');el.insertBefore(edit,remove);
-  el.classList.add('document-row');return el;
+  const remove=el.querySelector('button');remove.classList.add('remove-action');remove.remove();
+  const actions=recordActions();
+  armRemoval(remove,async()=>{
+    await requestJson(`/api/admin/archive/${encodeURIComponent(item.filename)}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:item.filename})});
+    await refreshDocuments();await refreshSubjects();
+  },`archive:${item.filename}`);
+  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'archive');
+  const download=document.createElement(item.available?'a':'button');download.className='button compact-download';download.textContent=t('ui.0699',{size:formatBytes(item.bytes)});
+  if(item.available){download.href=`/library/${encodeURIComponent(item.filename)}`;download.download=item.filename}
+  else{download.disabled=true;download.title=t('ui.0302')}
+  actions.append(edit,download,remove);
+  if(importStatus){
+    const state=document.createElement('span');state.className=`document-status is-${importStatus.status}`;
+    state.textContent=t(importStatus.status==='downloaded'?'ui.0692':'ui.0691');
+    el.firstElementChild.append(state);
+  }
+  el.append(actions);el.classList.add('document-row');return el;
 }
 function createUploadedDocumentRow(item){
   const totalBytes=item.attachments.every(attachment=>Number.isSafeInteger(attachment.bytes))?item.attachments.reduce((total,attachment)=>total+attachment.bytes,0):null;
   const attachmentCount=item.attachments.length;
   const detail=attachmentCount===1?t('ui.0381',{subject:subjectName(item.subject),count:attachmentCount,size:formatBytes(totalBytes)}):t('ui.0382',{subject:subjectName(item.subject),count:attachmentCount,size:formatBytes(totalBytes)});
-  const el=row(item.title,detail,'Remove',async()=>{
-    if(!confirm(t('ui.0383',{title:item.title})))return;
-    try{await requestJson(`/api/admin/items/${item.id}`,{method:'DELETE'});await refreshDocuments();await refreshSubjects()}catch(error){alert(error.message)}
-  });
+  const el=row(item.title,detail,'Remove',()=>{});
   el.classList.add('document-row');
   if(item.cover_url){const image=document.createElement('img');image.className='cover-thumb';image.src=item.cover_url;image.alt='';el.prepend(image)}
-  const edit=document.createElement('button');edit.className='button';edit.type='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'document');el.insertBefore(edit,el.querySelector('button'));
+  const remove=el.querySelector('button');remove.classList.add('remove-action');remove.remove();
+  armRemoval(remove,async()=>{await requestJson(`/api/admin/items/${item.id}`,{method:'DELETE'});await refreshDocuments();await refreshSubjects()},`item:${item.id}`);
+  const actions=recordActions();
+  const edit=document.createElement('button');edit.className='button';edit.type='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'document');actions.append(edit);
   for(const attachment of item.attachments){
-    const action=t(attachment.kind==='html-zip'?'View':'Download');
     const size=formatBytes(attachment.bytes);
-    const link=document.createElement('a');link.className='button compact-download';link.textContent=`${action} · ${size}`;link.title=attachment.filename;link.setAttribute('aria-label',t('ui.0503',{action,filename:attachment.filename,size}));
-    link.href=attachment.kind==='html-zip'?`/documents/${item.id}/${attachment.id}/viewer`:`/documents/${item.id}/${attachment.id}`;el.append(link);
+    if(attachment.kind==='html-zip'){
+      const view=document.createElement('a');view.className='button compact-download';view.textContent=`${t('View')} · ${size}`;view.title=attachment.filename;
+      view.href=`/documents/${item.id}/${attachment.id}/viewer`;actions.append(view);
+    }
+    const link=document.createElement('a');link.className='button compact-download';link.textContent=t('ui.0699',{size});link.title=attachment.filename;
+    link.setAttribute('aria-label',t('ui.0503',{action:t('Download'),filename:attachment.filename,size}));
+    link.href=`/documents/${item.id}/${attachment.id}`;link.download=attachment.filename;
+    actions.append(link);
   }
+  actions.append(remove);el.append(actions);
   return el;
+}
+function createPdfImportDocumentRow(job,file,fileIndex){
+  const filename=file.path.startsWith('public/')?file.path.slice(7):file.path;
+  const detail=[subjectName(file.subject),filename].filter(Boolean).join(' · ');
+  const el=row(file.title,detail,'Remove',()=>{});el.querySelector(':scope > button').remove();el.classList.add('document-row','pdf-import-document');
+  const stateKey={queued:'ui.0690',downloading:'ui.0691',failed:'ui.0693',canceled:'ui.0697'}[file.status]||'ui.0690';
+  const state=document.createElement('span');state.className=`document-status is-${file.status}`;state.textContent=t(stateKey);el.firstElementChild.append(state);
+  if(file.status==='downloading'){
+    const received=file.received_bytes||0;const progress=document.createElement('progress');progress.className='document-progress';
+    if(file.expected_bytes){progress.max=file.expected_bytes;progress.value=Math.min(received,file.expected_bytes)}
+    el.firstElementChild.append(progress);
+    const progressText=document.createElement('small');progressText.className='document-progress-text';
+    progressText.textContent=file.expected_bytes?t('ui.0700',{received:formatBytes(received),total:formatBytes(file.expected_bytes),percent:Math.floor(received*100/file.expected_bytes)}):formatBytes(received);
+    el.firstElementChild.append(progressText);
+  }
+  if(file.error){const error=document.createElement('small');error.className='error';error.textContent=file.error;el.firstElementChild.append(error)}
+  const actions=recordActions();
+  if(file.status==='failed'||file.status==='canceled'){
+    const retry=document.createElement('button');retry.type='button';retry.className='button';retry.textContent=t('ui.0695');
+    retry.onclick=async()=>{retry.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/retry`,{method:'POST'});await refreshPdfImports()}catch(error){retry.disabled=false;alert(error.message)}};
+    actions.append(retry);
+  }
+  const remove=document.createElement('button');remove.type='button';remove.className='button remove-action';remove.textContent=t('Remove');
+  armRemoval(remove,async()=>{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/remove`,{method:'POST'});await refreshPdfImports()},`pdf:${job.id}:${fileIndex}`);
+  actions.append(remove);
+  el.append(actions);return el;
+}
+function renderAdminDocuments(){
+  const list=document.querySelector('#documents-list');if(!list)return;
+  const downloaded=new Map();
+  for(const job of pdfImportJobs)for(const file of job.files){
+    if(file.status==='downloaded'&&file.path.startsWith('public/'))downloaded.set(file.path.slice(7),file);
+  }
+  const rows=adminDocumentEntries.map(item=>item.record_type==='managed'
+    ?createManagedDocumentRow(item,downloaded.get(item.filename)||null)
+    :createUploadedDocumentRow(item));
+  for(const job of pdfImportJobs)for(const [fileIndex,file] of job.files.entries()){
+    if(['removed','downloaded'].includes(file.status))continue;
+    rows.push(createPdfImportDocumentRow(job,file,fileIndex));
+  }
+  rows.sort((a,b)=>a.querySelector('strong').textContent.localeCompare(b.querySelector('strong').textContent));
+  list.replaceChildren(...rows);
 }
 let documentsRefresh=0;
 async function refreshDocuments(){
@@ -498,11 +556,19 @@ async function refreshDocuments(){
   const [result]=await Promise.allSettled([requestJson('/api/admin/documents')]);
   if(generation!==documentsRefresh)return;
   if(result.status==='rejected'){console.error('Could not load admin documents:',result.reason);status.textContent=t('ui.0384');return}
-  const entries=result.value.sort((a,b)=>a.title.localeCompare(b.title));
-  document.querySelector('#documents-list').replaceChildren(...entries.map(item=>item.record_type==='managed'?createManagedDocumentRow(item):createUploadedDocumentRow(item)));
-  status.textContent=entries.length?(entries.length===1?t('ui.0385',{count:entries.length}):t('ui.0386',{count:entries.length})):t('ui.0304');
+  adminDocumentEntries=result.value.sort((a,b)=>a.title.localeCompare(b.title));renderAdminDocuments();
+  const count=adminDocumentEntries.length+pdfImportJobs.reduce((total,job)=>total+job.files.filter(file=>!['removed','downloaded'].includes(file.status)).length,0);
+  status.textContent=count?(count===1?t('ui.0385',{count}):t('ui.0386',{count})):t('ui.0304');
 }
 document.querySelector('#documents-reload').onclick=refreshDocuments;
+document.querySelector('#pdf-retry-all').onclick=async event=>{
+  const button=event.currentTarget;button.disabled=true;
+  try{
+    const jobs=pdfImportJobs.filter(job=>!job.files.some(file=>file.status==='queued'||file.status==='downloading')&&job.files.some(file=>file.status==='failed'));
+    for(const job of jobs)await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/retry`,{method:'POST'});
+    await refreshPdfImports();
+  }catch(error){alert(error.message)}finally{button.disabled=false}
+};
 // Keep old admin bookmarks useful after merging the two sections.
 function redirectDocumentAnchor(){if(['#archive','#private'].includes(location.hash)){location.replace('#documents')}}
 window.addEventListener('hashchange',redirectDocumentAnchor);redirectDocumentAnchor();
