@@ -10,7 +10,7 @@
 <body>
   <header class="topbar"><a class="brand" href="/">CYBERDECK HUB <span id="brand-subtitle">{{ site_preferences.subtitle }}</span></a>
     <nav>{% if admin_configured %}<a href="/">{{ t('ui.0001') }}</a>
-      {% if session.get('admin') %}<a href="/admin">{{ t('ui.0016') }}</a><form class="logout" method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ session.csrf }}"><button>{{ t('ui.0017') }}</button></form>{% else %}<a href="/login">{{ t('ui.0018') }}</a>{% endif %}{% endif %}
+      {% if session.get('admin') %}<a href="/admin#admin-start">{{ t('ui.0016') }}</a><form class="logout" method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ session.csrf }}"><button>{{ t('ui.0017') }}</button></form>{% else %}<a href="/login">{{ t('ui.0018') }}</a>{% endif %}{% endif %}
       <form class="language-picker" method="post" action="/language"><input type="hidden" name="csrf_token" value="{{ session.csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}"><label><span>{{ t('ui.0025') }}</span><select name="language" aria-label="{{ t('ui.0025') }}">{% for code, label in languages.items() %}<option value="{{ code }}"{% if code == language %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></form></nav>
   </header>
   <main class="{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>

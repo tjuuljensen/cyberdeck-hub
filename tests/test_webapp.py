@@ -302,7 +302,7 @@ class WebAppTests(unittest.TestCase):
             self.assertEqual(response.get_json()['error'], 'Name already in use')
 
     def test_running_release_is_visible_and_versions_browser_assets(self):
-        self.assertRegex(webapp.APP_VERSION, r'^0\.\d+\.\d+$')
+        self.assertRegex(webapp.APP_VERSION, r'^0\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?$')
         # A release bump must update the GUI and cache keys from one value.
         with patch.object(webapp, 'APP_VERSION', '0.2.3'):
             anonymous = webapp.app.test_client()

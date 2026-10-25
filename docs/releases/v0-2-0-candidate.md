@@ -1,6 +1,9 @@
 # v0.2.0 release candidate
 
 Status: local candidate prepared for review; this is not a published release.
+Candidate builds follow the [Hub versioning policy](versioning.md). The tested
+`0.2.0` build predates the pre-release labels; the next candidate is
+`0.2.0-beta.1`.
 
 ## Included scope
 
