@@ -2747,6 +2747,18 @@
     "default": "Retry failed downloads",
     "context": "Action to retry only the failed PDFs from a saved import."
   },
+  "ui.0695": {
+    "default": "Retry",
+    "context": "Retry one failed or canceled Internet PDF download."
+  },
+  "ui.0696": {
+    "default": "Cancel",
+    "context": "Cancel one queued or active Internet PDF download."
+  },
+  "ui.0697": {
+    "default": "Canceled",
+    "context": "Status for an Internet PDF download canceled by an administrator."
+  },
   "ui.0714": {
     "default": "Preparedness",
     "context": "Title of the default preparedness subject."

@@ -151,9 +151,9 @@ def download_url(asset):
     return asset['url']
 
 
-def stream_download(asset, destination):
+def stream_download(asset, destination, cancel_check=None):
     if resumable(asset):
-        resume_download(asset, destination)
+        resume_download(asset, destination, cancel_check=cancel_check)
         validate_payload(asset, destination)
         return
     limit = asset['max_bytes']
@@ -178,7 +178,12 @@ def stream_download(asset, destination):
         source = safe_path(REPO, asset['source_file']).open('rb')
     total = 0
     with source, destination.open('xb') as output:
-        while chunk := source.read(1024 * 1024):
+        while True:
+            if cancel_check and cancel_check():
+                raise AcquisitionCancelled('Download canceled by administrator')
+            chunk = source.read(1024 * 1024)
+            if not chunk:
+                break
             total += len(chunk)
             if total > limit:
                 raise ValueError('Download exceeds configured size ceiling')
@@ -227,7 +232,7 @@ def resume_state(asset, partial):
     return 0, state
 
 
-def resume_download(asset, partial):
+def resume_download(asset, partial, cancel_check=None):
     offset, state = resume_state(asset, partial)
     size = asset['expected_bytes']
     if offset == size:
@@ -274,7 +279,12 @@ def resume_download(asset, partial):
         with partial.open(mode) as output:
             output.seek(offset)
             total = offset
-            while chunk := source.read(min(1024 * 1024, size - total + 1)):
+            while True:
+                if cancel_check and cancel_check():
+                    raise AcquisitionCancelled('Download canceled by administrator')
+                chunk = source.read(min(1024 * 1024, size - total + 1))
+                if not chunk:
+                    break
                 if total + len(chunk) > size:
                     raise ValueError('Response exceeds expected byte count; partial preserved')
                 output.write(chunk)
@@ -360,7 +370,12 @@ def verify_manifest(root, manifest, missing_only=False):
     return lock
 
 
-def fetch(root, manifest, missing_only=False, continue_on_error=False, status_callback=None):
+class AcquisitionCancelled(Exception):
+    """Signal a cooperative stop requested for one acquisition asset."""
+
+
+def fetch(root, manifest, missing_only=False, continue_on_error=False, status_callback=None,
+          cancel_check=None):
     def report_status(name, state, error=''):
         if status_callback:
             try:
@@ -445,6 +460,9 @@ def fetch(root, manifest, missing_only=False, continue_on_error=False, status_ca
         name = asset['path']
         dest = safe_path(root, name)
         expected = asset.get('sha256')
+        if cancel_check and cancel_check(name):
+            report_status(name, 'canceled')
+            continue
         if name in lock and name not in missing_locked:
             if lock[name]['asset'] != asset:
                 raise ValueError(f'Manifest changed for {name}; use a new edition/path or preserve the old lock first')
@@ -461,12 +479,17 @@ def fetch(root, manifest, missing_only=False, continue_on_error=False, status_ca
         try:
             report_status(name, 'downloading')
             print(f'Acquiring: {name}', flush=True)
-            stream_download(asset, partial)
+            stream_download(asset, partial, cancel_check=(
+                (lambda: cancel_check(name)) if cancel_check else None))
             digest = sha256(partial)
             if expected and digest.lower() != expected.lower():
                 raise ValueError(f'Expected SHA-256 mismatch: {name}; inspect partial before retrying')
             os.replace(partial, dest)
             dest.chmod(0o644)
+        except AcquisitionCancelled:
+            report_status(name, 'canceled')
+            print(f'Canceled: {name}', flush=True)
+            continue
         except (OSError, ValueError) as error:
             if not continue_on_error:
                 raise

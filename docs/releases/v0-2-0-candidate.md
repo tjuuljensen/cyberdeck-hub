@@ -6,7 +6,9 @@ Candidate builds follow the [Hub versioning policy](versioning.md). The tested
 version label; `0.2.0-beta.2` attempted to reset the Admin page to its first
 section, but a late browser scroll restoration still moved it to the previous
 position. `0.2.0-beta.3` disables scroll restoration before Admin page parsing
-and resets to the top after the page is shown.
+and resets to the top after the page is shown. `0.2.0-beta.4` places Internet
+PDF import rows alongside managed Documents, adds per-file retry and cancel,
+and keeps a retry-all-failed action.
 
 ## Included scope
 

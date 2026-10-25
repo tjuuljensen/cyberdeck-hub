@@ -45,7 +45,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.3'
+APP_VERSION = '0.2.0-beta.4'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -2848,6 +2848,7 @@ def import_apply():
                     'id': request_id, 'created_at': time.time(), 'updated_at': time.time(),
                     'files': [{'path': asset['path'],
                                'title': str(asset.get('title') or Path(asset['path']).name),
+                               'subject': str(asset.get('collection') or ''),
                                'status': 'queued', 'error': ''} for asset in pdf_assets]})
                 start_pdf_import_worker(request_id)
                 result['pdf_downloads_started'] = len(pdf_assets)
@@ -4827,11 +4828,12 @@ def read_pdf_import_status(request_id):
     if (not isinstance(status, dict) or status.get('id') != request_id or
             not isinstance(status.get('files'), list)):
         raise ValueError('PDF import status is invalid')
-    valid_states = {'queued', 'downloading', 'downloaded', 'failed'}
+    valid_states = {'queued', 'downloading', 'downloaded', 'failed', 'canceled'}
     for item in status['files']:
         if (not isinstance(item, dict) or not isinstance(item.get('path'), str) or
                 not isinstance(item.get('title'), str) or item.get('status') not in valid_states or
-                not isinstance(item.get('error', ''), str)):
+                not isinstance(item.get('error', ''), str) or
+                not isinstance(item.get('subject', ''), str)):
             raise ValueError('PDF import status contains an invalid file record')
     return status
 
@@ -4949,6 +4951,55 @@ def admin_pdf_import_retry(request_id):
     return jsonify(status=status)
 
 
+@app.post('/api/admin/import/pdf/<request_id>/files/<int:file_index>/retry')
+@admin_required
+@csrf_required
+def admin_pdf_import_file_retry(request_id, file_index):
+    try:
+        status = read_pdf_import_status(request_id)
+        if any(item.get('status') in {'queued', 'downloading'} for item in status['files']):
+            return jsonify(error='Wait for active PDF downloads to finish before retrying one file'), 409
+        if file_index >= len(status['files']):
+            abort(404)
+        item = status['files'][file_index]
+        if item.get('status') not in {'failed', 'canceled'}:
+            return jsonify(error='This PDF is not available to retry'), 409
+        original = json.loads(json.dumps(status))
+        item['status'], item['error'] = 'queued', ''
+        status['updated_at'] = time.time()
+        _manifest, status_path, _log = pdf_import_paths(request_id)
+        library.write_json(status_path, status)
+        try:
+            start_pdf_import_worker(request_id)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            library.write_json(status_path, original)
+            raise
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return jsonify(error=str(error) or 'Could not retry this PDF download'), 503
+    return jsonify(status=status)
+
+
+@app.post('/api/admin/import/pdf/<request_id>/files/<int:file_index>/cancel')
+@admin_required
+@csrf_required
+def admin_pdf_import_file_cancel(request_id, file_index):
+    try:
+        status = read_pdf_import_status(request_id)
+        if file_index >= len(status['files']):
+            abort(404)
+        item = status['files'][file_index]
+        if item.get('status') not in {'queued', 'downloading'}:
+            return jsonify(error='This PDF is no longer active'), 409
+        item['status'], item['error'] = 'canceled', ''
+        item['updated_at'] = time.time()
+        status['updated_at'] = time.time()
+        _manifest, status_path, _log = pdf_import_paths(request_id)
+        library.write_json(status_path, status)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return jsonify(error=str(error) or 'Could not cancel this PDF download'), 503
+    return jsonify(status=status)
+
+
 def fetch_import_pdfs(request_id):
     """Wait for active ZIM fetches, then acquire imported online PDFs safely."""
     manifest, status_path, _log_path = pdf_import_paths(request_id)
@@ -4957,11 +5008,18 @@ def fetch_import_pdfs(request_id):
         status = read_pdf_import_status(request_id)
         for item in status['files']:
             if item.get('path') == path:
+                if item.get('status') == 'canceled' and state not in {'canceled', 'downloaded'}:
+                    return
                 item['status'], item['error'] = state, error[:500]
                 item['updated_at'] = time.time()
                 break
         status['updated_at'] = time.time()
         library.write_json(status_path, status)
+
+    def is_canceled(path):
+        status = read_pdf_import_status(request_id)
+        return any(item.get('path') == path and item.get('status') == 'canceled'
+                   for item in status['files'])
 
     while True:
         with closing(connect_db()) as db:
@@ -4974,7 +5032,7 @@ def fetch_import_pdfs(request_id):
     # acquiring the other independently selected documents and leave failures
     # visible in this import's private log for a later retry.
     library.fetch(DATA_ROOT, manifest, missing_only=True, continue_on_error=True,
-                  status_callback=report)
+                  status_callback=report, cancel_check=is_canceled)
 
 
 def create_admin(username, password):

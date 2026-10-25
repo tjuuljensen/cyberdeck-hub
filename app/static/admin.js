@@ -378,24 +378,36 @@ async function refreshPdfImports(){
     const heading=document.createElement('h3');heading.textContent=t('ui.0689');panel.append(heading);
     let active=false;
     for(const job of imports){
-      let jobActive=false;
+      let jobActive=job.files.some(file=>file.status==='queued'||file.status==='downloading');
       const group=document.createElement('section');group.className='pdf-import-job';
       const list=document.createElement('div');list.className='item-list';
-      for(const file of job.files){
-        const row=document.createElement('div');row.className='pdf-import-row';
+      for(const [fileIndex,file] of job.files.entries()){
+        const row=document.createElement('div');row.className='item-row pdf-import-row';
         const label=document.createElement('div');const title=document.createElement('strong');title.textContent=file.title;
         const state=document.createElement('span');state.className=`pdf-import-state is-${file.status}`;
-        const stateKey={queued:'ui.0690',downloading:'ui.0691',downloaded:'ui.0692',failed:'ui.0693'}[file.status]||'ui.0690';
+        const stateKey={queued:'ui.0690',downloading:'ui.0691',downloaded:'ui.0692',failed:'ui.0693',canceled:'ui.0697'}[file.status]||'ui.0690';
         state.textContent=t(stateKey);label.append(title,state);
+        if(file.subject){const subject=document.createElement('small');subject.className='pdf-import-subject';subject.textContent=subjectName(file.subject);label.append(subject)}
         if(file.error){const error=document.createElement('small');error.className='error';error.textContent=file.error;label.append(error)}
-        row.append(label);list.append(row);
-        if(file.status==='queued'||file.status==='downloading'){active=true;jobActive=true;}
+        const actions=document.createElement('div');actions.className='button-row';
+        const pending=file.status==='queued'||file.status==='downloading';
+        if(pending){
+          active=true;
+          const cancel=document.createElement('button');cancel.type='button';cancel.className='button';cancel.textContent=t('ui.0696');
+          cancel.onclick=async()=>{cancel.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/cancel`,{method:'POST'});await refreshPdfImports()}catch(error){cancel.disabled=false;const message=document.createElement('p');message.className='error';message.textContent=error.message;group.append(message)}};
+          actions.append(cancel);
+        }else if(!jobActive&&(file.status==='failed'||file.status==='canceled')){
+          const retry=document.createElement('button');retry.type='button';retry.className='button';retry.textContent=t('ui.0695');
+          retry.onclick=async()=>{retry.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/retry`,{method:'POST'});await refreshPdfImports()}catch(error){retry.disabled=false;const message=document.createElement('p');message.className='error';message.textContent=error.message;group.append(message)}};
+          actions.append(retry);
+        }
+        row.append(label);if(actions.childElementCount)row.append(actions);list.append(row);
       }
       group.append(list);
       if(!jobActive&&job.files.some(file=>file.status==='failed')){
         const retry=document.createElement('button');retry.type='button';retry.className='button';retry.textContent=t('ui.0694');
         retry.onclick=async()=>{retry.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/retry`,{method:'POST'});await refreshPdfImports()}catch(error){retry.disabled=false;const message=document.createElement('p');message.className='error';message.textContent=error.message;group.append(message)}};
-        group.append(retry);
+        const actions=document.createElement('div');actions.className='button-row';actions.append(retry);group.append(actions);
       }
       panel.append(group);
     }

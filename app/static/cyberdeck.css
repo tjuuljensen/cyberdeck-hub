@@ -62,12 +62,12 @@ body{--cyan:var(--accent)}
 .search-results-form{max-width:760px;margin-top:24px}
 .search-results{margin:0 0 56px}
 @media(max-width:480px){.library-search-controls{flex-direction:column}.library-search-controls .button{width:100%}}
-.pdf-import-status:not(:empty){margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.pdf-import-status:not(:empty){margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
 .pdf-import-status h3{margin:0 0 10px}
 .pdf-import-job{margin:0 0 16px}
-.pdf-import-row{padding:10px 0;border-bottom:1px solid var(--line)}
 .pdf-import-row strong,.pdf-import-row small,.pdf-import-state{display:block;overflow-wrap:anywhere}
 .pdf-import-state{color:var(--muted);font-size:12px;margin-top:3px}
+.pdf-import-subject{color:var(--muted);font-size:11px}
 .pdf-import-state.is-downloaded{color:var(--accent)}
 .pdf-import-state.is-failed,.pdf-import-row .error{color:var(--danger)}
 
