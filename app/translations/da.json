@@ -784,5 +784,8 @@
   "ui.0811": "Hvis du vil søge i artikler i et installeret ZIM-bibliotek, skal du åbne Kiwix og bruge søgefeltet dér. Fuldtekstsøgning afhænger af arkivet og Kiwix-understøttelsen.",
   "ui.0812": "Søgeord (adskilt med komma)",
   "ui.0813": "Tilføj nøgleord, alternative navne eller almindelige søgeudtryk. De bruges til søgning og vises ikke som dokumentets korte beskrivelse.",
-  "ui.0814": "Kort beskrivelse"
+  "ui.0814": "Kort beskrivelse",
+  "ui.0815": "Tidszone for udgivelsestidspunkter",
+  "ui.0816": "RSS-udgivelsestidspunkter vises i denne Cyberdeck-tidszone. Standardtidszonen hentes fra værtens konfiguration.",
+  "ui.0817": "Udgivelsesdato ikke tilgængelig"
 }

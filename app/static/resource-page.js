@@ -10,6 +10,22 @@ if (page) {
   let checkingInternet = false;
   let loadingFeed = false;
 
+  function formatPublishedTime(value) {
+    if (!value) return translate('ui.0817');
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return translate('ui.0817');
+    try {
+      return new Intl.DateTimeFormat(document.documentElement.lang || 'en', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZone: page.dataset.timezone,
+        timeZoneName: 'short'
+      }).format(date);
+    } catch {
+      return translate('ui.0817');
+    }
+  }
+
   function clearFeed() {
     if (feedItems) feedItems.replaceChildren();
     if (feedStatus) feedStatus.textContent = '';
@@ -21,12 +37,11 @@ if (page) {
     const heading = document.createElement('h3');
     heading.textContent = item.title;
     article.append(heading);
-    if (item.published) {
-      const date = document.createElement('p');
-      date.className = 'rss-date';
-      date.textContent = item.published;
-      article.append(date);
-    }
+    const date = document.createElement('time');
+    date.className = 'rss-date';
+    date.textContent = formatPublishedTime(item.published);
+    if (item.published) date.dateTime = item.published;
+    article.append(date);
     if (item.summary) {
       const summary = document.createElement('p');
       summary.className = 'rss-summary';

@@ -12,6 +12,8 @@ import html
 import http.client
 import ipaddress
 import json
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import os
 from pathlib import Path, PurePosixPath
 import platform
@@ -34,6 +36,7 @@ import urllib.parse
 import urllib.request
 import uuid
 import zipfile
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 from html.parser import HTMLParser
 
 import library
@@ -46,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.8'
+APP_VERSION = '0.2.0-beta.9'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -188,6 +191,57 @@ def _feed_text(element, limit):
         return ''
     plain_text = re.sub(r'\s+([,.;:!?])', r'\1', ' '.join(parser.parts))
     return plain_text[:limit]
+
+
+def _published_utc(value):
+    """Normalize a feed publication date to UTC ISO-8601, rejecting naive times."""
+    if not value:
+        return None
+    try:
+        try:
+            published = parsedate_to_datetime(value)
+        except (TypeError, ValueError, OverflowError):
+            published = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
+        if published.tzinfo is None:
+            return None
+        return published.astimezone(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def valid_timezone_name(value):
+    if not isinstance(value, str) or len(value) > 64:
+        return False
+    try:
+        ZoneInfo(value)
+        return True
+    except (ValueError, ZoneInfoNotFoundError):
+        return False
+
+
+def host_timezone_name():
+    """Read the Debian host's configured IANA timezone, falling back to UTC."""
+    candidates = [os.environ.get('TZ')]
+    try:
+        candidates.append(Path('/etc/timezone').read_text(encoding='utf-8').strip())
+    except OSError:
+        pass
+    try:
+        localtime = Path('/etc/localtime').resolve(strict=True).as_posix()
+        marker = '/zoneinfo/'
+        if marker in localtime:
+            candidates.append(localtime.split(marker, 1)[1])
+    except OSError:
+        pass
+    for candidate in candidates:
+        if candidate and valid_timezone_name(candidate):
+            return candidate
+    return 'UTC'
+
+
+def timezone_choices():
+    return sorted(name for name in available_timezones()
+                  if name == 'UTC' or not name.startswith(('posix/', 'right/')))
 
 
 def _valid_card_url(value, label):
@@ -344,7 +398,7 @@ def _rss_entry(card_id, feed_id):
             published = fields.get('pubdate') or fields.get('published') or fields.get('updated')
             entries.append({'title': title, 'link': link,
                             'summary': _feed_text(summary, 700),
-                            'published': _feed_text(published, 80)})
+                            'published': _published_utc(_feed_text(published, 80))})
             if len(entries) >= POLICE_RSS_MAX_ITEMS:
                 break
         result = {'feed': feed_id, 'label': feed['title'], 'items': entries,
@@ -565,10 +619,14 @@ def site_preferences():
     always_show = [subject for subject in always_show
                    if isinstance(subject, str) and subject in valid_subjects]
     hostname = (os.environ.get('CYBERDECK_HOSTNAME') or socket.gethostname()).split('.', 1)[0].upper()
+    display_timezone = settings.get('display_timezone', host_timezone_name())
+    if not valid_timezone_name(display_timezone):
+        display_timezone = host_timezone_name()
     return {'pdf_open_mode': configured_mode,
             'subtitle': settings.get('subtitle') or f'OFFLINE LIBRARY · {hostname}',
             'accent_color': accent_color,
             'home_columns': int(configured_columns),
+            'display_timezone': display_timezone,
             'hide_empty_subjects': settings.get('hide_empty_subjects') == 'true',
             'always_show_subjects': always_show}
 
@@ -1469,7 +1527,7 @@ def build_export_config(name, selected, include_settings):
         'SELECT id,title,description,display_order FROM library_subject ORDER BY display_order,id')]
     if include_settings:
         # Export only stored display preferences, never the hostname-derived default.
-        allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns',
+        allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone',
                    'hide_empty_subjects', 'always_show_subjects'}
         config['site_settings'] = {row['key']: row['value'] for row in g.db.execute(
             'SELECT key,value FROM site_setting') if row['key'] in allowed}
@@ -1802,7 +1860,7 @@ def _validate_import_config(config):
                     not isinstance(item_search_terms, str) or len(item_search_terms) > 1000 or
                     any(ord(char) < 32 and char not in '\t\r\n' for char in item_search_terms)):
                 raise ValueError('Invalid local document metadata')
-    allowed_settings = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns',
+    allowed_settings = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone',
                         'hide_empty_subjects', 'always_show_subjects'}
     settings = config.get('site_settings', {})
     if not isinstance(settings, dict) or set(settings) - allowed_settings:
@@ -1811,6 +1869,7 @@ def _validate_import_config(config):
             'pdf_open_mode' in settings and settings['pdf_open_mode'] not in {'same_tab', 'new_tab'} or
             'subtitle' in settings and (not isinstance(settings['subtitle'], str) or not settings['subtitle'].strip() or len(settings['subtitle']) > 80) or
             'home_columns' in settings and str(settings['home_columns']) not in {'3', '4', '5'} or
+            'display_timezone' in settings and not valid_timezone_name(settings['display_timezone']) or
             'hide_empty_subjects' in settings and settings['hide_empty_subjects'] not in {'true', 'false', True, False}):
         raise ValueError('Configuration contains invalid site preferences')
     if 'always_show_subjects' in settings:
@@ -3404,7 +3463,8 @@ def logout():
 @admin_required
 def admin_page():
     return render_template('admin.html', csrf=session['csrf'], username=session['admin'],
-                           config_subjects=get_subjects(), preferences=site_preferences())
+                           config_subjects=get_subjects(), preferences=site_preferences(),
+                           time_zones=timezone_choices())
 
 
 def _system_mount_usage():
@@ -3859,11 +3919,14 @@ def admin_settings_update():
     pdf_open_mode = body.get('pdf_open_mode', current['pdf_open_mode'])
     subtitle = body.get('subtitle', current['subtitle'])
     home_columns = body.get('home_columns', current['home_columns'])
+    display_timezone = body.get('display_timezone', current['display_timezone'])
     hide_empty_subjects = body.get('hide_empty_subjects', current['hide_empty_subjects'])
     always_show_subjects = body.get('always_show_subjects', current['always_show_subjects'])
     accent_color = body.get('accent_color', current['accent_color'])
     if not isinstance(pdf_open_mode, str) or pdf_open_mode not in {'same_tab', 'new_tab'}:
         return jsonify(error='Choose whether PDFs open in this tab or a new tab'), 400
+    if not valid_timezone_name(display_timezone):
+        return jsonify(error='Choose a valid IANA timezone such as Europe/Copenhagen'), 400
     if not isinstance(subtitle, str):
         return jsonify(error='Subtitle must be text'), 400
     subtitle = subtitle.strip()
@@ -3888,6 +3951,7 @@ def admin_settings_update():
                      [('pdf_open_mode', pdf_open_mode), ('subtitle', subtitle),
                       ('accent_color', accent_color),
                       ('home_columns', home_columns),
+                      ('display_timezone', display_timezone),
                       ('hide_empty_subjects', 'true' if hide_empty_subjects else 'false'),
                       ('always_show_subjects', json.dumps(always_show_subjects))])
     g.db.commit()

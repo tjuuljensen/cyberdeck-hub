@@ -3142,5 +3142,17 @@
   "ui.0814": {
     "default": "Short overview",
     "context": "Reader-facing brief description of a document, shown in subject views and search results."
+  },
+  "ui.0815": {
+    "default": "Timezone for published times",
+    "context": "Admin preference for the timezone used to display publication times on RSS entries."
+  },
+  "ui.0816": {
+    "default": "RSS publication times use this Cyberdeck timezone. The default comes from the host's configured timezone.",
+    "context": "Help text for the Cyberdeck timezone preference."
+  },
+  "ui.0817": {
+    "default": "Publication date unavailable",
+    "context": "RSS entry fallback when the publisher does not provide a usable publication date."
   }
 }

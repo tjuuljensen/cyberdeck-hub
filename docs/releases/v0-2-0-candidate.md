@@ -21,6 +21,9 @@ of fetched RSS items, and disappear when internet access is unavailable.
 `0.2.0-beta.8` adds separate search terms for documents, token-based matching,
 and relevance ordering. Hub search remains a metadata catalogue search; use the
 Kiwix search bar to look inside installed ZIM libraries.
+`0.2.0-beta.9` displays RSS publication dates in the Cyberdeck's configured
+timezone and the selected interface language. Feed timestamps are normalized to
+UTC; entries with missing or invalid dates show a translated fallback.
 
 ## Included scope
 

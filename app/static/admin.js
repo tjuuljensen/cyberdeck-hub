@@ -1042,7 +1042,7 @@ document.querySelector('#preferences-form').addEventListener('submit',async even
   const form=new FormData(formElement);
   try{
     if(window.cyberdeckSaveAccent)await window.cyberdeckSaveAccent();
-    const result=await requestJson('/api/admin/settings',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({pdf_open_mode:form.get('pdf_open_mode'),accent_color:form.get('accent_color'),home_columns:form.get('home_columns'),subtitle:form.get('subtitle'),hide_empty_subjects:form.has('hide_empty_subjects'),always_show_subjects:form.getAll('always_show_subjects')})});
+    const result=await requestJson('/api/admin/settings',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({pdf_open_mode:form.get('pdf_open_mode'),accent_color:form.get('accent_color'),home_columns:form.get('home_columns'),subtitle:form.get('subtitle'),display_timezone:form.get('display_timezone'),hide_empty_subjects:form.has('hide_empty_subjects'),always_show_subjects:form.getAll('always_show_subjects')})});
     document.querySelector('#brand-subtitle').textContent=result.settings.subtitle;
     if(window.cyberdeckSetAccent)window.cyberdeckSetAccent(result.settings.accent_color);
     accentInput.value=result.settings.accent_color;
