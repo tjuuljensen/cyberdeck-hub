@@ -7,13 +7,12 @@ managing content.
 
 ## Candidate installation
 
-The candidate installer is intended for an existing Debian 13 amd64 or arm64
-system. It does not install Debian or repartition disks. The v0.2.0 source and
+The source kit includes installer paths for existing Debian 13 amd64 and arm64
+systems. It does not install Debian or repartition disks. The v0.2.0 source and
 package checks are complete, but no v0.2.0 physical-target acceptance is
-recorded yet; follow the runbook before relying on the candidate. An arm64
-installer is not evidence of support for a particular Raspberry Pi model.
-Pi support needs separate installation, performance, offline-use, update, and
-recovery checks.
+recorded yet; follow the runbook before relying on the candidate. Generic
+arm64 support and each Raspberry Pi model require their own target checks;
+passing on arm64 does not establish support for a particular Pi model.
 
 Build a source kit on a connected computer:
 

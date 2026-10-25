@@ -138,6 +138,10 @@ result. A source test or package inspection is not a target observation.
 
 - Install, upgrade, rollback, and recovery on at least two physical Debian 13
   amd64 computers.
+- Before advertising generic arm64 support, complete the same lifecycle,
+  offline-startup, backup/restore, and resource checks on at least one physical
+  Debian 13 arm64 target. Record its exact model and architecture. This does not
+  establish support for a Raspberry Pi model without model-specific checks.
 - Cold-start the Hub without internet; verify local pages and acquired files
   from a second client on the LAN or device hotspot.
 - Import a profile containing successful and deliberately unavailable PDF
