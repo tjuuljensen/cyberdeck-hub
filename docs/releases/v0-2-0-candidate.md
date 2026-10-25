@@ -24,6 +24,10 @@ Kiwix search bar to look inside installed ZIM libraries.
 `0.2.0-beta.9` displays RSS publication dates in the Cyberdeck's configured
 timezone and the selected interface language. Feed timestamps are normalized to
 UTC; entries with missing or invalid dates show a translated fallback.
+`0.2.0-beta.10` accepts common RSS and Atom item date fields and timestamp
+formats, tries alternate date fields when one is malformed, assumes UTC for
+timezone-less values, and falls back to UTC display if a client cannot format
+the configured timezone.
 
 ## Included scope
 

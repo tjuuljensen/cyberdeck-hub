@@ -49,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.9'
+APP_VERSION = '0.2.0-beta.10'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -194,19 +194,50 @@ def _feed_text(element, limit):
 
 
 def _published_utc(value):
-    """Normalize a feed publication date to UTC ISO-8601, rejecting naive times."""
-    if not value:
+    """Normalize common RSS and Atom date forms to UTC ISO-8601."""
+    if value is None:
         return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    published = None
     try:
-        try:
-            published = parsedate_to_datetime(value)
-        except (TypeError, ValueError, OverflowError):
-            published = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
-        if published.tzinfo is None:
-            return None
-        return published.astimezone(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+        published = parsedate_to_datetime(raw)
     except (TypeError, ValueError, OverflowError):
+        pass
+    if published is None:
+        try:
+            iso_value = raw[:-1] + '+00:00' if raw[-1:].lower() == 'z' else raw
+            published = datetime.fromisoformat(iso_value)
+        except (TypeError, ValueError, OverflowError):
+            pass
+    if published is None and re.fullmatch(r'\d{9,13}(?:\.\d+)?', raw):
+        try:
+            timestamp = float(raw)
+            if len(raw.split('.', 1)[0]) >= 13:
+                timestamp /= 1000
+            published = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        except (ValueError, OverflowError, OSError):
+            pass
+    if published is None:
         return None
+    # Some feeds omit an offset even though RFC 3339/RSS producers should include one.
+    # Assume UTC so the same entry has a stable instant on every Cyberdeck client.
+    if published.tzinfo is None:
+        published = published.replace(tzinfo=timezone.utc)
+    return published.astimezone(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+
+
+def _published_field_utc(fields):
+    """Try common RSS, RDF/RSS 1.0, and Atom item date fields in priority order."""
+    for name in ('pubdate', 'published', 'updated', 'issued', 'created', 'date', 'modified'):
+        element = fields.get(name)
+        if element is None:
+            continue
+        published = _published_utc(_feed_text(element, 128))
+        if published:
+            return published
+    return None
 
 
 def valid_timezone_name(value):
@@ -395,10 +426,9 @@ def _rss_entry(card_id, feed_id):
             except ValueError:
                 link = ''
             summary = fields.get('description') or fields.get('summary') or fields.get('content')
-            published = fields.get('pubdate') or fields.get('published') or fields.get('updated')
             entries.append({'title': title, 'link': link,
                             'summary': _feed_text(summary, 700),
-                            'published': _published_utc(_feed_text(published, 80))})
+                            'published': _published_field_utc(fields)})
             if len(entries) >= POLICE_RSS_MAX_ITEMS:
                 break
         result = {'feed': feed_id, 'label': feed['title'], 'items': entries,

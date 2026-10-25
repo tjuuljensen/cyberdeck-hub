@@ -14,15 +14,21 @@ if (page) {
     if (!value) return translate('ui.0817');
     const date = new Date(value);
     if (!Number.isFinite(date.getTime())) return translate('ui.0817');
+    const options = {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+    };
+    const locale = document.documentElement.lang || 'en';
     try {
-      return new Intl.DateTimeFormat(document.documentElement.lang || 'en', {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-        timeZone: page.dataset.timezone,
-        timeZoneName: 'short'
-      }).format(date);
+      return new Intl.DateTimeFormat(locale, {...options, timeZone: page.dataset.timezone}).format(date);
     } catch {
-      return translate('ui.0817');
+      // A client may not recognize the Cyberdeck's IANA timezone. Preserve the
+      // valid timestamp by formatting in UTC before falling back to ISO text.
+      try {
+        return new Intl.DateTimeFormat(locale, {...options, timeZone: 'UTC'}).format(date);
+      } catch {
+        return `${date.toISOString()} UTC`;
+      }
     }
   }
 
