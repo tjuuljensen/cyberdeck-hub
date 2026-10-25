@@ -45,7 +45,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.5'
+APP_VERSION = '0.2.0-beta.6'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -71,15 +71,15 @@ DEFAULT_SUBJECTS = [
     ('general-reference', 'General reference', 'Wikipedia and broad reference collections.'),
 ]
 ONLINE_CRISIS_LINKS = [
-    {'title': 'World Monitor', 'url': 'https://www.worldmonitor.app/',
+    {'id': 'world-monitor', 'title': 'World Monitor', 'url': 'https://www.worldmonitor.app/',
      'description': 'ui.0756'},
-    {'title': 'DR Nyheder', 'url': 'https://www.dr.dk/nyheder',
+    {'id': 'dr-nyheder', 'title': 'DR Nyheder', 'url': 'https://www.dr.dk/nyheder',
      'description': 'ui.0757'},
-    {'title': 'DR Lyd and P4', 'url': 'https://www.dr.dk/lyd',
+    {'id': 'dr-lyd-and-p4', 'title': 'DR Lyd and P4', 'url': 'https://www.dr.dk/lyd',
      'description': 'ui.0758'},
-    {'title': 'TV 2 Nyheder', 'url': 'https://nyheder.tv2.dk/',
+    {'id': 'tv-2-nyheder', 'title': 'TV 2 Nyheder', 'url': 'https://nyheder.tv2.dk/',
      'description': 'ui.0759'},
-    {'title': 'Politi Update RSS directory', 'url': 'https://politi.dk/faa-politi-update-som-mobilapp-og-rss-feed',
+    {'id': 'politi-update-rss-directory', 'title': 'Politi Update RSS directory', 'url': 'https://politi.dk/faa-politi-update-som-mobilapp-og-rss-feed',
      'description': 'ui.0772'},
 ]
 POLICE_RSS_BASE = 'https://via.ritzau.dk/rss/short-messages/latest'
@@ -107,6 +107,18 @@ POLICE_RSS_CACHE_SECONDS = 120
 _police_rss_cache = {}
 _police_rss_locks = {}
 _police_rss_state_lock = threading.Lock()
+DEFAULT_ONLINE_SOURCE_CARDS = [{
+    'id': 'online-sources', 'title': 'Internet-required sources',
+    'description': 'ui.0752', 'links': ONLINE_CRISIS_LINKS,
+}]
+DEFAULT_RSS_CARDS = [{
+    'id': 'danish-police', 'title': 'Danish Police Update RSS',
+    'description': 'ui.0762',
+    'feeds': [{'id': feed_id, 'title': label,
+               'url': POLICE_RSS_BASE + (('?' + urllib.parse.urlencode({'publisherId': publisher_id}))
+                                         if publisher_id else '')}
+              for feed_id, (label, publisher_id) in POLICE_RSS_FEEDS.items()],
+}]
 ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.zip'}
 IMAGE_MIMES = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}
 KIWIX_DOWNLOAD_HOSTS = {'download.kiwix.org', 'lb.download.kiwix.org'}
@@ -126,12 +138,39 @@ class _PlainFeedText(HTMLParser):
             self.parts.append(data.strip())
 
 
+def validate_rss_url(value, expected_host=None):
+    """Accept public HTTPS feed URLs only; disallow credentials and private hosts."""
+    if not isinstance(value, str) or len(value) > 2048 or any(ord(char) < 32 for char in value):
+        raise ValueError('RSS feed URL must be a valid HTTPS URL')
+    parsed = urllib.parse.urlsplit(value)
+    host = (parsed.hostname or '').lower().rstrip('.')
+    if (parsed.scheme != 'https' or not host or parsed.port not in (None, 443) or
+            parsed.username or parsed.password or parsed.fragment or
+            (expected_host and host != expected_host)):
+        raise ValueError('RSS feed URLs and redirects must use the same public HTTPS host')
+    try:
+        address = ipaddress.ip_address(host)
+        addresses = [address]
+    except ValueError:
+        try:
+            addresses = [ipaddress.ip_address(row[4][0])
+                         for row in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)]
+        except (OSError, ValueError) as error:
+            raise ValueError('RSS feed host could not be resolved') from error
+    if not addresses or any(not address.is_global for address in addresses):
+        raise ValueError('RSS feed URL must resolve only to public IP addresses')
+    return parsed, host
+
+
 class _SameHostRssRedirect(urllib.request.HTTPRedirectHandler):
+    def __init__(self, hostname):
+        super().__init__()
+        self.hostname = hostname
+
     def redirect_request(self, request, fp, code, message, headers, new_url):
-        target = urllib.parse.urlparse(new_url)
-        if (target.scheme != 'https' or target.hostname != 'via.ritzau.dk' or
-                target.port not in (None, 443) or target.username or target.password or
-                target.path != '/rss/short-messages/latest'):
+        try:
+            validate_rss_url(new_url, self.hostname)
+        except ValueError:
             return None
         return super().redirect_request(request, fp, code, message, headers, new_url)
 
@@ -150,33 +189,120 @@ def _feed_text(element, limit):
     return plain_text[:limit]
 
 
-def _police_rss_entry(feed_id):
-    if feed_id not in POLICE_RSS_FEEDS:
-        raise ValueError('Choose a listed police district RSS feed')
+def _valid_card_url(value, label):
+    if not isinstance(value, str) or len(value) > 2048 or any(ord(char) < 32 for char in value):
+        raise ValueError(f'{label} must be a valid HTTPS URL')
+    parsed = urllib.parse.urlsplit(value)
+    if (parsed.scheme != 'https' or not parsed.hostname or parsed.port not in (None, 443) or
+            parsed.username or parsed.password):
+        raise ValueError(f'{label} must use HTTPS and cannot include credentials')
+    return value
+
+
+def _validate_card_list(cards, kind):
+    max_cards = 10 if kind == 'RSS' else 50
+    if not isinstance(cards, list) or len(cards) > max_cards:
+        raise ValueError(f'Invalid {kind} card list')
+    seen_cards = set()
+    result = []
+    total_entries = 0
+    for card in cards:
+        if not isinstance(card, dict):
+            raise ValueError(f'Invalid {kind} card')
+        card_id = card.get('id')
+        title = card.get('title')
+        description = card.get('description', '')
+        if (not isinstance(card_id, str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', card_id) or
+                card_id in seen_cards or not isinstance(title, str) or not 1 <= len(title.strip()) <= 100 or
+                not isinstance(description, str) or len(description) > 500 or
+                any(ord(char) < 32 and char not in '\n\t' for char in title + description)):
+            raise ValueError(f'Invalid or duplicate {kind} card definition')
+        seen_cards.add(card_id)
+        normalized = {'id': card_id, 'title': title.strip(), 'description': description.strip()}
+        field = 'links' if kind == 'online source' else 'feeds'
+        entries = card.get(field)
+        if not isinstance(entries, list) or not 1 <= len(entries) <= 100:
+            raise ValueError(f'{kind.title()} cards must contain 1 to 100 entries')
+        total_entries += len(entries)
+        if total_entries > 500:
+            raise ValueError(f'Too many {kind} card entries')
+        seen_entries = set()
+        normalized_entries = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise ValueError(f'Invalid {kind} card entry')
+            entry_id = entry.get('id')
+            entry_title = entry.get('title')
+            if (not isinstance(entry_id, str) or
+                    not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', entry_id) or
+                    entry_id in seen_entries or not isinstance(entry_title, str) or
+                    not 1 <= len(entry_title.strip()) <= 120):
+                raise ValueError(f'Invalid or duplicate {kind} entry')
+            seen_entries.add(entry_id)
+            if kind == 'online source':
+                entry_description = entry.get('description', '')
+                if not isinstance(entry_description, str) or len(entry_description) > 300:
+                    raise ValueError('Online source descriptions must be at most 300 characters')
+                normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
+                                           'url': _valid_card_url(entry.get('url'), 'Online source URL'),
+                                           'description': entry_description.strip()})
+            else:
+                normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
+                                           'url': _valid_card_url(entry.get('url'), 'RSS feed URL')})
+        normalized[field] = normalized_entries
+        result.append(normalized)
+    return result
+
+
+def _configured_card_list(key, defaults, kind):
+    row = g.db.execute('SELECT value FROM site_setting WHERE key=?', (key,)).fetchone()
+    if row is None:
+        return json.loads(json.dumps(defaults))
+    try:
+        return _validate_card_list(json.loads(row['value']), kind)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        app.logger.error('Ignoring invalid stored %s card configuration', kind)
+        return json.loads(json.dumps(defaults))
+
+
+def configured_online_source_cards():
+    return _configured_card_list('online_source_cards', DEFAULT_ONLINE_SOURCE_CARDS, 'online source')
+
+
+def configured_rss_cards():
+    return _configured_card_list('rss_cards', DEFAULT_RSS_CARDS, 'RSS')
+
+
+def _rss_entry(card_id, feed_id):
+    cards = configured_rss_cards()
+    card = next((item for item in cards if item['id'] == card_id), None)
+    feed = next((item for item in card['feeds'] if item['id'] == feed_id), None) if card else None
+    if not card or not feed:
+        raise ValueError('Choose a configured RSS feed')
+    feed_url_digest = hashlib.sha256(feed['url'].encode('utf-8')).hexdigest()[:16]
+    cache_key = f'{card_id}:{feed_id}:{feed_url_digest}'
     now = time.monotonic()
     with _police_rss_state_lock:
-        cached = _police_rss_cache.get(feed_id)
+        cached = _police_rss_cache.get(cache_key)
         if cached and now < cached['expires']:
             return {key: value for key, value in cached.items() if key != 'expires'}
-        fetch_lock = _police_rss_locks.setdefault(feed_id, threading.Lock())
+        fetch_lock = _police_rss_locks.setdefault(cache_key, threading.Lock())
     if not fetch_lock.acquire(blocking=False):
         if cached:
             return {**{key: value for key, value in cached.items() if key != 'expires'}, 'stale': True}
         raise RuntimeError('The selected feed is already being retrieved; try again shortly')
     try:
         with _police_rss_state_lock:
-            cached = _police_rss_cache.get(feed_id)
+            cached = _police_rss_cache.get(cache_key)
             if cached and time.monotonic() < cached['expires']:
                 return {key: value for key, value in cached.items() if key != 'expires'}
-        label, publisher_id = POLICE_RSS_FEEDS[feed_id]
-        query = urllib.parse.urlencode({'publisherId': publisher_id}) if publisher_id else ''
-        url = POLICE_RSS_BASE + (('?' + query) if query else '')
+        url = feed['url']
+        _parsed, hostname = validate_rss_url(url)
         request = urllib.request.Request(url, headers={'User-Agent': 'Cyberdeck-Hub-RSS/1',
                                                        'Accept': 'application/rss+xml, application/xml, text/xml'})
-        opener = urllib.request.build_opener(_SameHostRssRedirect())
+        opener = urllib.request.build_opener(_SameHostRssRedirect(hostname))
         with opener.open(request, timeout=5) as response:
-            if urllib.parse.urlparse(response.geturl()).hostname != 'via.ritzau.dk':
-                raise ValueError('RSS feed redirected outside the official feed host')
+            validate_rss_url(response.geturl(), hostname)
             raw = response.read(POLICE_RSS_MAX_BYTES + 1)
         if len(raw) > POLICE_RSS_MAX_BYTES:
             raise ValueError('RSS response exceeds the size limit')
@@ -184,42 +310,53 @@ def _police_rss_entry(feed_id):
         if b'<!doctype' in lowered or b'<!entity' in lowered:
             raise ValueError('RSS response contains unsupported XML declarations')
         root = ET.fromstring(raw)
-        if root.tag.rsplit('}', 1)[-1].lower() != 'rss':
-            raise ValueError('The selected source did not return an RSS feed')
-        channel = next((child for child in root if child.tag.rsplit('}', 1)[-1].lower() == 'channel'), None)
-        if channel is None:
+        root_name = root.tag.rsplit('}', 1)[-1].lower()
+        if root_name == 'rss':
+            container = next((child for child in root if child.tag.rsplit('}', 1)[-1].lower() == 'channel'), None)
+            item_name = 'item'
+        elif root_name == 'feed':
+            container = root
+            item_name = 'entry'
+        else:
+            raise ValueError('The selected source did not return RSS or Atom')
+        if container is None:
             raise ValueError('RSS channel is missing')
         entries = []
-        allowed_hosts = {'politi.dk', 'www.politi.dk', 'politiupdate.dk', 'www.politiupdate.dk',
-                         'via.ritzau.dk'}
-        for item in channel:
-            if item.tag.rsplit('}', 1)[-1].lower() != 'item':
+        for item in container:
+            if item.tag.rsplit('}', 1)[-1].lower() != item_name:
                 continue
             fields = {child.tag.rsplit('}', 1)[-1].lower(): child for child in item}
             title = _feed_text(fields.get('title'), 240)
             if not title:
                 continue
-            link = _feed_text(fields.get('link'), 2048)
-            parsed_link = urllib.parse.urlparse(link)
-            if (parsed_link.scheme != 'https' or parsed_link.hostname not in allowed_hosts or
-                    parsed_link.port not in (None, 443) or parsed_link.username or parsed_link.password):
+            link_element = fields.get('link')
+            link = (link_element.attrib.get('href', '') if link_element is not None and
+                    link_element.attrib.get('href') else _feed_text(link_element, 2048))
+            try:
+                parsed_link = urllib.parse.urlsplit(link)
+                if (parsed_link.scheme != 'https' or not parsed_link.hostname or
+                        parsed_link.port not in (None, 443) or parsed_link.username or parsed_link.password):
+                    link = ''
+            except ValueError:
                 link = ''
+            summary = fields.get('description') or fields.get('summary') or fields.get('content')
+            published = fields.get('pubdate') or fields.get('published') or fields.get('updated')
             entries.append({'title': title, 'link': link,
-                            'summary': _feed_text(fields.get('description'), 700),
-                            'published': _feed_text(fields.get('pubdate'), 80)})
+                            'summary': _feed_text(summary, 700),
+                            'published': _feed_text(published, 80)})
             if len(entries) >= POLICE_RSS_MAX_ITEMS:
                 break
-        result = {'feed': feed_id, 'label': label, 'items': entries,
+        result = {'feed': feed_id, 'label': feed['title'], 'items': entries,
                   'fetched_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                   'stale': False}
         with _police_rss_state_lock:
-            _police_rss_cache[feed_id] = {**result, 'expires': time.monotonic() + POLICE_RSS_CACHE_SECONDS}
+            _police_rss_cache[cache_key] = {**result, 'expires': time.monotonic() + POLICE_RSS_CACHE_SECONDS}
         return result
     except (OSError, ValueError, ET.ParseError, urllib.error.URLError, TimeoutError,
             http.client.HTTPException) as error:
         if cached:
             return {**{key: value for key, value in cached.items() if key != 'expires'}, 'stale': True}
-        raise RuntimeError('The selected official feed is temporarily unavailable') from error
+        raise RuntimeError('The selected RSS feed is temporarily unavailable') from error
     finally:
         fetch_lock.release()
 
@@ -823,7 +960,7 @@ def home():
     preferences = site_preferences()
     subjects = []
     installed_zim_count = 0
-    for index, (slug, title, description) in enumerate(get_subjects(), start=1):
+    for slug, title, description in get_subjects():
         items = public_items(slug)
         count = len(items)
         installed_zim_count += sum(item['kind'] == 'zim' for item in items)
@@ -831,7 +968,7 @@ def home():
                 slug not in preferences['always_show_subjects']):
             continue
         subjects.append({'id': slug, 'title': title, 'description': description,
-                         'count': count, 'index': index})
+                         'count': count, 'index': len(subjects) + 1})
     services = []
     active_zim_downloads = g.db.execute(
         "SELECT COUNT(*) FROM zim WHERE status IN ('queued','downloading') "
@@ -852,8 +989,10 @@ def home():
                          'url': f"https://{module['hostname']}:{module['port']}/",
                          'new_tab': True})
     return render_template('index.html', subjects=subjects,
-                           services=services, home_columns=preferences['home_columns'],
-                           links_count=len(ONLINE_CRISIS_LINKS))
+                           services=services,
+                           online_source_cards=configured_online_source_cards(),
+                           rss_cards=configured_rss_cards(),
+                           home_columns=preferences['home_columns'])
 
 
 @app.get('/search')
@@ -868,17 +1007,29 @@ def local_search():
 
 @app.get('/online-crisis-links')
 def online_crisis_links():
-    feeds = [{'id': feed_id, 'label': label}
-             for feed_id, (label, _publisher_id) in POLICE_RSS_FEEDS.items()]
-    return render_template('online-crisis-links.html', links=ONLINE_CRISIS_LINKS,
-                           rss_feeds=feeds)
+    return redirect('/#online-sources', code=302)
+
+
+@app.get('/api/online/rss')
+def online_rss():
+    card_id = request.args.get('card', '')
+    feed_id = request.args.get('feed', 'all')
+    try:
+        result = _rss_entry(card_id, feed_id)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except RuntimeError as error:
+        return jsonify(error=str(error)), 503
+    response = jsonify(result)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @app.get('/api/online/police-rss')
-def online_police_rss():
-    feed_id = request.args.get('feed', 'all')
+def online_police_rss_compat():
+    """Keep old RSS clients working while the reader moves into home cards."""
     try:
-        result = _police_rss_entry(feed_id)
+        result = _rss_entry('danish-police', request.args.get('feed', 'all'))
     except ValueError as error:
         return jsonify(error=str(error)), 400
     except RuntimeError as error:
@@ -1215,6 +1366,8 @@ def build_export_config(name, selected, include_settings):
     config = {'format': 'cyberdeck-config', 'version': 1, 'name': name,
               'exported_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
               'reserve_bytes': 1_000_000_000, 'assets': [], 'offline_catalogues': []}
+    config['online_source_cards'] = configured_online_source_cards()
+    config['rss_cards'] = configured_rss_cards()
     signer = URLSafeTimedSerializer(app.secret_key, salt='content-export-v1')
     downloads = []
     local_catalogues = []
@@ -1513,6 +1666,11 @@ def _validate_import_config(config):
         raise ValueError('Storage reserve must be at least 1 GB')
     if len(config.get('assets', [])) > 5000 or len(config.get('offline_catalogues', [])) > 5000:
         raise ValueError('Configuration contains too many entries')
+    if 'online_source_cards' in config:
+        config['online_source_cards'] = _validate_card_list(
+            config['online_source_cards'], 'online source')
+    if 'rss_cards' in config:
+        config['rss_cards'] = _validate_card_list(config['rss_cards'], 'RSS')
     paths = set()
     for asset in config.get('assets', []):
         library.validate_asset(asset)
@@ -2077,6 +2235,11 @@ def _apply_settings_only_import(stage_root, ticket, body):
             always_show = [remap.get(subject, subject) for subject in current_always
                            if remap.get(subject, subject) in final_ids]
         settings_to_save = dict(imported_settings)
+        if body.get('apply_settings') is True:
+            if 'online_source_cards' in config:
+                settings_to_save['online_source_cards'] = config['online_source_cards']
+            if 'rss_cards' in config:
+                settings_to_save['rss_cards'] = config['rss_cards']
         if 'always_show_subjects' in imported_settings or removed_ids:
             settings_to_save['always_show_subjects'] = always_show
         if settings_to_save:
@@ -2095,6 +2258,9 @@ def _apply_settings_only_import(stage_root, ticket, body):
                 os.fsync(handle.fileno())
             os.replace(temporary_index, acquired_path)
         g.db.commit()
+        if 'rss_cards' in settings_to_save:
+            with _police_rss_state_lock:
+                _police_rss_cache.clear()
     except Exception:
         g.db.rollback()
         if temporary_index is not None:
@@ -2108,7 +2274,9 @@ def _apply_settings_only_import(stage_root, ticket, body):
               'subjects_removed': len(removed_ids),
               'content_records_remapped': sum(row['assigned_count'] for row in removals
                                               if row['id'] in remap),
-              'site_settings_applied': bool(imported_settings)}
+              'site_settings_applied': bool(imported_settings or
+                                            'online_source_cards' in settings_to_save or
+                                            'rss_cards' in settings_to_save)}
     try:
         shutil.rmtree(stage_root)
     except OSError as error:
@@ -2237,7 +2405,11 @@ def import_preview():
                            remove_omitted=remove_omitted,
                            ignored_content={'assets': ignored_assets,
                                             'catalogues': ignored_catalogues},
-                           site_settings_available=bool(config.get('site_settings')),
+                           site_settings_available=bool(config.get('site_settings') or
+                                                       config.get('online_source_cards') is not None or
+                                                       config.get('rss_cards') is not None),
+                           online_source_cards=config.get('online_source_cards'),
+                           rss_cards=config.get('rss_cards'),
                            can_remove=not any(item['assigned_count'] is None
                                               for item in plan['omitted']) if remove_omitted else True)
         refs = ({item['filename']: item['entry'] for item in config.get('offline_catalogues', [])}
@@ -2342,6 +2514,8 @@ def import_preview():
         candidates = [{'id': subject['id'], 'title': subject['title']} for subject in config.get('subjects', [])]
         return jsonify(token=token, name=config['name'],
                        online_sources=sum('url' in asset for asset in config.get('assets', [])),
+                       online_source_cards=config.get('online_source_cards'),
+                       rss_cards=config.get('rss_cards'),
                        local_sources=sum('source_file' in asset or asset.get('local_payload') is True
                                          for asset in config.get('assets', [])),
                        catalogues=catalogs, subjects=subjects, subject_candidates=candidates,
@@ -2709,20 +2883,27 @@ def import_apply():
                             os.replace(temp, item_dir / cover)
                         g.db.execute('UPDATE item SET cover=? WHERE id=?', (cover, item_id))
             settings = config.get('site_settings', {}) if body.get('apply_settings') is True else {}
-            if settings:
-                if 'always_show_subjects' in settings:
-                    settings = dict(settings)
-                    try: incoming_always = json.loads(settings['always_show_subjects'])
+            import_settings = dict(settings)
+            if 'online_source_cards' in config:
+                import_settings['online_source_cards'] = config['online_source_cards']
+            if 'rss_cards' in config:
+                import_settings['rss_cards'] = config['rss_cards']
+            if import_settings:
+                if 'always_show_subjects' in import_settings:
+                    try: incoming_always = json.loads(import_settings['always_show_subjects'])
                     except (TypeError, json.JSONDecodeError): incoming_always = []
-                    settings['always_show_subjects'] = json.dumps([resolved.get(i, i) for i in incoming_always
-                                                                   if resolved.get(i, i) in current or resolved.get(i, i) in source_subjects])
-                if 'accent_color' in settings and not re.fullmatch(r'#[0-9a-fA-F]{6}', str(settings['accent_color'])):
+                    import_settings['always_show_subjects'] = json.dumps([resolved.get(i, i) for i in incoming_always
+                                                                          if resolved.get(i, i) in current or resolved.get(i, i) in source_subjects])
+                if 'accent_color' in import_settings and not re.fullmatch(r'#[0-9a-fA-F]{6}', str(import_settings['accent_color'])):
                     raise ValueError('Imported accent color is invalid')
-                if 'pdf_open_mode' in settings and settings['pdf_open_mode'] not in {'same_tab', 'new_tab'}:
+                if 'pdf_open_mode' in import_settings and import_settings['pdf_open_mode'] not in {'same_tab', 'new_tab'}:
                     raise ValueError('Imported PDF link preference is invalid')
                 g.db.executemany('INSERT INTO site_setting(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                                  [(key, json.dumps(value) if isinstance(value, (dict, list)) else str(value))
-                                  for key, value in settings.items()])
+                                  for key, value in import_settings.items()])
+                if 'rss_cards' in import_settings:
+                    with _police_rss_state_lock:
+                        _police_rss_cache.clear()
             saved_document = json.loads(json.dumps(config))
             for asset in saved_document.get('assets', []):
                 asset['collection'] = resolved.get(asset.get('collection'), asset.get('collection'))
@@ -2785,6 +2966,8 @@ def import_apply():
                                        if 'asset' in metadata['entry'] and
                                        metadata['entry']['asset'].get('path', '').startswith('zim/')),
                   'online_sources': sum('url' in asset for asset in config.get('assets', [])),
+                  'online_source_cards_imported': len(config.get('online_source_cards', [])),
+                  'rss_cards_imported': len(config.get('rss_cards', [])),
                   'pending_sources': sum(('url' in asset or 'source_file' in asset) and
                                          not (asset.get('path', '').startswith('zim/') and 'url' in asset) and
                                          not (asset.get('path', '').startswith('public/') and
@@ -3625,6 +3808,52 @@ def admin_settings_update():
                       ('always_show_subjects', json.dumps(always_show_subjects))])
     g.db.commit()
     return jsonify(settings=site_preferences())
+
+
+def _save_card_definitions(key, kind):
+    if request.content_length is not None and request.content_length > 1024 * 1024:
+        return jsonify(error='Card configuration exceeds 1 MB'), 413
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or 'cards' not in body:
+        return jsonify(error='Expected a card list'), 400
+    try:
+        cards = _validate_card_list(body['cards'], kind)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                 'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                 (key, json.dumps(cards, ensure_ascii=False)))
+    g.db.commit()
+    if key == 'rss_cards':
+        with _police_rss_state_lock:
+            _police_rss_cache.clear()
+    return jsonify(cards=cards)
+
+
+@app.get('/api/admin/online-source-cards')
+@admin_required
+def admin_online_source_cards():
+    return jsonify(cards=configured_online_source_cards())
+
+
+@app.put('/api/admin/online-source-cards')
+@admin_required
+@csrf_required
+def admin_online_source_cards_update():
+    return _save_card_definitions('online_source_cards', 'online source')
+
+
+@app.get('/api/admin/rss-cards')
+@admin_required
+def admin_rss_cards():
+    return jsonify(cards=configured_rss_cards())
+
+
+@app.put('/api/admin/rss-cards')
+@admin_required
+@csrf_required
+def admin_rss_cards_update():
+    return _save_card_definitions('rss_cards', 'RSS')
 
 
 @app.put('/api/admin/settings/accent')

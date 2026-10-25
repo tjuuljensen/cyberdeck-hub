@@ -604,7 +604,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0152": {
-    "default": "Subject definitions are included. Accounts, passwords, network settings, and logs are excluded. Uploaded documents (including older URL imports with no retained source URL) are exported as local files. HTML ZIPs retain their original archive.",
+    "default": "Subject, online source card, and RSS card definitions are included. Accounts, passwords, network settings, and logs are excluded. Uploaded documents (including older URL imports with no retained source URL) are exported as local files. HTML ZIPs retain their original archive.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0153": {
@@ -628,7 +628,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0158": {
-    "default": "Online sources require downloading before going air gapped; their payloads are not in these ZIPs. Each local entry gets a human-readable catalogue name. After preparing downloads, choose separate files or one ZIP bundle with the JSON and local catalogues. Building the combined ZIP needs temporary space for a second copy of the selected local content. Download links expire after one hour.",
+    "default": "Online source and RSS card definitions are included in the configuration JSON. Online content itself requires internet access and is not downloaded by export. Each local entry gets a human-readable catalogue name. After preparing downloads, choose separate files or one ZIP bundle with the JSON and local catalogues. Building the combined ZIP needs temporary space for a second copy of the selected local content. Download links expire after one hour.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0159": {
@@ -668,7 +668,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0168": {
-    "default": "Apply saved site preferences from this configuration",
+    "default": "Apply saved site preferences, online source cards, and RSS cards from this configuration",
     "context": "User interface text used in admin.html, admin.js. Preserve placeholders and product names."
   },
   "ui.0169": {
@@ -2172,7 +2172,7 @@
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0544": {
-    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIMs included: {included}; deferred: {deferred}. ZIM downloads started: {zim_downloads}. Internet PDF downloads started: {pdf_downloads}. PDF attachments skipped: {skipped_pdfs}. Other sources still to acquire: {sources}.",
+    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIMs included: {included}; deferred: {deferred}. ZIM downloads started: {zim_downloads}. Internet PDF downloads started: {pdf_downloads}. PDF attachments skipped: {skipped_pdfs}. Other sources still to acquire: {sources}. Online source cards imported: {online_cards}; RSS cards imported: {rss_cards}.",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0545": {
@@ -2220,7 +2220,7 @@
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0556": {
-    "default": "This import changes subject names, descriptions, ordering, and optionally site preferences. Content files and catalogue references are ignored.",
+    "default": "This import changes subject definitions and, when selected, site preferences and online/RSS cards. Content files and catalogue references are ignored.",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0557": {
@@ -2968,8 +2968,8 @@
     "context": "Scope and limitations of the police RSS reader."
   },
   "ui.0763": {
-    "default": "Police district or feed",
-    "context": "Label for selecting an official police RSS feed."
+    "default": "RSS feed",
+    "context": "Label for selecting a source within an RSS card."
   },
   "ui.0764": {
     "default": "Load updates",
@@ -3002,5 +3002,121 @@
   "ui.0772": {
     "default": "Official RSS feed list for Danish police districts.",
     "context": "Description of the official police RSS directory link."
+  },
+  "ui.0780": {
+    "default": "Explore your Cyberdeck",
+    "context": "Heading above the combined subject, service, online source, and RSS cards."
+  },
+  "ui.0781": {
+    "default": "SUBJECT {id}",
+    "context": "Index label on a subject card. Preserve the id placeholder."
+  },
+  "ui.0782": {
+    "default": "ONLINE SOURCES {id}",
+    "context": "Index label on an online source card. Preserve the id placeholder."
+  },
+  "ui.0783": {
+    "default": "RSS FEED {id}",
+    "context": "Index label on an RSS card. Preserve the id placeholder."
+  },
+  "ui.0784": {
+    "default": "ONLINE SOURCES",
+    "context": "Admin navigation label for online source card settings."
+  },
+  "ui.0785": {
+    "default": "RSS FEEDS",
+    "context": "Admin navigation label for RSS card settings."
+  },
+  "ui.0786": {
+    "default": "Online source cards",
+    "context": "Admin heading for editing online source cards."
+  },
+  "ui.0787": {
+    "default": "Create multiple cards of online links. Each card appears with the other library and service cards and is hidden while the Cyberdeck has no internet access.",
+    "context": "Admin help text for online source cards."
+  },
+  "ui.0788": {
+    "default": "Card title",
+    "context": "Admin field label for a resource card title."
+  },
+  "ui.0789": {
+    "default": "Description",
+    "context": "Admin field label for a resource card description."
+  },
+  "ui.0790": {
+    "default": "Links (one per line)",
+    "context": "Admin field label for online source entries."
+  },
+  "ui.0791": {
+    "default": "Save card",
+    "context": "Admin action to save an online source or RSS card."
+  },
+  "ui.0792": {
+    "default": "Cancel edit",
+    "context": "Admin action to cancel editing a card."
+  },
+  "ui.0793": {
+    "default": "Use one line per link: title | HTTPS URL | optional description. These links open on the internet and are not downloaded.",
+    "context": "Help for the online source card editor."
+  },
+  "ui.0794": {
+    "default": "RSS feed cards",
+    "context": "Admin heading for editing RSS feed cards."
+  },
+  "ui.0795": {
+    "default": "Create multiple RSS cards. Feed contents are fetched only when the Cyberdeck has internet access; the reader limits response size and item count.",
+    "context": "Admin help text for RSS cards."
+  },
+  "ui.0796": {
+    "default": "Feeds (one per line)",
+    "context": "Admin field label for RSS feed entries."
+  },
+  "ui.0797": {
+    "default": "Use one line per feed: feed title | HTTPS RSS or Atom URL. URLs resolving to local or private network addresses are rejected.",
+    "context": "Help for the RSS card editor."
+  },
+  "ui.0798": {
+    "default": "Edit",
+    "context": "Action to edit a resource card in Admin."
+  },
+  "ui.0799": {
+    "default": "Remove",
+    "context": "Action to remove a resource card in Admin."
+  },
+  "ui.0800": {
+    "default": "Remove the card '{title}'?",
+    "context": "Confirmation before removing an online source or RSS card. Preserve title placeholder."
+  },
+  "ui.0801": {
+    "default": "Each entry needs a title and HTTPS URL, separated by | characters.",
+    "context": "Validation message for incomplete card entries."
+  },
+  "ui.0802": {
+    "default": "Add at least one link or feed before saving this card.",
+    "context": "Validation message for an empty online source or RSS card."
+  },
+  "ui.0803": {
+    "default": "SERVICE {id}",
+    "context": "Index label on a service card. Preserve the id placeholder."
+  },
+  "ui.0804": {
+    "default": "Confirm remove",
+    "context": "Second action in the two-step removal of an online source or RSS card."
+  },
+  "ui.0805": {
+    "default": "Removing card…",
+    "context": "Progress status while an administrator removes a card."
+  },
+  "ui.0806": {
+    "default": "Saving card…",
+    "context": "Progress status while an administrator saves a card."
+  },
+  "ui.0807": {
+    "default": "Card saved.",
+    "context": "Completion status after saving a card."
+  },
+  "ui.0808": {
+    "default": "This configuration contains {sources} online source cards and {feeds} RSS cards.",
+    "context": "Import preview summary of online source and RSS card definitions. Preserve placeholders."
   }
 }

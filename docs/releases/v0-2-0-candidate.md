@@ -11,7 +11,10 @@ PDF import rows alongside managed Documents, adds per-file retry and cancel,
 and keeps a retry-all-failed action. `0.2.0-beta.5` combines Internet PDF
 imports with the Documents list, adds visible transfer progress and Remove,
 aligns Edit, Download, and Remove controls, and reapplies Admin fragments after
-page restoration.
+page restoration. `0.2.0-beta.6` moves subjects, services, online sources, and
+RSS feeds into one home-card section; adds editable multi-card online-source and
+RSS configuration; includes those definitions in configuration import/export;
+and labels each card with a translated type and sequence number.
 
 ## Included scope
 
@@ -30,9 +33,12 @@ page restoration.
   preparedness, generic off-grid preparedness, and a family off-grid pack. They
   contain no government guidance or household data and are not filtered by
   language or region.
-- Online crisis links and an on-demand reader for official Danish police RSS
-  updates appear only when connectivity is available. The reader sends no
-  notifications and is not an emergency alert channel.
+- Online source and RSS card definitions are editable in Admin and included in
+  configuration import/export. The default online links and Danish police RSS
+  feeds appear as separate home cards, alongside subjects and services, and
+  disappear when internet connectivity is unavailable. RSS fetching is bounded
+  and supports RSS and Atom. It sends no notifications and is not an emergency
+  alert channel.
 - The supported content update path is manual and administrator-reviewed.
   Scheduled refresh and automatic promotion are not included.
 

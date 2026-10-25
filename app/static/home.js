@@ -1,5 +1,4 @@
 const onlineCatalog = document.querySelector('#online-kiwix-catalog');
-const onlineCrisisGroup = document.querySelector('#online-crisis-group');
 let checkingCatalog = false;
 async function updateCatalogAvailability() {
   if (!onlineCatalog || checkingCatalog || document.hidden) return;
@@ -13,10 +12,8 @@ async function updateCatalogAvailability() {
     if (!response.ok) throw new Error('Connectivity check unavailable');
     const state = await response.json();
     onlineCatalog.hidden = state.available !== true;
-    if (onlineCrisisGroup) onlineCrisisGroup.hidden = state.available !== true || !navigator.onLine;
   } catch {
     onlineCatalog.hidden = true;
-    if (onlineCrisisGroup) onlineCrisisGroup.hidden = true;
   } finally {
     clearTimeout(timeout);
     checkingCatalog = false;
@@ -28,7 +25,6 @@ document.addEventListener('visibilitychange', updateCatalogAvailability);
 window.addEventListener('online', updateCatalogAvailability);
 window.addEventListener('offline', () => {
   if (onlineCatalog) onlineCatalog.hidden = true;
-  if (onlineCrisisGroup) onlineCrisisGroup.hidden = true;
 });
 // A page restored from browser history may contain the accent from before an
 // administrator changed it; reload the shared preference from the server.

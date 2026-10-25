@@ -140,6 +140,11 @@ importForm.addEventListener('submit', async event => {
       const ignored = document.createElement('p'); ignored.className = 'subtle';
       ignored.textContent = t('ui.0557', result.ignored_content);
       importPreview.append(ignored);
+      if (result.online_source_cards !== null || result.rss_cards !== null) {
+        const cards = document.createElement('p'); cards.className = 'subtle';
+        cards.textContent = t('ui.0808', {sources: result.online_source_cards?.length || 0, feeds: result.rss_cards?.length || 0});
+        importPreview.append(cards);
+      }
       const addList = (title, entries, describe) => {
         const section = document.createElement('section'); section.className = 'stack';
         const h = document.createElement('h4'); h.textContent = `${title} (${entries.length})`; section.append(h);
@@ -209,6 +214,11 @@ importForm.addEventListener('submit', async event => {
     const details = document.createElement('p');
     details.textContent = t('ui.0356', {count: result.catalogues.length, online: result.online_sources, local: result.local_sources, private_required: formatBytes(result.required_bytes), expanded: formatBytes(result.expanded_html_bytes), private_available: formatBytes(result.available_bytes), library_available: formatBytes(result.available_data_bytes)});
     importPreview.append(details);
+    if (result.online_source_cards !== null || result.rss_cards !== null) {
+      const cardSummary = document.createElement('p'); cardSummary.className = 'subtle';
+      cardSummary.textContent = t('ui.0808', {sources: result.online_source_cards?.length || 0, feeds: result.rss_cards?.length || 0});
+      importPreview.append(cardSummary);
+    }
     const mappings = document.createElement('fieldset'); mappings.className = 'stack';
     const legend = document.createElement('legend'); legend.textContent = t('ui.0246'); mappings.append(legend);
     for (const subject of result.subjects) {
@@ -347,7 +357,7 @@ importForm.addEventListener('submit', async event => {
           body: JSON.stringify({token: result.token, subject_mapping, apply_settings: importForm.elements.apply_settings.checked,
             selected_zims: [...zimSelection], selected_documents: [...documentSelection],
             selected_online_pdfs: [...onlinePdfSelection]})});
-        importStatus.textContent = t('ui.0544', {filename: done.saved_config, catalogues: done.imported_catalogues, included: done.imported_zims + done.zim_downloads_started, deferred: done.zims_deferred, zim_downloads: done.zim_downloads_started, pdf_downloads: done.pdf_downloads_started || 0, skipped_pdfs: done.skipped_pdf_attachments, sources: done.pending_sources});
+        importStatus.textContent = t('ui.0544', {filename: done.saved_config, catalogues: done.imported_catalogues, included: done.imported_zims + done.zim_downloads_started, deferred: done.zims_deferred, zim_downloads: done.zim_downloads_started, pdf_downloads: done.pdf_downloads_started || 0, skipped_pdfs: done.skipped_pdf_attachments, sources: done.pending_sources, online_cards: done.online_source_cards_imported || 0, rss_cards: done.rss_cards_imported || 0});
         if (done.zim_download_errors?.length) {
           const errors = document.createElement('p'); errors.className = 'error';
           errors.textContent = t('ui.0364', {errors: done.zim_download_errors.join('; ')});
@@ -1190,4 +1200,46 @@ hostnameForm.addEventListener('submit',async event=>{
 refreshHostname().catch(error=>alert(error.message));
 setInterval(()=>refreshHostname().catch(()=>{}),5000);
 }
+function setupConfigurableCards({endpoint,listId,formId,cancelId,kind}){
+  const list=document.getElementById(listId);const form=document.getElementById(formId);const cancel=document.getElementById(cancelId);
+  if(!list||!form||!cancel)return;
+  const status=document.createElement('p');status.className='subtle';status.setAttribute('role','status');status.setAttribute('aria-live','polite');form.insertAdjacentElement('afterend',status);
+  let cards=[];
+  const rowsFor=card=>kind==='online'?card.links.map(entry=>`${entry.title} | ${entry.url} | ${entry.description?t(entry.description):''}`).join('\n'):card.feeds.map(entry=>`${entry.title} | ${entry.url}`).join('\n');
+  const reset=()=>{form.reset();form.elements.id.value='';cancel.hidden=true;status.textContent=''};
+  const render=()=>{
+    list.replaceChildren();
+    cards.forEach((card,index)=>{
+      const row=document.createElement('div');row.className='item-row card-definition-row';
+      const summary=document.createElement('span');summary.textContent=`${card.title} · ${kind==='online'?card.links.length:card.feeds.length}`;
+      const actions=document.createElement('div');actions.className='button-row';
+      const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent=t('ui.0798');
+      edit.addEventListener('click',()=>{form.elements.id.value=card.id;form.elements.title.value=card.title;form.elements.description.value=t(card.description||'');form.elements.entries.value=rowsFor(card);cancel.hidden=false;form.scrollIntoView({behavior:'smooth',block:'center'})});
+      const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent=t('ui.0799');
+      let armTimer;remove.addEventListener('click',async()=>{if(remove.dataset.armed!=='true'){remove.dataset.armed='true';remove.textContent=t('ui.0804');status.textContent=t('ui.0800',{title:card.title});armTimer=setTimeout(()=>{delete remove.dataset.armed;remove.textContent=t('ui.0799');status.textContent=''},8000);return}clearTimeout(armTimer);remove.disabled=true;status.textContent=t('ui.0805');try{const saved=await requestJson(endpoint,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({cards:cards.filter(item=>item.id!==card.id)})});cards=saved.cards;status.textContent='';render();reset()}catch(error){remove.disabled=false;delete remove.dataset.armed;remove.textContent=t('ui.0799');status.textContent=error.message}});
+      actions.append(edit,remove);row.append(summary,actions);list.append(row);
+    });
+  };
+  const makeId=(value,index)=>{let base=value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,52)||`entry-${index+1}`;return base};
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();const title=form.elements.title.value.trim();const rawLines=form.elements.entries.value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+    const existing=cards.find(card=>card.id===form.elements.id.value);const prior=kind==='online'?(existing?.links||[]):(existing?.feeds||[]);const priorByUrl=new Map(prior.map(item=>[item.url,item.id]));const seen=new Set();
+    const entries=[];for(const [index,line]of rawLines.entries()){
+      const parts=line.split('|').map(part=>part.trim());const entryTitle=parts[0]||'';const url=parts[1]||'';const description=parts[2]||'';
+      if(!entryTitle||!url){status.textContent=t('ui.0801');return}
+      let id=priorByUrl.get(url)||makeId(entryTitle,index);let suffix=2;while(seen.has(id)){id=`${makeId(entryTitle,index)}-${suffix++}`}seen.add(id);
+      entries.push(kind==='online'?{id,title:entryTitle,url,description}:{id,title:entryTitle,url});
+    }
+    if(!entries.length){status.textContent=t('ui.0802');return}
+    let id=form.elements.id.value; if(!id){id=makeId(title,0);let suffix=2;while(cards.some(card=>card.id===id))id=`${makeId(title,0)}-${suffix++}`}
+    const card={id,title,description:form.elements.description.value.trim(),[kind==='online'?'links':'feeds']:entries};
+    const next=existing?cards.map(item=>item.id===id?card:item):[...cards,card];
+    const submit=form.querySelector('[type="submit"]');submit.disabled=true;
+    status.textContent=t('ui.0806');try{const saved=await requestJson(endpoint,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({cards:next})});cards=saved.cards;render();reset();status.textContent=t('ui.0807')}catch(error){status.textContent=error.message}finally{submit.disabled=false}
+  });
+  cancel.addEventListener('click',reset);
+  requestJson(endpoint).then(result=>{cards=result.cards;render()}).catch(error=>{list.textContent=error.message});
+}
+setupConfigurableCards({endpoint:'/api/admin/online-source-cards',listId:'online-source-card-list',formId:'online-source-card-form',cancelId:'online-source-cancel',kind:'online'});
+setupConfigurableCards({endpoint:'/api/admin/rss-cards',listId:'rss-card-list',formId:'rss-card-form',cancelId:'rss-card-cancel',kind:'rss'});
 Promise.all([refreshSubjects(),refreshZims(),refreshDocuments(),refreshExportOptions(),refreshPdfImports()]).catch(error=>alert(error.message));setInterval(()=>{if(zimPolling)refreshZims().catch(()=>{})},10000);
