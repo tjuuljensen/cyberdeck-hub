@@ -2,8 +2,9 @@
 
 Status: local candidate prepared for review; this is not a published release.
 Candidate builds follow the [Hub versioning policy](versioning.md). The tested
-`0.2.0` build predates the pre-release labels; the next candidate is
-`0.2.0-beta.1`.
+`0.2.0` build predates the pre-release labels. `0.2.0-beta.1` adds the first
+version label; `0.2.0-beta.2` resets the Admin page to its first section on
+initial navigation and browser history restoration.
 
 ## Included scope
 

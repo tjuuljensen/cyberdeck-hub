@@ -1,5 +1,19 @@
 const headers = {'X-CSRF-Token': document.querySelector('.admin-head').dataset.csrf};
 const t = window.cyberdeckTranslate;
+const adminStart = document.querySelector('#admin-start');
+if (adminStart) {
+  const startAdminPage = () => {
+    if (!window.location.hash || window.location.hash === '#admin-start') {
+      const rootStyle = document.documentElement.style;
+      const previousScrollBehavior = rootStyle.scrollBehavior;
+      rootStyle.scrollBehavior = 'auto';
+      window.scrollTo(0, 0);
+      rootStyle.scrollBehavior = previousScrollBehavior;
+    }
+  };
+  window.addEventListener('pageshow', () => requestAnimationFrame(startAdminPage));
+  requestAnimationFrame(startAdminPage);
+}
 const nativeAlert = window.alert.bind(window);
 const nativeConfirm = window.confirm.bind(window);
 const nativePrompt = window.prompt.bind(window);

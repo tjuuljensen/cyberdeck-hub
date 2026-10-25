@@ -22,6 +22,6 @@ in the release tracking record. Use an annotated Git tag such as
 `v0.2.0-beta.1` only after repository and release metadata are ready for review;
 do not configure or publish a remote as part of local candidate testing.
 
-The first candidate deployed as `0.2.0` predates this convention. The next
-candidate starts at `0.2.0-beta.1`; later beta or release-candidate builds
-increment their numeric suffix.
+The first candidate deployed as `0.2.0` predates this convention. The first
+pre-release candidate is `0.2.0-beta.1`; each later beta or release-candidate
+build increments the corresponding numeric suffix.
