@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='cyberdeck.css', v=app_version) }}">
   <link rel="stylesheet" id="site-accent-theme" href="{{ url_for('accent_stylesheet') }}">
   <script src="{{ url_for('static', filename='i18n.js', v=app_version) }}" defer></script>
+  {% block head_scripts %}{% endblock %}
 </head>
 <body>
   <header class="topbar"><a class="brand" href="/">CYBERDECK HUB <span id="brand-subtitle">{{ site_preferences.subtitle }}</span></a>

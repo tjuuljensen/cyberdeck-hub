@@ -1,4 +1,5 @@
 {% extends 'base.html' %}{% block title %}{{ t('ui.0078') }} · Cyberdeck Hub{% endblock %}
+{% block head_scripts %}<script src="{{ url_for('static', filename='admin-navigation.js', v=app_version) }}"></script>{% endblock %}
 {% block content %}<section class="admin-head" id="admin-start" data-csrf="{{ csrf }}"><div><p class="eyebrow">{{ t('ui.0079') }}</p><h1>{{ t('ui.0078') }}</h1><p class="lede">{{ t('ui.0080', username=username) }}</p><p class="subtle" id="app-version">Cyberdeck Hub v{{ app_version }}</p></div></section>
 <nav class="tabs"><a href="#preferences">{{ t('ui.0081') }}</a><a href="#subjects">{{ t('ui.0082') }}</a><a href="#zim">{{ t('ui.0083') }}</a><a href="#documents">{{ t('ui.0084') }}</a>{% if capabilities.hotspot %}<a href="#hotspot">{{ t('ui.0086') }}</a>{% endif %}<a href="#export">{{ t('ui.0087') }}</a>{% if capabilities.system %}<a href="#overview">{{ t('ui.0088') }}</a>{% endif %}{% if capabilities.cyberchef %}<a href="#cyberchef">{{ t('ui.0015') }}</a>{% endif %}{% if capabilities.storage or capabilities.power %}<a href="#management">{{ t('ui.0617') }}</a>{% endif %}</nav>
 <section class="admin-grid">

@@ -3,8 +3,10 @@
 Status: local candidate prepared for review; this is not a published release.
 Candidate builds follow the [Hub versioning policy](versioning.md). The tested
 `0.2.0` build predates the pre-release labels. `0.2.0-beta.1` adds the first
-version label; `0.2.0-beta.2` resets the Admin page to its first section on
-initial navigation and browser history restoration.
+version label; `0.2.0-beta.2` attempted to reset the Admin page to its first
+section, but a late browser scroll restoration still moved it to the previous
+position. `0.2.0-beta.3` disables scroll restoration before Admin page parsing
+and resets to the top after the page is shown.
 
 ## Included scope
 
