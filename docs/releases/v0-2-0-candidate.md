@@ -8,9 +8,10 @@ Status: local candidate prepared for review; this is not a published release.
   subject metadata. It does not index PDF or ZIM full text.
 - Internet PDF imports show per-file progress and failure state in Admin, with
   retry for failed downloads. Configuration exports preserve online source
-  links and metadata, not remote PDF payloads. The full Debian recovery backup
-  copies the configured data root, including acquired PDFs and their records,
-  and verifies the copied content.
+  links and metadata, not remote PDF payloads. The optional, manually started
+  Debian recovery backup copies the entire configured data root, including
+  acquired PDFs, their records, and other acquired content, then verifies the
+  copy. There is no PDF-only backup option or scheduled backup in v0.2.0.
 - An online full Debian install stages the pinned CyberChef module and leaves
   its service disabled. Admin can enable or disable it; `--skip-cyberchef` and
   `--offline` omit staging.
