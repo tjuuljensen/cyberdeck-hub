@@ -17,7 +17,7 @@ for an online service during an emergency.
 | DR Nyheder | <https://www.dr.dk/nyheder> | Danish public-service news. Requires internet. |
 | DR Lyd and P4 | <https://www.dr.dk/lyd> | Danish public-service radio streaming. Streaming requires internet; use a battery-powered FM radio if networks or power fail. |
 | TV 2 Nyheder | <https://nyheder.tv2.dk/> | Danish news. Requires internet. |
-| Politi Update | <https://politi.dk/faa-politi-update-som-rssfeed> | Danish police operational updates, available through RSS; the built-in reader offers the national feed and individual police districts. |
+| Politi Update | <https://politi.dk/faa-politi-update-som-mobilapp-og-rss-feed> | Danish police operational updates, available through RSS; the built-in reader offers the national feed and individual police districts. |
 
 World Monitor's official site describes its product as a real-time global
 dashboard. The DR and TV 2 destinations are link-only references. Do not copy

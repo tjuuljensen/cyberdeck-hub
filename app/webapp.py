@@ -79,7 +79,7 @@ ONLINE_CRISIS_LINKS = [
      'description': 'ui.0758'},
     {'title': 'TV 2 Nyheder', 'url': 'https://nyheder.tv2.dk/',
      'description': 'ui.0759'},
-    {'title': 'Politi Update RSS directory', 'url': 'https://politi.dk/faa-politi-update-som-rssfeed',
+    {'title': 'Politi Update RSS directory', 'url': 'https://politi.dk/faa-politi-update-som-mobilapp-og-rss-feed',
      'description': 'ui.0772'},
 ]
 POLICE_RSS_BASE = 'https://via.ritzau.dk/rss/short-messages/latest'
