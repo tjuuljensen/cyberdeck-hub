@@ -45,7 +45,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.6'
+APP_VERSION = '0.2.0-beta.7'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -1007,7 +1007,28 @@ def local_search():
 
 @app.get('/online-crisis-links')
 def online_crisis_links():
-    return redirect('/#online-sources', code=302)
+    cards = configured_online_source_cards()
+    return redirect(f"/online-sources/{cards[0]['id']}" if cards else '/', code=302)
+
+
+@app.get('/online-sources/<card_id>')
+def online_source_page(card_id):
+    cards = configured_online_source_cards()
+    card = next((item for item in cards if item['id'] == card_id), None)
+    if not card:
+        abort(404)
+    return render_template('resource-card.html', card=card,
+                           card_index=cards.index(card) + 1, resource_kind='online')
+
+
+@app.get('/rss/<card_id>')
+def rss_card_page(card_id):
+    cards = configured_rss_cards()
+    card = next((item for item in cards if item['id'] == card_id), None)
+    if not card:
+        abort(404)
+    return render_template('resource-card.html', card=card,
+                           card_index=cards.index(card) + 1, resource_kind='rss')
 
 
 @app.get('/api/online/rss')

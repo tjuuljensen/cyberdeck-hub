@@ -778,5 +778,7 @@
   "ui.0805": "Fjerner kort…",
   "ui.0806": "Gemmer kort…",
   "ui.0807": "Kortet er gemt.",
-  "ui.0808": "Denne konfiguration indeholder {sources} kort med onlinekilder og {feeds} RSS-kort."
+  "ui.0808": "Denne konfiguration indeholder {sources} kort med onlinekilder og {feeds} RSS-kort.",
+  "ui.0809": "Åbn kilder",
+  "ui.0810": "Læs opdateringer"
 }

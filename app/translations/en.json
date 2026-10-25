@@ -3118,5 +3118,13 @@
   "ui.0808": {
     "default": "This configuration contains {sources} online source cards and {feeds} RSS cards.",
     "context": "Import preview summary of online source and RSS card definitions. Preserve placeholders."
+  },
+  "ui.0809": {
+    "default": "Open sources",
+    "context": "Action link on an online source card that opens its detail page."
+  },
+  "ui.0810": {
+    "default": "Read updates",
+    "context": "Action link on an RSS card that opens its detail page."
   }
 }

@@ -15,6 +15,9 @@ page restoration. `0.2.0-beta.6` moves subjects, services, online sources, and
 RSS feeds into one home-card section; adds editable multi-card online-source and
 RSS configuration; includes those definitions in configuration import/export;
 and labels each card with a translated type and sequence number.
+`0.2.0-beta.7` makes online-source and RSS home cards open dedicated detail
+pages. The pages show every configured online link and the complete bounded set
+of fetched RSS items, and disappear when internet access is unavailable.
 
 ## Included scope
 
