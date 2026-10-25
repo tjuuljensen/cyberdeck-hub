@@ -3020,11 +3020,11 @@
     "context": "Index label on an RSS card. Preserve the id placeholder."
   },
   "ui.0784": {
-    "default": "ONLINE SOURCES",
+    "default": "Online Sources",
     "context": "Admin navigation label for online source card settings."
   },
   "ui.0785": {
-    "default": "RSS FEEDS",
+    "default": "RSS Feeds",
     "context": "Admin navigation label for RSS card settings."
   },
   "ui.0786": {
