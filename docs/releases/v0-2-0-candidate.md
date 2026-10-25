@@ -28,6 +28,8 @@ UTC; entries with missing or invalid dates show a translated fallback.
 formats, tries alternate date fields when one is malformed, assumes UTC for
 timezone-less values, and falls back to UTC display if a client cannot format
 the configured timezone.
+`0.2.0-beta.11` makes each RSS headline link to its article and aligns the
+publication time on the right side of the same header row.
 
 ## Included scope
 

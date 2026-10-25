@@ -49,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.10'
+APP_VERSION = '0.2.0-beta.11'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'

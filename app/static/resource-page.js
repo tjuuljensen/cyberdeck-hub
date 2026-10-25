@@ -40,31 +40,38 @@ if (page) {
   function appendFeedItem(item) {
     const article = document.createElement('article');
     article.className = 'rss-entry';
+    let articleUrl = '';
+    try {
+      const url = new URL(item.link);
+      if (url.protocol === 'https:' && !url.username && !url.password) articleUrl = url.href;
+    } catch { /* malformed publisher links are omitted */ }
+
+    const header = document.createElement('div');
+    header.className = 'rss-entry-head';
     const heading = document.createElement('h3');
-    heading.textContent = item.title;
-    article.append(heading);
+    if (articleUrl) {
+      const titleLink = document.createElement('a');
+      titleLink.href = articleUrl;
+      titleLink.target = '_blank';
+      titleLink.rel = 'noopener noreferrer';
+      titleLink.textContent = item.title;
+      heading.append(titleLink);
+    } else {
+      heading.textContent = item.title;
+    }
+    header.append(heading);
     const date = document.createElement('time');
     date.className = 'rss-date';
     date.textContent = formatPublishedTime(item.published);
     if (item.published) date.dateTime = item.published;
-    article.append(date);
+    header.append(date);
+    article.append(header);
     if (item.summary) {
       const summary = document.createElement('p');
       summary.className = 'rss-summary';
       summary.textContent = item.summary;
       article.append(summary);
     }
-    try {
-      const url = new URL(item.link);
-      if (url.protocol === 'https:' && !url.username && !url.password) {
-        const link = document.createElement('a');
-        link.href = url.href;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = translate('ui.0771');
-        article.append(link);
-      }
-    } catch { /* malformed publisher links are omitted */ }
     feedItems.append(article);
   }
 
