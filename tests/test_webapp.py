@@ -192,8 +192,11 @@ class WebAppTests(unittest.TestCase):
 
     def test_cyberchef_admin_status_and_toggle_are_full_runtime_only(self):
         with patch.dict(webapp.os.environ, {'CYBERDECK_RUNTIME_MODE': 'headless'}), \
-                patch.object(webapp, 'read_only_helper', return_value={
-                    'installed': True, 'enabled': False, 'active': False}) as status_helper, \
+                patch.object(webapp, 'cyberchef_module', return_value={'hostname': 'localhost'}), \
+                patch.object(webapp.subprocess, 'run', side_effect=[
+                    webapp.subprocess.CompletedProcess([], 1),
+                    webapp.subprocess.CompletedProcess([], 1),
+                ]) as systemctl, \
                 patch.object(webapp, 'helper', side_effect=[
                     {'installed': True, 'enabled': True, 'active': True},
                 ]) as helper:
@@ -204,7 +207,7 @@ class WebAppTests(unittest.TestCase):
                 headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
             self.assertEqual(enabled.status_code, 200)
             self.assertEqual(enabled.get_json()['active'], True)
-            status_helper.assert_called_once_with('cyberchef-status')
+            self.assertEqual(systemctl.call_count, 2)
             self.assertEqual(helper.call_args_list[0].args, ('cyberchef-enable',))
         with patch.dict(webapp.os.environ, {'CYBERDECK_RUNTIME_MODE': 'container'}):
             unavailable = self.client.get('/api/admin/cyberchef', base_url='https://localhost')

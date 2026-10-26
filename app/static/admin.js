@@ -683,6 +683,7 @@ function renderApprovedStorageLocations(){
 }
 async function refreshSystemOverview(){
   const target=document.querySelector('#system-overview');
+  const storageTarget=document.querySelector('#system-storage');
   try{
     const info=await requestJson('/api/admin/system');
     const serverSummary=document.querySelector('#hostname-summary');
@@ -691,6 +692,7 @@ async function refreshSystemOverview(){
     renderApprovedStorageLocations();
     renderSystemNetwork(info.network);
     target.replaceChildren();
+    storageTarget.replaceChildren();
     const facts=document.createElement('div');
     facts.className='system-facts';
     addSystemFact(facts,'Hostname',info.hostname);
@@ -702,24 +704,27 @@ async function refreshSystemOverview(){
       total:formatBytes(info.memory.total_bytes),
       available:formatBytes(info.memory.available_bytes),
     }));
+    addSystemFact(facts,'Uptime',formatUptime(info.uptime_seconds));
+    target.append(facts);
+    const storageFacts=document.createElement('div');
+    storageFacts.className='system-facts';
     const dataFilesystem=info.filesystems?.find(item=>item.mount===info.data_filesystem_mount);
-    addSystemFact(facts,'ui.0619',t('ui.0652',{
+    addSystemFact(storageFacts,'ui.0619',t('ui.0652',{
       path:info.data_root,
       mount:info.data_filesystem_mount||t('ui.0233'),
       device:dataFilesystem?.device||t('ui.0233'),
       type:dataFilesystem?.filesystem||t('ui.0233'),
     }));
-    addSystemFact(facts,'Uptime',formatUptime(info.uptime_seconds));
-    target.append(facts);
+    storageTarget.append(storageFacts);
     const heading=document.createElement('h3');
     heading.className='system-storage-heading';
     heading.textContent=t('ui.0314');
-    target.append(heading);
+    storageTarget.append(heading);
     if(!info.filesystems.length){
       const empty=document.createElement('p');
       empty.className='subtle';
       empty.textContent=t('ui.0316');
-      target.append(empty);
+      storageTarget.append(empty);
       return;
     }
     const disks=document.createElement('div');
@@ -748,10 +753,11 @@ async function refreshSystemOverview(){
       row.append(top,source,meter);
       disks.append(row);
     }
-    target.append(disks);
+    storageTarget.append(disks);
   }catch(error){
     renderSystemNetwork(null);
     target.textContent=t('ui.0393',{error:error.message});
+    storageTarget.textContent=t('ui.0393',{error:error.message});
   }
 }
 

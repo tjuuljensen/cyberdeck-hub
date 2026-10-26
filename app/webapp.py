@@ -49,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.15'
+APP_VERSION = '0.2.0-beta.16'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -833,6 +833,22 @@ def cyberchef_service_active():
     except (OSError, subprocess.SubprocessError):
         return False
     return result.returncode == 0
+
+
+def cyberchef_status():
+    """Read CyberChef's service state without depending on the root helper version."""
+    if not cyberchef_module():
+        return {'installed': False, 'enabled': False, 'active': False}
+    try:
+        enabled = subprocess.run(['systemctl', 'is-enabled', '--quiet',
+                                  'cyberdeck-cyberchef.service'], check=False,
+                                 capture_output=True, text=True, timeout=3).returncode == 0
+        active = subprocess.run(['systemctl', 'is-active', '--quiet',
+                                 'cyberdeck-cyberchef.service'], check=False,
+                                capture_output=True, text=True, timeout=3).returncode == 0
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError(str(error)) from error
+    return {'installed': True, 'enabled': enabled, 'active': active}
 
 
 def site_preferences():
@@ -4022,7 +4038,7 @@ def admin_cyberchef_status():
     if not capability_available('cyberchef'):
         abort(404)
     try:
-        return jsonify(read_only_helper('cyberchef-status'))
+        return jsonify(cyberchef_status())
     except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
         return jsonify(error=str(error)), 503
 

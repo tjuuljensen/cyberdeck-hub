@@ -41,6 +41,8 @@ obsolete card copy from the locale files.
 status without sudo, and uses a checkbox for its module state like Hotspot.
 `0.2.0-beta.15` keeps storage and disk information visible while folding
 storage actions, and folds system details under the current server name.
+`0.2.0-beta.16` keeps network and local storage visible outside the System
+Overview fold and reads CyberChef status without relying on a helper version.
 
 ## Included scope
 
