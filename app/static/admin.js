@@ -382,6 +382,7 @@ async function requestJson(url, options={}) { let response;try{response=await fe
 let pdfImportPoll;
 let adminDocumentEntries=[];
 let pdfImportJobs=[];
+let adminCards=[];
 async function refreshPdfImports(){
   try{
     const previouslyDownloaded=new Set(pdfImportJobs.flatMap(job=>job.files
@@ -427,7 +428,7 @@ function armRemoval(button,remove,key){
 function zimProgressText(item){const status=item.status.startsWith('pid:')?t('ui.0397'):item.status.startsWith('failed')?t('ui.0400'):t(item.status);if(item.status==='ready')return t('ui.0371',{size:formatBytes(item.bytes)});if(item.status.startsWith('failed'))return `${status} · ${item.failure_reason||item.status.replace(/^failed:\s*/, '')}`;if(item.pause_requested)return t('ui.0372');if(!item.expected_bytes)return status;const received=item.received_bytes||0;const progress=t('ui.0373',{received:formatBytes(received),total:formatBytes(item.expected_bytes),percent:Math.floor(received*100/item.expected_bytes)});if(item.phase==='verifying')return t('ui.0374',{status});if(item.phase==='stalled')return t('ui.0375',{status,elapsed:formatUptime(item.progress_age_seconds)});if(item.phase==='connecting')return t('ui.0376',{status});return t('ui.0377',{status,progress})}
 function createZimRow(item){
   const el=row(item.title,'','Remove',()=>{});
-  el.classList.add('zim-row');el.dataset.zimId=item.id;el.zimItem=item;
+  el.classList.add('zim-row');el.dataset.zimId=item.id;el.dataset.subject=item.subject;el.zimItem=item;
   const remove=el.querySelector('button');remove.classList.add('remove-action');remove.dataset.zimAction='remove';remove.remove();
   const actions=recordActions();
   armRemoval(remove,async()=>{
@@ -467,9 +468,10 @@ function updateZimRow(el,item){el.zimItem=item;el.querySelector('.zim-file-detai
   }
 }
 
-async function refreshZims(){const list=document.querySelector('#zim-list');const items=await requestJson('/api/admin/zims');zimPolling=items.some(item=>item.status.startsWith('pid:')||item.status==='downloading');const previous=new Map(Array.from(list.children,el=>[el.dataset.zimId,el]));const ordered=[];for(const item of items){const el=previous.get(item.id)||createZimRow(item);previous.delete(item.id);updateZimRow(el,item);ordered.push(el)}for(const el of previous.values())el.remove();const current=Array.from(list.children);if(current.length!==ordered.length||current.some((el,index)=>el!==ordered[index]))for(const el of ordered)list.append(el)}
+async function refreshZims(){const list=document.querySelector('#zim-list');const items=await requestJson('/api/admin/zims');zimPolling=items.some(item=>item.status.startsWith('pid:')||item.status==='downloading');const previous=new Map(Array.from(list.children,el=>[el.dataset.zimId,el]));const ordered=[];for(const item of items){const el=previous.get(item.id)||createZimRow(item);previous.delete(item.id);updateZimRow(el,item);ordered.push(el)}for(const el of previous.values())el.remove();const current=Array.from(list.children);if(current.length!==ordered.length||current.some((el,index)=>el!==ordered[index]))for(const el of ordered)list.append(el);document.querySelector('#zim-count').textContent=ordered.length;applyContentCardFilters()}
 function createManagedDocumentRow(item,importStatus=null){
   const el=row(item.title,'','Remove',()=>{});
+  el.dataset.subject=item.subject||'';
   const subject=subjectName(item.subject);
   const subjectLabel=document.createElement('span');subjectLabel.textContent=subject||'Unassigned';
   if(!subject)subjectLabel.className='archive-unassigned';
@@ -497,6 +499,7 @@ function createUploadedDocumentRow(item){
   const attachmentCount=item.attachments.length;
   const detail=attachmentCount===1?t('ui.0381',{subject:subjectName(item.subject),count:attachmentCount,size:formatBytes(totalBytes)}):t('ui.0382',{subject:subjectName(item.subject),count:attachmentCount,size:formatBytes(totalBytes)});
   const el=row(item.title,detail,'Remove',()=>{});
+  el.dataset.subject=item.subject||'';
   el.classList.add('document-row');
   if(item.cover_url){const image=document.createElement('img');image.className='cover-thumb';image.src=item.cover_url;image.alt='';el.prepend(image)}
   const remove=el.querySelector('button');remove.classList.add('remove-action');remove.remove();
@@ -520,7 +523,7 @@ function createUploadedDocumentRow(item){
 function createPdfImportDocumentRow(job,file,fileIndex){
   const filename=file.path.startsWith('public/')?file.path.slice(7):file.path;
   const detail=[subjectName(file.subject),filename].filter(Boolean).join(' · ');
-  const el=row(file.title,detail,'Remove',()=>{});el.querySelector(':scope > button').remove();el.classList.add('document-row','pdf-import-document');
+  const el=row(file.title,detail,'Remove',()=>{});el.dataset.subject=file.subject||'';el.querySelector(':scope > button').remove();el.classList.add('document-row','pdf-import-document');
   const stateKey={queued:'ui.0690',downloading:'ui.0691',failed:'ui.0693',canceled:'ui.0697'}[file.status]||'ui.0690';
   const state=document.createElement('span');state.className=`document-status is-${file.status}`;state.textContent=t(stateKey);el.firstElementChild.append(state);
   if(file.status==='downloading'){
@@ -543,6 +546,18 @@ function createPdfImportDocumentRow(job,file,fileIndex){
   actions.append(remove);
   el.append(actions);return el;
 }
+function fillCardFilter(selectId,kind){
+  const select=document.querySelector(`#${selectId}`);if(!select)return;
+  const previous=select.value;select.replaceChildren(new Option('Show all',''));
+  for(const card of adminCards.filter(item=>item.type===kind))select.add(new Option(card.display_title||card.title,card.id));
+  if([...select.options].some(option=>option.value===previous))select.value=previous;
+}
+function applyContentCardFilters(){
+  const documentFilter=document.querySelector('#document-card-filter')?.value||'';
+  document.querySelectorAll('#documents-list>.item-row').forEach(el=>{el.hidden=Boolean(documentFilter)&&el.dataset.subject!==documentFilter});
+  const zimFilter=document.querySelector('#zim-card-filter')?.value||'';
+  document.querySelectorAll('#zim-list>.item-row').forEach(el=>{el.hidden=Boolean(zimFilter)&&el.zimItem?.subject!==zimFilter});
+}
 function renderAdminDocuments(){
   const list=document.querySelector('#documents-list');if(!list)return;
   const downloaded=new Map();
@@ -558,6 +573,8 @@ function renderAdminDocuments(){
   }
   rows.sort((a,b)=>a.querySelector('strong').textContent.localeCompare(b.querySelector('strong').textContent));
   list.replaceChildren(...rows);
+  document.querySelector('#documents-count').textContent=rows.length;
+  applyContentCardFilters();
 }
 let documentsRefresh=0;
 async function refreshDocuments(){
@@ -568,6 +585,7 @@ async function refreshDocuments(){
   if(result.status==='rejected'){console.error('Could not load admin documents:',result.reason);status.textContent=t('ui.0384');return}
   adminDocumentEntries=result.value.sort((a,b)=>a.title.localeCompare(b.title));renderAdminDocuments();
   const count=adminDocumentEntries.length+pdfImportJobs.reduce((total,job)=>total+job.files.filter(file=>!['removed','downloaded'].includes(file.status)).length,0);
+  document.querySelector('#documents-count').textContent=count;
   status.textContent=count?(count===1?t('ui.0385',{count}):t('ui.0386',{count})):t('ui.0304');
 }
 document.querySelector('#documents-reload').onclick=refreshDocuments;
@@ -582,7 +600,7 @@ document.querySelector('#pdf-retry-all').onclick=async event=>{
 // Keep old admin bookmarks useful after merging the two sections.
 function redirectDocumentAnchor(){if(['#archive','#private'].includes(location.hash)){location.replace('#documents')}}
 window.addEventListener('hashchange',redirectDocumentAnchor);redirectDocumentAnchor();
-async function refreshSubjects(){const list=document.querySelector('#subject-list');list.replaceChildren();for(const subject of await requestJson('/api/admin/subjects')){const detail=subject.assigned_count===null?t('ui.0387',{id:subject.id}):t('ui.0388',{id:subject.id,count:subject.assigned_count});const el=row(t(subject.title),detail,subject.can_delete?'Delete':'In use',async()=>{if(!confirm(t('ui.0389',{title:t(subject.title)})))return;try{await requestJson(`/api/admin/subjects/${encodeURIComponent(subject.id)}`,{method:'DELETE'});window.location.reload()}catch(error){alert(error.message)}});const button=el.querySelector('button');if(!subject.can_delete){button.disabled=true;button.title=t('ui.0306')}list.append(el)}}
+async function refreshSubjects(){await refreshCards()}
 function formatBytes(bytes){if(bytes===null||bytes===undefined)return t('ui.0233');const units=['B','KB','MB','GB','TB'];let value=bytes,index=0;while(value>=1024&&index<units.length-1){value/=1024;index++}return`${value.toFixed(index?1:0)} ${units[index]}`}
 function formatUptime(seconds){if(seconds===null||seconds===undefined)return t('ui.0233');const days=Math.floor(seconds/86400);seconds%=86400;const hours=Math.floor(seconds/3600);seconds%=3600;const minutes=Math.floor(seconds/60);return days?`${days}d ${hours}h ${minutes}m`:hours?`${hours}h ${minutes}m`:`${minutes}m`}
 function addSystemFact(grid,label,value){const fact=document.createElement('div');fact.className='system-fact';const heading=document.createElement('span');heading.textContent=t(label);const detail=document.createElement('strong');detail.textContent=t(value);fact.append(heading,detail);grid.append(fact)}
@@ -1033,7 +1051,6 @@ catalogForm.addEventListener('submit',async event=>{
 });
 document.querySelector('#zim-form').addEventListener('submit',async event=>{event.preventDefault();const formElement=event.currentTarget;const form=new FormData(formElement);try{await requestJson('/api/admin/zims',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(form))});formElement.reset();await refreshZims()}catch(error){alert(error.message)}});
 document.querySelector('#item-form').addEventListener('submit',async event=>{event.preventDefault();const formElement=event.currentTarget;try{await requestJson('/api/admin/items',{method:'POST',body:new FormData(formElement)});formElement.reset();await refreshDocuments();await refreshSubjects()}catch(error){alert(error.message)}});
-document.querySelector('#subject-form').addEventListener('submit',async event=>{event.preventDefault();const formElement=event.currentTarget;try{await requestJson('/api/admin/subjects',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(formElement)))});window.location.reload()}catch(error){alert(error.message)}});
 const accentInput=document.querySelector('#preferences-form [name="accent_color"]');
 const accentStatus=document.querySelector('#accent-color-status');
 document.querySelector('#preferences-form').addEventListener('submit',async event=>{
@@ -1244,6 +1261,69 @@ function setupConfigurableCards({endpoint,listId,formId,cancelId,kind}){
   cancel.addEventListener('click',reset);
   requestJson(endpoint).then(result=>{cards=result.cards;render()}).catch(error=>{list.textContent=error.message});
 }
-setupConfigurableCards({endpoint:'/api/admin/online-source-cards',listId:'online-source-card-list',formId:'online-source-card-form',cancelId:'online-source-cancel',kind:'online'});
-setupConfigurableCards({endpoint:'/api/admin/rss-cards',listId:'rss-card-list',formId:'rss-card-form',cancelId:'rss-card-cancel',kind:'rss'});
-Promise.all([refreshSubjects(),refreshZims(),refreshDocuments(),refreshExportOptions(),refreshPdfImports()]).catch(error=>alert(error.message));setInterval(()=>{if(zimPolling)refreshZims().catch(()=>{})},10000);
+const cardForm=document.querySelector('#card-form');
+const cardStatus=document.querySelector('#card-status');
+const cardType=cardForm?.elements.type;
+function cardEntriesText(card){return(card.entries||[]).map(entry=>card.type==='rss'
+  ?`${entry.title} | ${entry.url} | ${entry.enabled===false?'disabled':'enabled'}`
+  :`${entry.title} | ${entry.url}${entry.description?` | ${entry.description}`:''}`).join('\n')}
+function cardPayloadFromForm(){
+  const type=cardType.value;const existing=adminCards.find(card=>card.id===cardForm.elements.id.value);
+  const title=cardForm.elements.title.value.trim();
+  const translations={};
+  for(const code of ['en','da']){const translation={title:cardForm.elements[`translation_title_${code}`]?.value.trim()||'',description:cardForm.elements[`translation_description_${code}`]?.value.trim()||''};if(translation.title||translation.description)translations[code]=translation}
+  const entries=[];if(type!=='subject')for(const [index,line]of cardForm.elements.entries.value.split(/\r?\n/).map(value=>value.trim()).filter(Boolean).entries()){
+    const parts=line.split('|').map(value=>value.trim());const entryTitle=parts[0]||'';const url=parts[1]||'';if(!entryTitle||!url)throw new Error('Each link or feed needs a title and HTTPS URL separated by |');
+    const prior=existing?.entries?.find(item=>item.url===url);const id=prior?.id||`${slugify(entryTitle)}${index?`-${index+1}`:''}`;
+    entries.push(type==='rss'?{id,title:entryTitle,url,enabled:(parts[2]||'enabled').toLowerCase()!=='disabled'}:{id,title:entryTitle,url,description:parts[2]||''});
+  }
+  let id=cardForm.elements.id.value||cardForm.elements.card_id.value.trim()||slugify(title);if(!id)throw new Error('Add a valid card ID.');if(!cardForm.elements.id.value){const base=id;let suffix=2;while(adminCards.some(card=>card.id===id))id=`${base.slice(0,60)}-${suffix++}`}
+  return{id,type,title,description:cardForm.elements.description.value.trim(),translations,entries,offline_display:type==='subject'?'hide':cardForm.elements.offline_display.value};
+}
+function slugify(value){return value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64)}
+function resetCardForm(){cardForm.reset();cardForm.elements.id.value='';cardForm.elements.card_id.disabled=false;cardForm.querySelector('#card-cancel').hidden=true;cardForm.querySelector('#card-type-lock-note').hidden=true;cardType.disabled=false;cardStatus.textContent='';updateCardFormVisibility()}
+function updateCardFormVisibility(){const subject=cardType.value==='subject';const source=!subject;const titleLimit=subject?80:100;const descriptionLimit=subject?300:500;cardForm.elements.title.maxLength=titleLimit;cardForm.elements.description.maxLength=descriptionLimit;for(const code of ['en','da']){cardForm.elements[`translation_title_${code}`].maxLength=titleLimit;cardForm.elements[`translation_description_${code}`].maxLength=descriptionLimit}cardForm.querySelector('[data-kind="entries"]').hidden=!source;cardForm.querySelector('[data-kind="offline"]').hidden=!source}
+function beginCardEdit(card){
+  cardForm.elements.id.value=card.id;cardForm.elements.card_id.value=card.id;cardForm.elements.card_id.disabled=true;cardType.value=card.type;cardType.disabled=Boolean(card.child_count);
+  cardForm.elements.title.value=card.title;cardForm.elements.description.value=card.description||'';cardForm.elements.offline_display.value=card.offline_display||'hide';
+  for(const code of ['en','da']){const translation=card.translations?.[code]||{};cardForm.elements[`translation_title_${code}`].value=translation.title||'';cardForm.elements[`translation_description_${code}`].value=translation.description||''}
+  cardForm.elements.entries.value=cardEntriesText(card);cardForm.querySelector('#card-cancel').hidden=false;cardForm.querySelector('#card-type-lock-note').hidden=!card.child_count;updateCardFormVisibility();cardForm.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function renderCardRow(card,editable=true,showFeeds=false){
+  const rowElement=document.createElement('div');rowElement.className='item-row card-definition-row';
+  const label=document.createElement('span');label.textContent=`${card.display_title||card.title} · ${card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources'} · ${card.child_count} connected`;rowElement.append(label);
+  const actions=document.createElement('div');actions.className='button-row';
+  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
+  if(card.type==='rss'&&showFeeds)for(const feed of card.entries){const field=document.createElement('label');field.className='check card-feed-toggle';const input=document.createElement('input');input.type='checkbox';input.checked=feed.enabled!==false;input.setAttribute('aria-label',`Enable ${feed.title}`);input.onchange=async()=>{feed.enabled=input.checked;try{await saveCard({...card,entries:card.entries});await refreshCards()}catch(error){input.checked=!input.checked;feed.enabled=input.checked;alert(error.message)}};field.append(input,document.createTextNode(` ${feed.title}`));actions.append(field)}
+  if(editable&&!card.child_count){const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Delete';remove.onclick=async()=>{if(!confirm(`Delete card “${card.title}”?`))return;try{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards()}catch(error){alert(error.message)}};actions.append(remove)}
+  rowElement.append(actions);return rowElement;
+}
+function renderCards(){
+  const all=document.querySelector('#card-list');all.replaceChildren(...adminCards.map(card=>renderCardRow(card)));
+  for(const [kind,listId,filterId]of [['online','online-source-card-list','online-source-card-filter'],['rss','rss-card-list','rss-card-filter']]){
+    const list=document.querySelector(`#${listId}`);const filter=document.querySelector(`#${filterId}`);const previous=filter.value;filter.replaceChildren(new Option('Show all',''));
+    for(const card of adminCards.filter(item=>item.type===kind))filter.add(new Option(card.display_title||card.title,card.id));if([...filter.options].some(option=>option.value===previous))filter.value=previous;
+    const cards=adminCards.filter(item=>item.type===kind&&(!filter.value||item.id===filter.value));list.replaceChildren(...cards.map(card=>renderCardRow(card,false,kind==='rss')));
+  }
+  fillCardFilter('document-card-filter','subject');fillCardFilter('zim-card-filter','subject');
+  refreshSubjectSelects();applyContentCardFilters();
+}
+function refreshSubjectSelects(){
+  const subjects=adminCards.filter(card=>card.type==='subject');
+  document.querySelectorAll('#zim-form [name="subject"],#item-form [name="subject"],#zim-editor-form [name="subject"],#preferences-form [name="always_show_subjects"]').forEach(select=>{
+    if(select.type==='checkbox')return;const previous=select.value;select.replaceChildren(...subjects.map(card=>new Option(card.display_title||card.title,card.id)));if(subjects.some(card=>card.id===previous))select.value=previous;
+  });
+  const always=document.querySelector('.always-show-subjects');if(always){const selected=new Set([...always.querySelectorAll('input:checked')].map(input=>input.value));always.replaceChildren();for(const card of subjects){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.name='always_show_subjects';input.value=card.id;input.checked=selected.has(card.id);label.append(input,document.createTextNode(` ${card.display_title||card.title}`));always.append(label)}}
+}
+async function refreshCards(){const result=await requestJson('/api/admin/cards');adminCards=result.cards;renderCards()}
+async function saveCard(card){return requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(card)})}
+cardForm?.addEventListener('submit',async event=>{event.preventDefault();const button=cardForm.querySelector('[type="submit"]');button.disabled=true;try{const card=cardPayloadFromForm();const editing=Boolean(cardForm.elements.id.value);const path=editing?`/api/admin/cards/${encodeURIComponent(card.id)}`:'/api/admin/cards';const saved=await requestJson(path,{method:editing?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(card)});resetCardForm();await refreshCards();cardStatus.textContent='Card saved.'}catch(error){cardStatus.textContent=error.message}finally{button.disabled=false}});
+cardForm?.elements.type.addEventListener('change',updateCardFormVisibility);
+cardForm?.querySelector('#card-cancel').addEventListener('click',resetCardForm);
+updateCardFormVisibility();
+for(const id of ['online-source-card-filter','rss-card-filter','document-card-filter','zim-card-filter'])document.querySelector(`#${id}`)?.addEventListener('change',applyContentCardFilters);
+document.querySelector('#online-source-card-filter')?.addEventListener('change',renderCards);document.querySelector('#rss-card-filter')?.addEventListener('change',renderCards);
+document.querySelector('#documents-list')&&new MutationObserver(applyContentCardFilters).observe(document.querySelector('#documents-list'),{childList:true});
+document.querySelector('#zim-list')&&new MutationObserver(()=>{const rows=document.querySelectorAll('#zim-list>.item-row').length;document.querySelector('#zim-count').textContent=rows;applyContentCardFilters()}).observe(document.querySelector('#zim-list'),{childList:true});
+refreshCards().catch(error=>{cardStatus.textContent=error.message});
+Promise.all([refreshZims(),refreshDocuments(),refreshExportOptions(),refreshPdfImports()]).catch(error=>alert(error.message));setInterval(()=>{if(zimPolling)refreshZims().catch(()=>{})},10000);

@@ -1624,6 +1624,74 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         build_opener.assert_not_called()
 
+    def test_shared_card_api_edits_metadata_and_prevents_type_change_with_children(self):
+        headers = {'X-CSRF-Token': self.csrf, 'Content-Type': 'application/json'}
+        subject = {'id': 'water-safety', 'type': 'subject', 'title': 'Water safety',
+                   'description': 'Water storage and treatment.',
+                   'translations': {'da': {'title': 'Vandsikkerhed', 'description': 'Vand og rensning.'}},
+                   'entries': []}
+        created = self.client.post('/api/admin/cards', json=subject, headers=headers,
+                                   base_url='https://localhost')
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.get_json()['card']['id'], 'water-safety')
+        edit = self.client.put('/api/admin/cards/water-safety', json={**subject,
+                              'title': 'Safe water'}, headers=headers,
+                              base_url='https://localhost')
+        self.assertEqual(edit.status_code, 200)
+        self.assertEqual(edit.get_json()['card']['title'], 'Safe water')
+
+        with closing(webapp.connect_db()) as db:
+            db.execute('INSERT INTO item(id,title,description,subject) VALUES(?,?,?,?)',
+                       ('water-item', 'Water guide', '', 'water-safety'))
+            db.commit()
+        changed_type = self.client.put('/api/admin/cards/water-safety', json={**subject,
+                                    'type': 'rss'}, headers=headers,
+                                    base_url='https://localhost')
+        self.assertEqual(changed_type.status_code, 409)
+        self.assertIn('child data', changed_type.get_json()['error'])
+
+    def test_empty_card_can_change_type_and_disabled_rss_feed_cannot_be_fetched(self):
+        headers = {'X-CSRF-Token': self.csrf, 'Content-Type': 'application/json'}
+        card = {'id': 'quiet-updates', 'type': 'rss', 'title': 'Quiet updates',
+                'description': '', 'entries': [{'id': 'daily', 'title': 'Daily',
+                'url': 'https://feeds.example.org/daily.xml', 'enabled': False}]}
+        created = self.client.post('/api/admin/cards', json=card, headers=headers,
+                                   base_url='https://localhost')
+        self.assertEqual(created.status_code, 201)
+        with patch.object(webapp.urllib.request, 'build_opener') as build_opener:
+            unavailable = self.client.get('/api/online/rss?card=quiet-updates&feed=daily',
+                                          base_url='https://localhost')
+        self.assertEqual(unavailable.status_code, 400)
+        build_opener.assert_not_called()
+
+        empty = self.client.post('/api/admin/cards', json={'id': 'empty-links', 'type': 'online',
+                                   'title': 'Empty links', 'description': '', 'entries': []},
+                                 headers=headers, base_url='https://localhost')
+        self.assertEqual(empty.status_code, 201)
+        changed = self.client.put('/api/admin/cards/empty-links', json={'type': 'subject',
+                                  'title': 'Empty links', 'description': '', 'translations': {},
+                                  'entries': []}, headers=headers, base_url='https://localhost')
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(changed.get_json()['card']['type'], 'subject')
+
+    def test_card_configuration_import_defaults_and_preserves_translations_and_feed_state(self):
+        config = {'format': 'cyberdeck-config', 'version': 1, 'name': 'Cards',
+                  'assets': [], 'offline_catalogues': [], 'subjects': [],
+                  'online_source_cards': [{'id': 'health-links', 'title': 'Health links',
+                      'description': 'Trusted health sources.', 'translations': {
+                          'da': {'title': 'Sundhedskilder', 'description': 'Pålidelige kilder.'}},
+                      'links': []}],
+                  'rss_cards': [{'id': 'health-rss', 'title': 'Health RSS', 'description': '',
+                      'feeds': [{'id': 'alerts', 'title': 'Alerts',
+                                 'url': 'https://feeds.example.org/alerts.xml', 'enabled': False}]}]}
+        normalized = webapp._validate_import_config(config)
+        source = normalized['online_source_cards'][0]
+        feed = normalized['rss_cards'][0]
+        self.assertEqual(source['offline_display'], 'hide')
+        self.assertEqual(source['translations']['da']['title'], 'Sundhedskilder')
+        self.assertFalse(feed['feeds'][0]['enabled'])
+        self.assertEqual(feed['offline_display'], 'hide')
+
     def test_police_rss_reader_sanitizes_feed_links_and_caches_results(self):
         feed = b'''<?xml version="1.0" encoding="utf-8"?>
         <rss version="2.0"><channel>

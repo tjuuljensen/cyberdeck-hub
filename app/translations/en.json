@@ -324,8 +324,8 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0082": {
-    "default": "Subjects",
-    "context": "User interface text used in admin.html. Preserve placeholders and product names."
+    "default": "Cards",
+    "context": "Admin navigation label for managing library, RSS, and online-source cards."
   },
   "ui.0083": {
     "default": "ZIM archives",
@@ -3008,8 +3008,8 @@
     "context": "Heading above the combined subject, service, online source, and RSS cards."
   },
   "ui.0781": {
-    "default": "SUBJECT {id}",
-    "context": "Index label on a subject card. Preserve the id placeholder."
+    "default": "DOCUMENTS {id}",
+    "context": "Index label on a documents and subject card. Preserve the id placeholder."
   },
   "ui.0782": {
     "default": "ONLINE SOURCES {id}",
@@ -3154,5 +3154,13 @@
   "ui.0817": {
     "default": "Publication date unavailable",
     "context": "RSS entry fallback when the publisher does not provide a usable publication date."
+  },
+  "ui.0820": {
+    "default": "No cached updates are available for this feed.",
+    "context": "Offline RSS reader message when a feed has not been cached on this device."
+  },
+  "ui.0821": {
+    "default": "Showing cached updates from",
+    "context": "Offline RSS reader status shown before the timestamp of cached feed items."
   }
 }

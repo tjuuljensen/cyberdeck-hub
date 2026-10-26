@@ -80,7 +80,7 @@
   "ui.0079": "ADMINISTRATION",
   "ui.0080": "Logget ind som {username}. Ændringer gælder denne Cyberdeck Hub-installation.",
   "ui.0081": "Websted",
-  "ui.0082": "Emner",
+  "ui.0082": "Kort",
   "ui.0083": "ZIM-arkiver",
   "ui.0084": "Dokumenter",
   "ui.0085": "Rediger",
@@ -751,7 +751,7 @@
   "ui.0771": "Åbn officiel meddelelse",
   "ui.0772": "Officiel oversigt over politiets RSS-feeds for politikredsene.",
   "ui.0780": "Udforsk dit Cyberdeck",
-  "ui.0781": "EMNE {id}",
+  "ui.0781": "DOKUMENTER {id}",
   "ui.0782": "ONLINEKILDER {id}",
   "ui.0783": "RSS-FEED {id}",
   "ui.0784": "Onlinekilder",
@@ -787,5 +787,7 @@
   "ui.0814": "Kort beskrivelse",
   "ui.0815": "Tidszone for udgivelsestidspunkter",
   "ui.0816": "RSS-udgivelsestidspunkter vises i denne Cyberdeck-tidszone. Standardtidszonen hentes fra værtens konfiguration.",
-  "ui.0817": "Udgivelsesdato ikke tilgængelig"
+  "ui.0817": "Udgivelsesdato ikke tilgængelig",
+  "ui.0820": "Der er ingen cachede opdateringer til dette feed.",
+  "ui.0821": "Viser cachede opdateringer fra"
 }

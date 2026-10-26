@@ -307,8 +307,8 @@ def _validate_card_list(cards, kind):
         normalized = {'id': card_id, 'title': title.strip(), 'description': description.strip()}
         field = 'links' if kind == 'online source' else 'feeds'
         entries = card.get(field)
-        if not isinstance(entries, list) or not 1 <= len(entries) <= 100:
-            raise ValueError(f'{kind.title()} cards must contain 1 to 100 entries')
+        if not isinstance(entries, list) or len(entries) > 100:
+            raise ValueError(f'{kind.title()} cards must contain at most 100 entries')
         total_entries += len(entries)
         if total_entries > 500:
             raise ValueError(f'Too many {kind} card entries')
@@ -333,9 +333,30 @@ def _validate_card_list(cards, kind):
                                            'url': _valid_card_url(entry.get('url'), 'Online source URL'),
                                            'description': entry_description.strip()})
             else:
+                enabled = entry.get('enabled', True)
+                if type(enabled) is not bool:
+                    raise ValueError('RSS feed enabled must be true or false')
                 normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
-                                           'url': _valid_card_url(entry.get('url'), 'RSS feed URL')})
+                                           'url': _valid_card_url(entry.get('url'), 'RSS feed URL'),
+                                           'enabled': enabled})
         normalized[field] = normalized_entries
+        translations = card.get('translations', {})
+        if not isinstance(translations, dict) or any(code not in SUPPORTED_LANGUAGES for code in translations):
+            raise ValueError('Card translations must use supported languages')
+        normalized_translations = {}
+        for code, value in translations.items():
+            if (not isinstance(value, dict) or
+                    not isinstance(value.get('title', ''), str) or len(value.get('title', '')) > 100 or
+                    not isinstance(value.get('description', ''), str) or len(value.get('description', '')) > 500):
+                raise ValueError('Card translations contain invalid titles or descriptions')
+            normalized_translations[code] = {
+                'title': value.get('title', '').strip(),
+                'description': value.get('description', '').strip()}
+        normalized['translations'] = normalized_translations
+        offline_display = card.get('offline_display', 'hide')
+        if not isinstance(offline_display, str) or offline_display not in {'hide', 'inactive'}:
+            raise ValueError('Offline display must be hide or inactive')
+        normalized['offline_display'] = offline_display
         result.append(normalized)
     return result
 
@@ -359,11 +380,22 @@ def configured_rss_cards():
     return _configured_card_list('rss_cards', DEFAULT_RSS_CARDS, 'RSS')
 
 
+def _localized_text(title, description, translations=None):
+    localized = (translations or {}).get(current_language(), {})
+    return {'display_title': localized.get('title') or translate(title),
+            'display_description': localized.get('description') or translate(description)}
+
+
+def _localized_card(card):
+    return {**card, **_localized_text(card.get('title', ''), card.get('description', ''),
+                                      card.get('translations'))}
+
+
 def _rss_entry(card_id, feed_id):
     cards = configured_rss_cards()
     card = next((item for item in cards if item['id'] == card_id), None)
     feed = next((item for item in card['feeds'] if item['id'] == feed_id), None) if card else None
-    if not card or not feed:
+    if not card or not feed or not feed.get('enabled', True):
         raise ValueError('Choose a configured RSS feed')
     feed_url_digest = hashlib.sha256(feed['url'].encode('utf-8')).hexdigest()[:16]
     cache_key = f'{card_id}:{feed_id}:{feed_url_digest}'
@@ -692,11 +724,14 @@ def connect_db():
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='library_subject'").fetchone()
     db.execute('''CREATE TABLE IF NOT EXISTS library_subject (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
-        display_order INTEGER NOT NULL)''')
+        display_order INTEGER NOT NULL, translations TEXT NOT NULL DEFAULT '{}')''')
     if not subject_table_exists:
         db.executemany('INSERT INTO library_subject(id,title,description,display_order) VALUES(?,?,?,?)',
                        [(slug, title, description, order)
                         for order, (slug, title, description) in enumerate(DEFAULT_SUBJECTS)])
+    subject_columns = {row['name'] for row in db.execute('PRAGMA table_info(library_subject)')}
+    if 'translations' not in subject_columns:
+        db.execute("ALTER TABLE library_subject ADD COLUMN translations TEXT NOT NULL DEFAULT '{}'")
     db.execute('''CREATE TABLE IF NOT EXISTS archive_metadata (
         filename TEXT PRIMARY KEY, title TEXT NOT NULL, search_terms TEXT NOT NULL DEFAULT '',
         subject TEXT NOT NULL REFERENCES library_subject(id) ON DELETE CASCADE)''')
@@ -919,6 +954,7 @@ def _settings_only_plan(config, remove_omitted, include_labels=True):
     for order, (_source_order, subject) in enumerate(indexed):
         incoming.append({'id': subject['id'], 'title': subject['title'],
                          'description': subject.get('description', ''),
+                         'translations': subject.get('translations', {}),
                          'display_order': order})
     incoming_ids = {row['id'] for row in incoming}
     additions, edits, unchanged = [], [], []
@@ -928,8 +964,8 @@ def _settings_only_plan(config, remove_omitted, include_labels=True):
             additions.append(subject)
             continue
         changes = {key: {'from': old[key], 'to': subject[key]}
-                   for key in ('title', 'description', 'display_order')
-                   if old[key] != subject[key]}
+                   for key in ('title', 'description', 'display_order', 'translations')
+                   if (json.loads(old.get('translations') or '{}') if key == 'translations' else old[key]) != subject[key]}
         if changes:
             edits.append({'id': subject['id'], 'title': subject['title'], 'changes': changes})
         else:
@@ -1063,7 +1099,10 @@ def home():
         if (preferences['hide_empty_subjects'] and count == 0 and
                 slug not in preferences['always_show_subjects']):
             continue
-        subjects.append({'id': slug, 'title': title, 'description': description,
+        translations_row = g.db.execute('SELECT translations FROM library_subject WHERE id=?', (slug,)).fetchone()
+        display = _localized_text(title, description,
+                                  json.loads(translations_row['translations'] or '{}') if translations_row else {})
+        subjects.append({'id': slug, 'title': title, 'description': description, **display,
                          'count': count, 'index': len(subjects) + 1})
     services = []
     active_zim_downloads = g.db.execute(
@@ -1086,8 +1125,8 @@ def home():
                          'new_tab': True})
     return render_template('index.html', subjects=subjects,
                            services=services,
-                           online_source_cards=configured_online_source_cards(),
-                           rss_cards=configured_rss_cards(),
+                           online_source_cards=[_localized_card(card) for card in configured_online_source_cards()],
+                           rss_cards=[_localized_card(card) for card in configured_rss_cards()],
                            home_columns=preferences['home_columns'])
 
 
@@ -1113,7 +1152,7 @@ def online_source_page(card_id):
     card = next((item for item in cards if item['id'] == card_id), None)
     if not card:
         abort(404)
-    return render_template('resource-card.html', card=card,
+    return render_template('resource-card.html', card=_localized_card(card),
                            card_index=cards.index(card) + 1, resource_kind='online')
 
 
@@ -1123,7 +1162,7 @@ def rss_card_page(card_id):
     card = next((item for item in cards if item['id'] == card_id), None)
     if not card:
         abort(404)
-    return render_template('resource-card.html', card=card,
+    return render_template('resource-card.html', card=_localized_card(card),
                            card_index=cards.index(card) + 1, resource_kind='rss')
 
 
@@ -1200,8 +1239,11 @@ def subject_page(slug):
     subject = next((row for row in get_subjects() if row[0] == slug), None)
     if not subject:
         abort(404)
+    translations_row = g.db.execute('SELECT translations FROM library_subject WHERE id=?', (slug,)).fetchone()
+    subject_display = _localized_text(subject[1], subject[2],
+                                     json.loads(translations_row['translations'] or '{}') if translations_row else {})
     items = public_items(slug)
-    return render_template('subject.html', subject=subject, items=items,
+    return render_template('subject.html', subject=subject, subject_display=subject_display, items=items,
                            kiwix_items=[item for item in items if item['kind'] == 'zim'],
                            local_items=[item for item in items if item['kind'] != 'zim'])
 
@@ -1322,8 +1364,11 @@ def search_local_library(query, limit=50):
     results = []
     seen = set()
     for slug, title, description in get_subjects():
-        title_text = translate(title)
-        description_text = translate(description)
+        row = g.db.execute('SELECT translations FROM library_subject WHERE id=?', (slug,)).fetchone()
+        display = _localized_text(title, description,
+                                  json.loads(row['translations'] or '{}') if row else {})
+        title_text = display['display_title']
+        description_text = display['display_description']
         subject_fields = {'title': title_text, 'search_terms': '',
                           'subject': slug + ' ' + title_text,
                           'description': description_text, 'filename': ''}
@@ -1553,8 +1598,12 @@ def build_export_config(name, selected, include_settings):
         local_catalogues.append((entry, filename, files, size, export_version(entry, files)))
     if len({asset['path'] for asset in config['assets']}) != len(config['assets']):
         raise ValueError('Two selected sources use the same destination filename; select only one.')
-    config['subjects'] = [dict(row) for row in g.db.execute(
-        'SELECT id,title,description,display_order FROM library_subject ORDER BY display_order,id')]
+    config['subjects'] = []
+    for row in g.db.execute(
+            'SELECT id,title,description,display_order,translations FROM library_subject ORDER BY display_order,id'):
+        subject = dict(row)
+        subject['translations'] = json.loads(subject.pop('translations') or '{}')
+        config['subjects'].append(subject)
     if include_settings:
         # Export only stored display preferences, never the hostname-derived default.
         allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone',
@@ -1842,9 +1891,14 @@ def _validate_import_config(config):
         raise ValueError('Invalid subject list')
     subject_ids = set()
     for subject in subjects:
+        translations = subject.get('translations', {}) if isinstance(subject, dict) else {}
         if (not isinstance(subject, dict) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', str(subject.get('id', ''))) or
                 not isinstance(subject.get('title'), str) or not 1 <= len(subject['title']) <= 80 or
                 not isinstance(subject.get('description', ''), str) or len(subject.get('description', '')) > 300 or
+                not isinstance(translations, dict) or any(code not in SUPPORTED_LANGUAGES for code in translations) or
+                any(not isinstance(value, dict) or not isinstance(value.get('title', ''), str) or
+                    len(value.get('title', '')) > 80 or not isinstance(value.get('description', ''), str) or
+                    len(value.get('description', '')) > 300 for value in translations.values()) or
                 ('display_order' in subject and
                  (type(subject['display_order']) is not int or
                   not 0 <= subject['display_order'] <= 5000)) or
@@ -2370,10 +2424,11 @@ def _apply_settings_only_import(stage_root, ticket, body):
         g.db.execute('INSERT INTO import_transaction(id) VALUES(?)', (ticket['id'],))
 
         for order, subject in enumerate(incoming):
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order) VALUES(?,?,?,?) '
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?) '
                          'ON CONFLICT(id) DO UPDATE SET title=excluded.title, '
-                         'description=excluded.description,display_order=excluded.display_order',
-                         (subject['id'], subject['title'], subject['description'], order))
+                         'description=excluded.description,display_order=excluded.display_order,translations=excluded.translations',
+                         (subject['id'], subject['title'], subject['description'], order,
+                          json.dumps(subject.get('translations', {}), ensure_ascii=False)))
         if not remove_omitted:
             for offset, subject in enumerate(plan['omitted'], start=len(incoming)):
                 g.db.execute('UPDATE library_subject SET display_order=? WHERE id=?',
@@ -2962,8 +3017,9 @@ def import_apply():
                 target_id = resolved[source_id]
                 if mapping[source_id] == '__create__':
                     order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
-                    g.db.execute('INSERT INTO library_subject(id,title,description,display_order) VALUES(?,?,?,?)',
-                                 (target_id, source['title'], source.get('description', ''), order))
+                    g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?)',
+                                 (target_id, source['title'], source.get('description', ''), order,
+                                  json.dumps(source.get('translations', {}), ensure_ascii=False)))
                     current[target_id] = source
             for path, metadata, _size, _html_bytes in catalogue_plans:
                 entry = metadata['entry']
@@ -3494,7 +3550,7 @@ def logout():
 def admin_page():
     return render_template('admin.html', csrf=session['csrf'], username=session['admin'],
                            config_subjects=get_subjects(), preferences=site_preferences(),
-                           time_zones=timezone_choices())
+                           time_zones=timezone_choices(), card_languages=SUPPORTED_LANGUAGES)
 
 
 def _system_mount_usage():
@@ -3874,6 +3930,189 @@ def admin_storage_action():
         return response
     except (RuntimeError, OSError, subprocess.SubprocessError, json.JSONDecodeError, ValueError) as error:
         return jsonify(error=str(error)), 503
+
+
+def _admin_card_records():
+    cards = []
+    for row in g.db.execute('SELECT id,title,description,translations FROM library_subject ORDER BY display_order,id'):
+        count = subject_assigned_count(row['id'])
+        cards.append({'id': row['id'], 'type': 'subject', 'title': row['title'],
+                      'description': row['description'],
+                      'translations': json.loads(row['translations'] or '{}'),
+                      'entries': [], 'child_count': count if count is not None else 1,
+                      'offline_display': 'hide',
+                      **_localized_text(row['title'], row['description'],
+                                        json.loads(row['translations'] or '{}'))})
+    for kind, collection in (('online', configured_online_source_cards()),
+                             ('rss', configured_rss_cards())):
+        field = 'links' if kind == 'online' else 'feeds'
+        for card in collection:
+            cards.append({**_localized_card(card), 'type': kind, 'entries': card[field],
+                          'child_count': len(card[field])})
+    return cards
+
+
+def _validate_card_metadata(card):
+    card_id, kind = card.get('id'), card.get('type')
+    title, description = card.get('title'), card.get('description', '')
+    max_title, max_description = (80, 300) if kind == 'subject' else (100, 500)
+    translations = card.get('translations', {})
+    if (not isinstance(card_id, str) or len(card_id) > 64 or
+            not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', card_id) or
+            not isinstance(kind, str) or kind not in {'subject', 'online', 'rss'} or not isinstance(title, str) or
+            not 1 <= len(title.strip()) <= max_title or not isinstance(description, str) or
+            len(description) > max_description or any(ord(char) < 32 and char not in '\n\t' for char in title + description) or
+            not isinstance(translations, dict) or
+            any(code not in SUPPORTED_LANGUAGES for code in translations)):
+        raise ValueError('Card details are invalid')
+    normalized_translations = {}
+    for code, value in translations.items():
+        if (not isinstance(value, dict) or not isinstance(value.get('title', ''), str) or
+                len(value.get('title', '')) > max_title or
+                not isinstance(value.get('description', ''), str) or
+                len(value.get('description', '')) > max_description or
+                any(ord(char) < 32 and char not in '\n\t'
+                    for char in value.get('title', '') + value.get('description', ''))):
+            raise ValueError('Card translations are invalid')
+        normalized_translations[code] = {'title': value.get('title', '').strip(),
+                                         'description': value.get('description', '').strip()}
+    return {'id': card_id, 'type': kind, 'title': title.strip(),
+            'description': description.strip(), 'translations': normalized_translations}
+
+
+def _persist_card_collections(cards):
+    for kind, key, label in (('online', 'online_source_cards', 'online source'),
+                             ('rss', 'rss_cards', 'RSS')):
+        values = []
+        for card in cards:
+            if card['type'] != kind:
+                continue
+            field = 'links' if kind == 'online' else 'feeds'
+            values.append({'id': card['id'], 'title': card['title'],
+                           'description': card['description'], 'translations': card['translations'],
+                           'offline_display': card.get('offline_display', 'hide'), field: card.get('entries', [])})
+        validated = _validate_card_list(values, label)
+        g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                     'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                     (key, json.dumps(validated, ensure_ascii=False)))
+
+
+@app.get('/api/admin/cards')
+@admin_required
+def admin_cards_list():
+    return jsonify(cards=_admin_card_records(), languages=SUPPORTED_LANGUAGES)
+
+
+@app.post('/api/admin/cards')
+@admin_required
+@csrf_required
+def admin_card_create():
+    if request.content_length is not None and request.content_length > 1024 * 1024:
+        return jsonify(error='Card configuration exceeds 1 MB'), 413
+    body = request.get_json(silent=True)
+    try:
+        g.db.execute('BEGIN IMMEDIATE')
+        card = _validate_card_metadata(body if isinstance(body, dict) else {})
+        if any(existing['id'] == card['id'] for existing in _admin_card_records()):
+            return jsonify(error='That card ID already exists'), 409
+        card['entries'] = body.get('entries', [])
+        card['offline_display'] = body.get('offline_display', 'hide')
+        _persist_card_collections([*_admin_card_records(), card])
+        if card['type'] == 'subject':
+            order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?)',
+                         (card['id'], card['title'], card['description'], order,
+                          json.dumps(card['translations'], ensure_ascii=False)))
+        g.db.commit()
+    except (ValueError, sqlite3.IntegrityError) as error:
+        g.db.rollback()
+        return jsonify(error=str(error) or 'Could not create card'), 400
+    return jsonify(card=card), 201
+
+
+@app.put('/api/admin/cards/<card_id>')
+@admin_required
+@csrf_required
+def admin_card_update(card_id):
+    if request.content_length is not None and request.content_length > 1024 * 1024:
+        return jsonify(error='Card configuration exceeds 1 MB'), 413
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error='Card details must be a JSON object'), 400
+    try:
+        g.db.execute('BEGIN IMMEDIATE')
+        existing_cards = _admin_card_records()
+        previous = next((item for item in existing_cards if item['id'] == card_id), None)
+        if not previous:
+            g.db.rollback()
+            return jsonify(error='Card not found'), 404
+        card = _validate_card_metadata({**body, 'id': card_id})
+        card['entries'] = body.get('entries', previous.get('entries', []))
+        card['offline_display'] = body.get('offline_display', previous.get('offline_display', 'hide'))
+        type_changed = card['type'] != previous['type']
+        if type_changed and previous['child_count']:
+            g.db.rollback()
+            return jsonify(error='Card type cannot change while child data is connected'), 409
+        if card['type'] != 'subject' and (not isinstance(card['offline_display'], str) or
+                                          card['offline_display'] not in {'hide', 'inactive'}):
+            raise ValueError('Choose a supported offline display setting')
+        if card['type'] == 'subject':
+            card['entries'] = []
+            card['offline_display'] = 'hide'
+        if type_changed and previous['type'] == 'subject':
+            prefs = site_preferences()
+            g.db.execute('DELETE FROM library_subject WHERE id=?', (card_id,))
+            g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                         'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                         ('always_show_subjects', json.dumps([value for value in prefs['always_show_subjects']
+                                                              if value != card_id])))
+        if type_changed and card['type'] == 'subject':
+            order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?)',
+                         (card_id, card['title'], card['description'], order,
+                          json.dumps(card['translations'], ensure_ascii=False)))
+        elif card['type'] == 'subject':
+            g.db.execute('UPDATE library_subject SET title=?,description=?,translations=? WHERE id=?',
+                         (card['title'], card['description'], json.dumps(card['translations'], ensure_ascii=False), card_id))
+        next_cards = [item for item in existing_cards if item['id'] != card_id] + [card]
+        _persist_card_collections(next_cards)
+        g.db.commit()
+        if previous['type'] == 'rss' or card['type'] == 'rss':
+            with _police_rss_state_lock:
+                _police_rss_cache.clear()
+    except (ValueError, sqlite3.IntegrityError) as error:
+        g.db.rollback()
+        return jsonify(error=str(error) or 'Could not save card'), 400
+    return jsonify(card=card)
+
+
+@app.delete('/api/admin/cards/<card_id>')
+@admin_required
+@csrf_required
+def admin_card_remove(card_id):
+    g.db.execute('BEGIN IMMEDIATE')
+    cards = _admin_card_records()
+    card = next((item for item in cards if item['id'] == card_id), None)
+    if not card:
+        g.db.rollback()
+        return jsonify(error='Card not found'), 404
+    if card['child_count']:
+        g.db.rollback()
+        return jsonify(error='Remove the connected child data before deleting this card'), 409
+    try:
+        if card['type'] == 'subject':
+            prefs = site_preferences()
+            g.db.execute('DELETE FROM library_subject WHERE id=?', (card_id,))
+            g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                         'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                         ('always_show_subjects', json.dumps([value for value in prefs['always_show_subjects']
+                                                              if value != card_id])))
+        _persist_card_collections([item for item in cards if item['id'] != card_id])
+        g.db.commit()
+    except (ValueError, sqlite3.IntegrityError) as error:
+        g.db.rollback()
+        return jsonify(error=str(error) or 'Could not delete card'), 400
+    return '', 204
 
 
 @app.get('/api/admin/subjects')
