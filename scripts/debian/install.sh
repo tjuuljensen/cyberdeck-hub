@@ -142,6 +142,7 @@ fi
 [[ $hostname_expected =~ ^([a-z])([a-z0-9-]{0,61}[a-z0-9])?$ ]] ||
     die 'Use a lowercase server name beginning with a letter and containing only letters, digits, and hyphens.'
 [[ -f "$app_source/webapp.py" && -f "$app_source/library.py" &&
+   -f "$app_source/legacy_card_translations.json" &&
    -d "$app_source/static" && -d "$app_source/templates" &&
    -d "$app_source/translations" && -f "$service_source/cyberdeck-web.service" ]] ||
     die 'The complete Hub source and Debian service files must be present beside this installer.'
@@ -178,6 +179,7 @@ if [[ -e "$profiles_source" || -L "$profiles_source" ]]; then
         die "Expected a regular, non-symlink profile directory: $profiles_source"
 fi
 for source_file in "$app_source/webapp.py" "$app_source/library.py" \
+                   "$app_source/legacy_card_translations.json" \
                    "$app_source/kiwix_https.py" \
                    "$service_source/cyberdeck-web.service" \
                    "$service_source/cyberdeck-kiwix.service" \
@@ -357,6 +359,7 @@ destination_files=(
     /usr/local/lib/cyberdeck/starter.json /usr/local/lib/cyberdeck/serve-kiwix.sh
     /usr/local/lib/cyberdeck/profiles/starter.json
     /usr/local/lib/cyberdeck/app/webapp.py /usr/local/lib/cyberdeck/app/library.py
+    /usr/local/lib/cyberdeck/app/legacy_card_translations.json
     /usr/local/lib/cyberdeck/app/kiwix_https.py
     /usr/local/lib/cyberdeck/app/cyberchef_server.py
     /usr/local/lib/cyberdeck/tools/zimcheck
@@ -473,6 +476,8 @@ install -d -o root -g cyberdeck-tls -m 0750 /etc/cyberdeck /etc/cyberdeck/tls
 install -o root -g root -m 0644 "$app_source/webapp.py" "$app_source/library.py" \
     "$app_source/kiwix_https.py" "$app_source/cyberchef_server.py" \
     /usr/local/lib/cyberdeck/app/
+install -o root -g root -m 0644 "$app_source/legacy_card_translations.json" \
+    /usr/local/lib/cyberdeck/app/legacy_card_translations.json
 install -o root -g root -m 0644 "$app_source"/templates/*.html /usr/local/lib/cyberdeck/app/templates/
 install -o root -g root -m 0644 "$app_source"/static/* /usr/local/lib/cyberdeck/app/static/
 install -o root -g root -m 0644 "$app_source"/translations/*.json /usr/local/lib/cyberdeck/app/translations/

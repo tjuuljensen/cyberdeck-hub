@@ -37,6 +37,10 @@ exports. `0.2.0-beta.13` migrates configurable card and child-entry text out of
 the UI locale catalogues into saved configuration, preserves legacy mappings
 for upgrades and imports, skips user content in translation-ID mode, and removes
 obsolete card copy from the locale files.
+`0.2.0-beta.14` moves CyberChef runtime guidance into the README, reads its
+status without sudo, and uses a checkbox for its module state like Hotspot.
+`0.2.0-beta.15` keeps storage and disk information visible while folding
+storage actions, and folds system details under the current server name.
 
 ## Included scope
 

@@ -685,6 +685,8 @@ async function refreshSystemOverview(){
   const target=document.querySelector('#system-overview');
   try{
     const info=await requestJson('/api/admin/system');
+    const serverSummary=document.querySelector('#hostname-summary');
+    if(serverSummary)serverSummary.textContent=info.hostname||t('ui.0233');
     approvedLocationsSystemInfo=info;
     renderApprovedStorageLocations();
     renderSystemNetwork(info.network);
@@ -754,12 +756,13 @@ async function refreshSystemOverview(){
 }
 
 const storageList=document.querySelector('#storage-management-list');
+const storageActions=document.querySelector('#storage-management-actions');
 const storageStatus=document.querySelector('#storage-management-status');
 const storageConfirmation=document.querySelector('#storage-action-confirmation');
 function storageButton(label,action){const button=document.createElement('button');button.className='button';button.type='button';button.textContent=t(label);button.addEventListener('click',action);return button}
 async function postStorage(action,target,extra={}){const identity=typeof target==='string'?{target_mount:target}:target?.stable_id?{stable_id:target.stable_id}:target?.target_mount?{target_mount:target.target_mount}:{};return requestJson('/api/admin/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...identity,...extra})})}
 function showStorageStatus(){storageStatus.scrollIntoView({block:'nearest',behavior:'smooth'})}
-function beginStorageOperation(message){const progress=document.createElement('progress');progress.className='storage-operation-progress';progress.setAttribute('aria-label',t('ui.0621'));const label=document.createElement('span');label.textContent=message;storageStatus.replaceChildren(progress,label);storageStatus.setAttribute('aria-busy','true');storageStatus.classList.add('storage-operation-running');document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);showStorageStatus()}
+function beginStorageOperation(message){document.querySelector('.storage-folder-configuration')?.setAttribute('open','');const progress=document.createElement('progress');progress.className='storage-operation-progress';progress.setAttribute('aria-label',t('ui.0621'));const label=document.createElement('span');label.textContent=message;storageStatus.replaceChildren(progress,label);storageStatus.setAttribute('aria-busy','true');storageStatus.classList.add('storage-operation-running');document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);showStorageStatus()}
 function finishStorageOperation(message,scroll=true){storageStatus.removeAttribute('aria-busy');storageStatus.classList.remove('storage-operation-running');storageStatus.textContent=message;document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=false);if(scroll)showStorageStatus()}
 function hideStorageConfirmation(){storageConfirmation.hidden=true;storageConfirmation.replaceChildren()}
 function showStorageConfirmation({title,detail,confirmationValue,submitLabel,onConfirm}){
@@ -841,6 +844,9 @@ function createStorageCard(disk){
     inventory.textContent=t('ui.0590');
   }
   card.append(heading,transport,identity,inventory);
+  const actionBox=document.createElement('div');
+  actionBox.className='storage-disk-actions';
+  const addAction=button=>{if(!actionBox.childElementCount){const actionHeading=document.createElement('h4');actionHeading.textContent=heading.textContent;actionBox.append(actionHeading)}actionBox.append(button)};
   if(disk.system_disk){
     const protectedNote=document.createElement('p');
     protectedNote.className='storage-protected-note storage-system-disk-note';
@@ -878,18 +884,18 @@ function createStorageCard(disk){
       warning.className='storage-safety-note';
       warning.textContent=t('ui.0624');
       card.append(warning);
-      if(disk.adoptable)card.append(storageButton('ui.0623',()=>adoptStorage(disk)));
+      if(disk.adoptable)addAction(storageButton('ui.0623',()=>adoptStorage(disk)));
     }else{
-      const actions=document.createElement('div');
-      actions.className='button-row';
-      if(!disk.mount){const initialize=storageButton('ui.0593',()=>initializeStorage(disk,initialize));actions.append(initialize)}
-      if(!disk.mount&&disk.partitions?.length===1&&disk.partitions[0].filesystem==='ext4')actions.append(storageButton('ui.0611',()=>useExistingStorage(disk)));
-      card.append(actions);
+      const actionRow=document.createElement('div');
+      actionRow.className='button-row';
+      if(!disk.mount){const initialize=storageButton('ui.0593',()=>initializeStorage(disk,initialize));actionRow.append(initialize)}
+      if(!disk.mount&&disk.partitions?.length===1&&disk.partitions[0].filesystem==='ext4')actionRow.append(storageButton('ui.0611',()=>useExistingStorage(disk)));
+      if(actionRow.childElementCount)addAction(actionRow);
     }
   }else if(disk.adoptable){
-    card.append(storageButton('ui.0591',()=>adoptStorage(disk)));
+    addAction(storageButton('ui.0591',()=>adoptStorage(disk)));
   }
-  return card;
+  return {card,actions:actionBox.childElementCount?actionBox:null};
 }
 async function refreshStorage(){
   if(!storageList)return null;
@@ -904,7 +910,9 @@ async function refreshStorage(){
       target_id:migration.target_id,target_mount:migration.target_mount,error:migration.error},initialization});
     if(signature!==storageInventorySignature){
       storageInventorySignature=signature;
-      const cards=disks.map(createStorageCard);
+      const rendered=disks.map(createStorageCard);
+      const cards=rendered.map(item=>item.card);
+      const actionCards=rendered.map(item=>item.actions).filter(Boolean);
       if(!cards.length)cards.push(document.createTextNode(t('ui.0596')));
       if(migration.status&&migration.status!=='idle'){
         const state=document.createElement('p');
@@ -912,9 +920,10 @@ async function refreshStorage(){
         state.textContent=migration.status==='failed'
           ?t('ui.0673',{error:migration.error||t('ui.0233')})
           :t('ui.0603',{status:migration.status});
-        cards.push(state);
+        actionCards.push(state);
       }
       storageList.replaceChildren(...cards);
+      storageActions.replaceChildren(...actionCards);
     }
     if(storageStatus.hasAttribute('aria-busy')){
       document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);
@@ -1165,17 +1174,16 @@ if(cyberchefToggle){
     try{
       const state=await requestJson('/api/admin/cyberchef',{cache:'no-store'});
       cyberchefToggle.disabled=!state.installed;
-      cyberchefToggle.dataset.action=state.active?'disable':'enable';
-      cyberchefToggle.textContent=t(state.active?'ui.0723':'ui.0722');
+      cyberchefToggle.checked=state.active;
       cyberchefStatus.textContent=state.active?t('ui.0720'):state.installed?t('ui.0721'):t('ui.0719');
     }catch(error){cyberchefToggle.disabled=true;cyberchefStatus.textContent=t('ui.0729',{error:error.message})}
   }
-  cyberchefToggle.addEventListener('click',async()=>{
-    const action=cyberchefToggle.dataset.action;
+  cyberchefToggle.addEventListener('change',async()=>{
+    const enabled=cyberchefToggle.checked;const action=enabled?'enable':'disable';
     cyberchefToggle.disabled=true;
-    cyberchefStatus.textContent=t(action==='enable'?'ui.0724':'ui.0725');
+    cyberchefStatus.textContent=t(enabled?'ui.0724':'ui.0725');
     try{await requestJson('/api/admin/cyberchef',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action})});await refreshCyberChef()}
-    catch(error){cyberchefStatus.textContent=t(action==='enable'?'ui.0726':'ui.0727',{error:error.message});cyberchefToggle.disabled=false}
+    catch(error){cyberchefToggle.checked=!enabled;cyberchefStatus.textContent=t(enabled?'ui.0726':'ui.0727',{error:error.message});cyberchefToggle.disabled=false}
   });
   refreshCyberChef();
 }
@@ -1201,6 +1209,8 @@ async function refreshHostname(){
     const inProgress=['scheduled','applying'].includes(change.status);
     hostnamePending=inProgress||change.status==='recovery-required';
     currentHostname=result.hostname;currentHostnameUrl=result.url;
+    const serverSummary=document.querySelector('#hostname-summary');
+    if(serverSummary)serverSummary.textContent=result.hostname||t('ui.0233');
     if(!hostnameArmed)hostnameInput.value=inProgress?(change.hostname||result.hostname):result.hostname;
     hostnamePreview();
     hostnameInput.disabled=hostnamePending;hostnameButton.disabled=hostnamePending;

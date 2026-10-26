@@ -680,7 +680,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0173": {
-    "default": "Library address",
+    "default": "Server name",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0174": {
@@ -2683,10 +2683,6 @@
     "default": "{received} / {total} ({percent}%)",
     "context": "Progress text for an Internet PDF download; preserve all placeholders."
   },
-  "ui.0717": {
-    "default": "The static module stays on disk, but uses no service resources while CyberChef is stopped.",
-    "context": "Admin help text describing the resource effect of disabling CyberChef."
-  },
   "ui.0718": {
     "default": "Checking CyberChef service status...",
     "context": "Initial status shown while Admin checks whether the CyberChef module is installed or running."
@@ -2705,11 +2701,7 @@
   },
   "ui.0722": {
     "default": "Enable CyberChef",
-    "context": "Button that starts the CyberChef service."
-  },
-  "ui.0723": {
-    "default": "Disable CyberChef",
-    "context": "Button that stops and disables the CyberChef service."
+    "context": "Checkbox that enables and starts the CyberChef service."
   },
   "ui.0724": {
     "default": "Starting CyberChef...",

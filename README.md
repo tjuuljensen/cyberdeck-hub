@@ -43,9 +43,10 @@ internet. See the [online links source note](docs/content/online-crisis-links.md
 
 CyberChef is a pinned optional module. An online full Debian install stages it
 and leaves its service disabled; Admin can start or stop it later. Use
-`--skip-cyberchef` or `--offline` to omit it. The module consumes no service
-resources while stopped, but its static files use disk space and staging needs
-internet access.
+`--skip-cyberchef` or `--offline` to omit it. After staging, the static module
+files remain on disk while CyberChef is stopped; the stopped service consumes
+no runtime resources. Staging needs internet access, and the files use disk
+space while installed.
 
 The Docker files are an experimental preview. They are not a supported
 deployment until persistence, backups, updates, restart recovery, and optional
@@ -66,7 +67,6 @@ python -m unittest discover -s tests
 python -m unittest discover -s scripts/debian -p 'test_*.py'
 node tests/test_accent.js
 node tests/test_i18n.js
-node tests/test_online_crisis_links.js
 bash -n scripts/debian/install.sh
 ```
 

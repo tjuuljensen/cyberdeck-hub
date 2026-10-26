@@ -37,6 +37,7 @@ class BuildKitTests(unittest.TestCase):
             'scripts/debian/configure-gnome-power.py',
             'app/cyberchef_server.py',
             'app/webapp.py',
+            'app/legacy_card_translations.json',
             'app/static/admin.js',
             'app/translations/da.json',
             'assets/hub/library-startup.html',

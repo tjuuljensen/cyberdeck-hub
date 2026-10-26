@@ -192,8 +192,9 @@ class WebAppTests(unittest.TestCase):
 
     def test_cyberchef_admin_status_and_toggle_are_full_runtime_only(self):
         with patch.dict(webapp.os.environ, {'CYBERDECK_RUNTIME_MODE': 'headless'}), \
+                patch.object(webapp, 'read_only_helper', return_value={
+                    'installed': True, 'enabled': False, 'active': False}) as status_helper, \
                 patch.object(webapp, 'helper', side_effect=[
-                    {'installed': True, 'enabled': False, 'active': False},
                     {'installed': True, 'enabled': True, 'active': True},
                 ]) as helper:
             status = self.client.get('/api/admin/cyberchef', base_url='https://localhost')
@@ -203,8 +204,8 @@ class WebAppTests(unittest.TestCase):
                 headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
             self.assertEqual(enabled.status_code, 200)
             self.assertEqual(enabled.get_json()['active'], True)
-            self.assertEqual(helper.call_args_list[0].args, ('cyberchef-status',))
-            self.assertEqual(helper.call_args_list[1].args, ('cyberchef-enable',))
+            status_helper.assert_called_once_with('cyberchef-status')
+            self.assertEqual(helper.call_args_list[0].args, ('cyberchef-enable',))
         with patch.dict(webapp.os.environ, {'CYBERDECK_RUNTIME_MODE': 'container'}):
             unavailable = self.client.get('/api/admin/cyberchef', base_url='https://localhost')
             self.assertEqual(unavailable.status_code, 404)
@@ -433,7 +434,9 @@ class WebAppTests(unittest.TestCase):
 
         english = webapp.TRANSLATIONS['en']
         english_texts = set(english.values())
-        self.assertTrue(set(webapp.LEGACY_CARD_TRANSLATIONS).isdisjoint(english))
+        self.assertTrue(set(webapp.LEGACY_CARD_TEXT_MIGRATIONS).isdisjoint(english))
+        self.assertNotIn('ui.0717', english)
+        self.assertNotIn('ui.0723', english)
         self.assertIn('CyberChef', english_texts)
         self.assertIn('Kiwix', english_texts)
         self.assertFalse(source_keys - (english.keys() | english_texts),
@@ -1786,14 +1789,26 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(source['translations']['da']['title'], 'Sundhedskilder')
         self.assertEqual(source['source_language'], 'da')
         self.assertEqual(source['links'][0]['description'],
-                         webapp.LEGACY_CARD_TRANSLATIONS['ui.0756']['en'])
+                         webapp.LEGACY_CARD_TEXT_MIGRATIONS['ui.0756']['en'])
         self.assertEqual(source['links'][0]['translations']['da']['description'],
-                         webapp.LEGACY_CARD_TRANSLATIONS['ui.0756']['da'])
+                         webapp.LEGACY_CARD_TEXT_MIGRATIONS['ui.0756']['da'])
         self.assertFalse(feed['feeds'][0]['enabled'])
         self.assertEqual(feed['source_language'], 'en')
         self.assertEqual(feed['offline_display'], 'hide')
         self.assertEqual(feed['title'], 'Danish Police Update RSS')
         self.assertEqual(feed['translations']['da']['title'], 'Politi Update RSS')
+
+    def test_builtin_source_card_defaults_are_card_text_not_locale_ids(self):
+        for card, children_key in ((webapp.DEFAULT_ONLINE_SOURCE_CARDS[0], 'links'),
+                                   (webapp.DEFAULT_RSS_CARDS[0], 'feeds')):
+            for field in ('title', 'description'):
+                self.assertFalse(str(card[field]).startswith('ui.'), (card['id'], field))
+            self.assertEqual(card['source_language'], 'en')
+            self.assertIn('da', card['translations'])
+            for child in card[children_key]:
+                for field in ('title', 'description'):
+                    self.assertFalse(str(child.get(field, '')).startswith('ui.'),
+                                     (card['id'], child['id'], field))
 
     def test_legacy_card_translation_migration_preserves_custom_values_and_is_idempotent(self):
         with closing(webapp.connect_db()) as db:
@@ -1822,7 +1837,7 @@ class WebAppTests(unittest.TestCase):
             self.assertEqual(subject_translations['da']['description'], 'Førstehjælp, sundhedsoplysninger og akut behandling.')
             online = json.loads(db.execute("SELECT value FROM site_setting WHERE key='online_source_cards'").fetchone()[0])
             self.assertEqual(online[0]['links'][0]['translations']['da']['description'],
-                             webapp.LEGACY_CARD_TRANSLATIONS['ui.0756']['da'])
+                             webapp.LEGACY_CARD_TEXT_MIGRATIONS['ui.0756']['da'])
             rss = json.loads(db.execute("SELECT value FROM site_setting WHERE key='rss_cards'").fetchone()[0])
             self.assertEqual(rss[0]['title'], 'Danish Police Update RSS')
             self.assertEqual(rss[0]['translations']['da']['title'], 'Politi Update RSS')

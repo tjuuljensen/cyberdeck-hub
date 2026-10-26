@@ -49,14 +49,16 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.13'
+APP_VERSION = '0.2.0-beta.15'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
-LEGACY_CARD_TRANSLATIONS = json.loads(
+# Migration-only snapshot for configurations written before card text lived in
+# card configuration. Runtime card defaults below contain their own text.
+LEGACY_CARD_TEXT_MIGRATIONS = json.loads(
     (APP_DIR / 'legacy_card_translations.json').read_text(encoding='utf-8'))
-LEGACY_CARD_TRANSLATION_BY_TEXT = {
-    text: key for key, values in LEGACY_CARD_TRANSLATIONS.items()
+LEGACY_CARD_TEXT_MIGRATION_BY_VALUE = {
+    text: key for key, values in LEGACY_CARD_TEXT_MIGRATIONS.items()
     for text in (values.get('en'),) if isinstance(text, str)
 }
 DATA_ROOT = Path(os.environ.get('CYBERDECK_ROOT', '/srv/cyberdeck'))
@@ -94,20 +96,20 @@ DEFAULT_SUBJECT_TRANSLATIONS = {
 }
 ONLINE_CRISIS_LINKS = [
     {'id': 'world-monitor', 'title': 'World Monitor', 'url': 'https://www.worldmonitor.app/',
-     'description': LEGACY_CARD_TRANSLATIONS['ui.0756']['en'],
-     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0756']['da']}}},
+     'description': 'Interactive global context from independent online sources. It is not an emergency alert service.',
+     'source_language': 'en', 'translations': {'da': {'description': 'Interaktivt globalt overblik fra uafhængige onlinetjenester. Det er ikke en officiel varslingskanal.'}}},
     {'id': 'dr-nyheder', 'title': 'DR Nyheder', 'url': 'https://www.dr.dk/nyheder',
-     'description': LEGACY_CARD_TRANSLATIONS['ui.0757']['en'],
-     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0757']['da']}}},
+     'description': 'Danish public-service news. Requires internet access.',
+     'source_language': 'en', 'translations': {'da': {'description': 'Dansk public service-nyhedstjeneste. Kræver internetadgang.'}}},
     {'id': 'dr-lyd-and-p4', 'title': 'DR Lyd and P4', 'url': 'https://www.dr.dk/lyd',
-     'description': LEGACY_CARD_TRANSLATIONS['ui.0758']['en'],
-     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0758']['da']}}},
+     'description': 'Danish public-service radio streams. Streaming requires internet; use an FM radio if networks or power fail.',
+     'source_language': 'en', 'translations': {'da': {'description': 'Danske public service-radiostreams. Streaming kræver internet; brug en FM-radio, hvis netværk eller strøm svigter.'}}},
     {'id': 'tv-2-nyheder', 'title': 'TV 2 Nyheder', 'url': 'https://nyheder.tv2.dk/',
-     'description': LEGACY_CARD_TRANSLATIONS['ui.0759']['en'],
-     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0759']['da']}}},
+     'description': 'Danish news. Requires internet access.',
+     'source_language': 'en', 'translations': {'da': {'description': 'Danske nyheder. Kræver internetadgang.'}}},
     {'id': 'politi-update-rss-directory', 'title': 'Politi Update RSS directory', 'url': 'https://politi.dk/faa-politi-update-som-mobilapp-og-rss-feed',
-     'description': LEGACY_CARD_TRANSLATIONS['ui.0772']['en'],
-     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0772']['da']}}},
+     'description': 'Official RSS feed list for Danish police districts.',
+     'source_language': 'en', 'translations': {'da': {'description': 'Officiel oversigt over politiets RSS-feeds for politikredsene.'}}},
 ]
 POLICE_RSS_BASE = 'https://via.ritzau.dk/rss/short-messages/latest'
 POLICE_RSS_FEEDS = {
@@ -135,17 +137,19 @@ _police_rss_cache = {}
 _police_rss_locks = {}
 _police_rss_state_lock = threading.Lock()
 DEFAULT_ONLINE_SOURCE_CARDS = [{
-    'id': 'online-sources', 'title': LEGACY_CARD_TRANSLATIONS['ui.0750']['en'],
-    'description': LEGACY_CARD_TRANSLATIONS['ui.0752']['en'], 'source_language': 'en',
-    'translations': {'da': {'title': LEGACY_CARD_TRANSLATIONS['ui.0750']['da'],
-                            'description': LEGACY_CARD_TRANSLATIONS['ui.0752']['da']}},
+    'id': 'online-sources', 'title': 'Internet-required sources',
+    'description': 'Live information from external services. These links are hidden when the Hub cannot reach the internet.',
+    'source_language': 'en',
+    'translations': {'da': {'title': 'Kilder, der kræver internet',
+                            'description': 'Aktuel information fra eksterne tjenester. Gruppen skjules, når Cyberdeck Hub ikke har internetadgang.'}},
     'links': ONLINE_CRISIS_LINKS,
 }]
 DEFAULT_RSS_CARDS = [{
     'id': 'danish-police', 'title': 'Danish Police Update RSS',
-    'description': LEGACY_CARD_TRANSLATIONS['ui.0762']['en'], 'source_language': 'en',
-    'translations': {'da': {'title': LEGACY_CARD_TRANSLATIONS['ui.0761']['da'],
-                            'description': LEGACY_CARD_TRANSLATIONS['ui.0762']['da']}},
+    'description': 'Load recent public operational updates from the Danish police. This reader does not send notifications and is not an emergency alert channel.',
+    'source_language': 'en',
+    'translations': {'da': {'title': 'Politi Update RSS',
+                            'description': 'Hent de seneste offentlige operative meddelelser fra politiet. Denne RSS-læser sender ikke notifikationer og er ikke en officiel varslingskanal.'}},
     'feeds': [{'id': feed_id, 'title': label,
                'url': POLICE_RSS_BASE + (('?' + urllib.parse.urlencode({'publisherId': publisher_id}))
                                          if publisher_id else '')}
@@ -328,13 +332,13 @@ def _migrate_legacy_card_text(record, fields, default_language='en'):
     translations = {code: dict(value) for code, value in raw_translations.items()}
     for field in fields:
         text = migrated.get(field)
-        direct_id = isinstance(text, str) and text in LEGACY_CARD_TRANSLATIONS
-        key = text if direct_id else LEGACY_CARD_TRANSLATION_BY_TEXT.get(text) if isinstance(text, str) else None
+        direct_id = isinstance(text, str) and text in LEGACY_CARD_TEXT_MIGRATIONS
+        key = text if direct_id else LEGACY_CARD_TEXT_MIGRATION_BY_VALUE.get(text) if isinstance(text, str) else None
         if not key:
             continue
         if not direct_id and source_language != 'en':
             continue
-        legacy_values = LEGACY_CARD_TRANSLATIONS[key]
+        legacy_values = LEGACY_CARD_TEXT_MIGRATIONS[key]
         if direct_id:
             migrated[field] = legacy_values.get('en', text)
             migrated['source_language'] = 'en'
@@ -4018,8 +4022,8 @@ def admin_cyberchef_status():
     if not capability_available('cyberchef'):
         abort(404)
     try:
-        return jsonify(helper('cyberchef-status'))
-    except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+        return jsonify(read_only_helper('cyberchef-status'))
+    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
         return jsonify(error=str(error)), 503
 
 
@@ -5731,6 +5735,15 @@ def helper(action, payload=None):
                             input=json.dumps(payload or {}), text=True, capture_output=True, timeout=30)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or 'Privileged operation failed')
+    return json.loads(result.stdout or '{}')
+
+
+def read_only_helper(action):
+    """Run allowlisted read-only helper actions as the web service user."""
+    result = subprocess.run(['/usr/local/lib/cyberdeck/admin-helper.py', action],
+                            text=True, capture_output=True, timeout=10)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or 'Read-only status check failed')
     return json.loads(result.stdout or '{}')
 
 
