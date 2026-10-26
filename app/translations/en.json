@@ -287,14 +287,6 @@
     "default": "Maps, first aid, science…",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
-  "ui.0073": {
-    "default": "Water safety",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0074": {
-    "default": "Safe drinking water, hygiene, and treatment.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
   "ui.0075": {
     "default": "Home Wi-Fi",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
@@ -1895,86 +1887,6 @@
     "default": "Selected metadata or local files are missing, unsafe, or exceed export limits. Refresh the list and review the selection.",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
-  "ui.0475": {
-    "default": "Crisis preparedness",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0476": {
-    "default": "Practical guidance for outages, weather, and emergencies.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0477": {
-    "default": "Medical and first aid",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0478": {
-    "default": "First aid, health references, and emergency care.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0479": {
-    "default": "Repair and equipment",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0480": {
-    "default": "Device manuals, repair guides, and workshop references.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0481": {
-    "default": "General reference",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0482": {
-    "default": "Wikipedia and broad reference collections.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0483": {
-    "default": "Games and activities",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0484": {
-    "default": "Low-equipment games and family activities.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0485": {
-    "default": "Knots and practical skills",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0486": {
-    "default": "Knots, lashings, and useful hands-on skills.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0487": {
-    "default": "Off-grid cooking",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0488": {
-    "default": "Cooking, food safety, and water hygiene.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0489": {
-    "default": "Maps and navigation",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0490": {
-    "default": "Regional maps and navigation resources.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0491": {
-    "default": "Linux platforms",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0492": {
-    "default": "Linux operating systems, server platforms, and administration references.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0493": {
-    "default": "Computing and recovery",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
-  "ui.0494": {
-    "default": "Operating systems, software, and recovery material.",
-    "context": "Default library subject text or server response. Preserve placeholders and product names."
-  },
   "ui.0495": {
     "default": "Delete",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
@@ -2771,18 +2683,6 @@
     "default": "{received} / {total} ({percent}%)",
     "context": "Progress text for an Internet PDF download; preserve all placeholders."
   },
-  "ui.0714": {
-    "default": "Preparedness",
-    "context": "Title of the default preparedness subject."
-  },
-  "ui.0715": {
-    "default": "Health and first aid",
-    "context": "Title of the default health and first aid subject."
-  },
-  "ui.0716": {
-    "default": "Equipment and repair",
-    "context": "Title of the default equipment and repair subject."
-  },
   "ui.0717": {
     "default": "The static module stays on disk, but uses no service resources while CyberChef is stopped.",
     "context": "Admin help text describing the resource effect of disabling CyberChef."
@@ -2915,57 +2815,9 @@
     "default": "Unknown storage action",
     "context": "Validation error for an unrecognized storage action."
   },
-  "ui.0750": {
-    "default": "Internet-required sources",
-    "context": "Eyebrow for online-only crisis information links."
-  },
-  "ui.0751": {
-    "default": "Online news and crisis overview",
-    "context": "Home group linking to external crisis/news services."
-  },
-  "ui.0752": {
-    "default": "Live information from external services. These links are hidden when the Hub cannot reach the internet.",
-    "context": "Explains online-only availability and offline behavior."
-  },
-  "ui.0753": {
-    "default": "links",
-    "context": "Count label for external information links."
-  },
   "ui.0754": {
     "default": "Online",
     "context": "Availability label for an external link."
-  },
-  "ui.0755": {
-    "default": "These services require internet access and may be unavailable during a disruption. Use local emergency instructions and radio where appropriate.",
-    "context": "Safety note below online crisis links."
-  },
-  "ui.0756": {
-    "default": "Interactive global context from independent online sources. It is not an emergency alert service.",
-    "context": "Description of the World Monitor external link."
-  },
-  "ui.0757": {
-    "default": "Danish public-service news. Requires internet access.",
-    "context": "Description of the DR Nyheder external link."
-  },
-  "ui.0758": {
-    "default": "Danish public-service radio streams. Streaming requires internet; use an FM radio if networks or power fail.",
-    "context": "Description of the DR Lyd and P4 external link."
-  },
-  "ui.0759": {
-    "default": "Danish news. Requires internet access.",
-    "context": "Description of the TV 2 Nyheder external link."
-  },
-  "ui.0760": {
-    "default": "Official updates",
-    "context": "Eyebrow for the police RSS reader."
-  },
-  "ui.0761": {
-    "default": "Danish Police Update RSS",
-    "context": "Heading for the read-only police RSS reader."
-  },
-  "ui.0762": {
-    "default": "Load recent public operational updates from the Danish police. This reader does not send notifications and is not an emergency alert channel.",
-    "context": "Scope and limitations of the police RSS reader."
   },
   "ui.0763": {
     "default": "RSS feed",
@@ -2999,10 +2851,6 @@
     "default": "Open official update",
     "context": "Link to the original police update item."
   },
-  "ui.0772": {
-    "default": "Official RSS feed list for Danish police districts.",
-    "context": "Description of the official police RSS directory link."
-  },
   "ui.0780": {
     "default": "Explore your Cyberdeck",
     "context": "Heading above the combined subject, service, online source, and RSS cards."
@@ -3035,30 +2883,6 @@
     "default": "Create multiple cards of online links. Each card appears with the other library and service cards and is hidden while the Cyberdeck has no internet access.",
     "context": "Admin help text for online source cards."
   },
-  "ui.0788": {
-    "default": "Card title",
-    "context": "Admin field label for a resource card title."
-  },
-  "ui.0789": {
-    "default": "Description",
-    "context": "Admin field label for a resource card description."
-  },
-  "ui.0790": {
-    "default": "Links (one per line)",
-    "context": "Admin field label for online source entries."
-  },
-  "ui.0791": {
-    "default": "Save card",
-    "context": "Admin action to save an online source or RSS card."
-  },
-  "ui.0792": {
-    "default": "Cancel edit",
-    "context": "Admin action to cancel editing a card."
-  },
-  "ui.0793": {
-    "default": "Use one line per link: title | HTTPS URL | optional description. These links open on the internet and are not downloaded.",
-    "context": "Help for the online source card editor."
-  },
   "ui.0794": {
     "default": "RSS feed cards",
     "context": "Admin heading for editing RSS feed cards."
@@ -3066,14 +2890,6 @@
   "ui.0795": {
     "default": "Create multiple RSS cards. Feed contents are fetched only when the Cyberdeck has internet access; the reader limits response size and item count.",
     "context": "Admin help text for RSS cards."
-  },
-  "ui.0796": {
-    "default": "Feeds (one per line)",
-    "context": "Admin field label for RSS feed entries."
-  },
-  "ui.0797": {
-    "default": "Use one line per feed: feed title | HTTPS RSS or Atom URL. URLs resolving to local or private network addresses are rejected.",
-    "context": "Help for the RSS card editor."
   },
   "ui.0798": {
     "default": "Edit",

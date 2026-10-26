@@ -49,7 +49,12 @@ function cyberdeckNetworkError() {
 
 function localizeUi(root) {
   if (!root) return;
+  const isUserContent = node => {
+    const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    return Boolean(element?.closest('[data-user-content]'));
+  };
   const translateNode = node => {
+    if (isUserContent(node)) return;
     const leading = node.nodeValue.match(/^\s*/)?.[0] || '';
     const trailing = node.nodeValue.match(/\s*$/)?.[0] || '';
     let source = node.nodeValue.slice(leading.length, node.nodeValue.length - trailing.length || undefined);
@@ -64,6 +69,7 @@ function localizeUi(root) {
     if (next !== node.nodeValue) node.nodeValue = next;
   };
   const localizeAttribute = (element, attribute) => {
+    if (isUserContent(element)) return;
     let source = element.getAttribute(attribute);
     if (!source) return;
     const existingId = source.match(/^\[(ui\.\d{4}(?:, ui\.\d{4})*)\]\s+/);

@@ -33,7 +33,10 @@ publication time on the right side of the same header row.
 `0.2.0-beta.12` records each card's original language, lets administrators edit
 the active language and one selected translation while preserving other
 translations, and includes the language metadata in configuration imports and
-exports.
+exports. `0.2.0-beta.13` migrates configurable card and child-entry text out of
+the UI locale catalogues into saved configuration, preserves legacy mappings
+for upgrades and imports, skips user content in translation-ID mode, and removes
+obsolete card copy from the locale files.
 
 ## Included scope
 

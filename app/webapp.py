@@ -49,10 +49,16 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.12'
+APP_VERSION = '0.2.0-beta.13'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
+LEGACY_CARD_TRANSLATIONS = json.loads(
+    (APP_DIR / 'legacy_card_translations.json').read_text(encoding='utf-8'))
+LEGACY_CARD_TRANSLATION_BY_TEXT = {
+    text: key for key, values in LEGACY_CARD_TRANSLATIONS.items()
+    for text in (values.get('en'),) if isinstance(text, str)
+}
 DATA_ROOT = Path(os.environ.get('CYBERDECK_ROOT', '/srv/cyberdeck'))
 PRIVATE_ROOT = Path(os.environ.get('CYBERDECK_PRIVATE', DATA_ROOT / 'private'))
 DB_PATH = PRIVATE_ROOT / 'metadata.sqlite3'
@@ -74,17 +80,34 @@ DEFAULT_SUBJECTS = [
     ('regional-maps', 'Maps and navigation', 'Regional maps and navigation resources.'),
     ('general-reference', 'General reference', 'Wikipedia and broad reference collections.'),
 ]
+DEFAULT_SUBJECT_TRANSLATIONS = {
+    'preparedness': {'da': {'title': 'Beredskab',
+                            'description': 'Praktisk vejledning ved strømafbrydelser, vejrhændelser og nødsituationer.'}},
+    'first-aid': {'da': {'title': 'Sundhed og førstehjælp',
+                         'description': 'Førstehjælp, sundhedsoplysninger og akut behandling.'}},
+    'equipment-manuals': {'da': {'title': 'Udstyr og reparation',
+                                'description': 'Enhedsmanualer, reparationsvejledninger og værkstedsoplysninger.'}},
+    'regional-maps': {'da': {'title': 'Kort og navigation',
+                             'description': 'Regionale kort og navigationsressourcer.'}},
+    'general-reference': {'da': {'title': 'Generel reference',
+                                 'description': 'Wikipedia og brede referencesamlinger.'}},
+}
 ONLINE_CRISIS_LINKS = [
     {'id': 'world-monitor', 'title': 'World Monitor', 'url': 'https://www.worldmonitor.app/',
-     'description': 'ui.0756'},
+     'description': LEGACY_CARD_TRANSLATIONS['ui.0756']['en'],
+     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0756']['da']}}},
     {'id': 'dr-nyheder', 'title': 'DR Nyheder', 'url': 'https://www.dr.dk/nyheder',
-     'description': 'ui.0757'},
+     'description': LEGACY_CARD_TRANSLATIONS['ui.0757']['en'],
+     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0757']['da']}}},
     {'id': 'dr-lyd-and-p4', 'title': 'DR Lyd and P4', 'url': 'https://www.dr.dk/lyd',
-     'description': 'ui.0758'},
+     'description': LEGACY_CARD_TRANSLATIONS['ui.0758']['en'],
+     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0758']['da']}}},
     {'id': 'tv-2-nyheder', 'title': 'TV 2 Nyheder', 'url': 'https://nyheder.tv2.dk/',
-     'description': 'ui.0759'},
+     'description': LEGACY_CARD_TRANSLATIONS['ui.0759']['en'],
+     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0759']['da']}}},
     {'id': 'politi-update-rss-directory', 'title': 'Politi Update RSS directory', 'url': 'https://politi.dk/faa-politi-update-som-mobilapp-og-rss-feed',
-     'description': 'ui.0772'},
+     'description': LEGACY_CARD_TRANSLATIONS['ui.0772']['en'],
+     'source_language': 'en', 'translations': {'da': {'description': LEGACY_CARD_TRANSLATIONS['ui.0772']['da']}}},
 ]
 POLICE_RSS_BASE = 'https://via.ritzau.dk/rss/short-messages/latest'
 POLICE_RSS_FEEDS = {
@@ -112,12 +135,17 @@ _police_rss_cache = {}
 _police_rss_locks = {}
 _police_rss_state_lock = threading.Lock()
 DEFAULT_ONLINE_SOURCE_CARDS = [{
-    'id': 'online-sources', 'title': 'Internet-required sources',
-    'description': 'ui.0752', 'links': ONLINE_CRISIS_LINKS,
+    'id': 'online-sources', 'title': LEGACY_CARD_TRANSLATIONS['ui.0750']['en'],
+    'description': LEGACY_CARD_TRANSLATIONS['ui.0752']['en'], 'source_language': 'en',
+    'translations': {'da': {'title': LEGACY_CARD_TRANSLATIONS['ui.0750']['da'],
+                            'description': LEGACY_CARD_TRANSLATIONS['ui.0752']['da']}},
+    'links': ONLINE_CRISIS_LINKS,
 }]
 DEFAULT_RSS_CARDS = [{
     'id': 'danish-police', 'title': 'Danish Police Update RSS',
-    'description': 'ui.0762',
+    'description': LEGACY_CARD_TRANSLATIONS['ui.0762']['en'], 'source_language': 'en',
+    'translations': {'da': {'title': LEGACY_CARD_TRANSLATIONS['ui.0761']['da'],
+                            'description': LEGACY_CARD_TRANSLATIONS['ui.0762']['da']}},
     'feeds': [{'id': feed_id, 'title': label,
                'url': POLICE_RSS_BASE + (('?' + urllib.parse.urlencode({'publisherId': publisher_id}))
                                          if publisher_id else '')}
@@ -285,6 +313,94 @@ def _valid_card_url(value, label):
     return value
 
 
+def _migrate_legacy_card_text(record, fields, default_language='en'):
+    """Materialize known legacy locale text in a card or entry record."""
+    migrated = dict(record)
+    source_language = migrated.get('source_language', default_language)
+    if not isinstance(source_language, str) or source_language not in SUPPORTED_LANGUAGES:
+        source_language = default_language if default_language in SUPPORTED_LANGUAGES else 'en'
+    migrated['source_language'] = source_language
+    raw_translations = migrated.get('translations', {})
+    if (not isinstance(raw_translations, dict) or
+            any(not isinstance(code, str) or not isinstance(value, dict)
+                for code, value in raw_translations.items())):
+        return record
+    translations = {code: dict(value) for code, value in raw_translations.items()}
+    for field in fields:
+        text = migrated.get(field)
+        direct_id = isinstance(text, str) and text in LEGACY_CARD_TRANSLATIONS
+        key = text if direct_id else LEGACY_CARD_TRANSLATION_BY_TEXT.get(text) if isinstance(text, str) else None
+        if not key:
+            continue
+        if not direct_id and source_language != 'en':
+            continue
+        legacy_values = LEGACY_CARD_TRANSLATIONS[key]
+        if direct_id:
+            migrated[field] = legacy_values.get('en', text)
+            migrated['source_language'] = 'en'
+        for language, value in legacy_values.items():
+            if language not in SUPPORTED_LANGUAGES or language == migrated['source_language']:
+                continue
+            locale = translations.setdefault(language, {})
+            if not locale.get(field):
+                locale[field] = value
+    migrated['translations'] = translations
+    return migrated
+
+
+def _migrate_legacy_card_list(cards, kind):
+    migrated = json.loads(json.dumps(cards))
+    field = 'links' if kind == 'online source' else 'feeds'
+    if not isinstance(migrated, list):
+        return migrated
+    for index, card in enumerate(migrated):
+        if not isinstance(card, dict):
+            continue
+        card = _migrate_legacy_card_text(card, ('title', 'description'))
+        migrated[index] = card
+        entries = card.get(field)
+        if not isinstance(entries, list):
+            continue
+        card_language = card.get('source_language', 'en')
+        card[field] = [_migrate_legacy_card_text(entry, ('title', 'description'), card_language)
+                       if isinstance(entry, dict) else entry for entry in entries]
+    return migrated
+
+
+def _migrate_stored_card_locales(db):
+    marker = db.execute("SELECT value FROM site_setting WHERE key='card_locale_migration_v1'").fetchone()
+    if marker and marker['value'] == 'complete':
+        return
+    if not db.in_transaction:
+        db.execute('BEGIN IMMEDIATE')
+    try:
+        for row in db.execute('SELECT id,title,description,translations,source_language FROM library_subject').fetchall():
+            record = {'title': row['title'], 'description': row['description'],
+                      'source_language': row['source_language'],
+                      'translations': json.loads(row['translations'] or '{}')}
+            migrated = _migrate_legacy_card_text(record, ('title', 'description'))
+            if migrated != record:
+                db.execute('UPDATE library_subject SET title=?,description=?,translations=?,source_language=? WHERE id=?',
+                           (migrated['title'], migrated['description'],
+                            json.dumps(migrated['translations'], ensure_ascii=False),
+                            migrated['source_language'], row['id']))
+        for setting_key, kind in (('online_source_cards', 'online source'), ('rss_cards', 'RSS')):
+            row = db.execute('SELECT value FROM site_setting WHERE key=?', (setting_key,)).fetchone()
+            if not row:
+                continue
+            stored = json.loads(row['value'])
+            migrated = _migrate_legacy_card_list(stored, kind)
+            if migrated != stored:
+                db.execute('UPDATE site_setting SET value=? WHERE key=?',
+                           (json.dumps(migrated, ensure_ascii=False), setting_key))
+        db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                   'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                   ('card_locale_migration_v1', 'complete'))
+    except Exception:
+        db.rollback()
+        raise
+
+
 def _validate_card_list(cards, kind):
     max_cards = 10 if kind == 'RSS' else 50
     if not isinstance(cards, list) or len(cards) > max_cards:
@@ -329,20 +445,41 @@ def _validate_card_list(cards, kind):
                     not 1 <= len(entry_title.strip()) <= 120):
                 raise ValueError(f'Invalid or duplicate {kind} entry')
             seen_entries.add(entry_id)
+            entry_title = entry.get('title')
+            entry_source_language = entry.get('source_language', source_language)
+            entry_translations = entry.get('translations', {})
+            if (not isinstance(entry_source_language, str) or entry_source_language not in SUPPORTED_LANGUAGES or
+                    not isinstance(entry_translations, dict) or
+                    any(code not in SUPPORTED_LANGUAGES for code in entry_translations)):
+                raise ValueError('Card entry language details are invalid')
+            normalized_entry_translations = {}
+            for code, value in entry_translations.items():
+                if (not isinstance(value, dict) or not isinstance(value.get('title', ''), str) or
+                        len(value.get('title', '')) > 120 or
+                        not isinstance(value.get('description', ''), str) or
+                        len(value.get('description', '')) > 300):
+                    raise ValueError('Card entry translations are invalid')
+                normalized_entry_translations[code] = {
+                    'title': value.get('title', '').strip(),
+                    'description': value.get('description', '').strip()}
             if kind == 'online source':
                 entry_description = entry.get('description', '')
                 if not isinstance(entry_description, str) or len(entry_description) > 300:
                     raise ValueError('Online source descriptions must be at most 300 characters')
                 normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
                                            'url': _valid_card_url(entry.get('url'), 'Online source URL'),
-                                           'description': entry_description.strip()})
+                                           'description': entry_description.strip(),
+                                           'source_language': entry_source_language,
+                                           'translations': normalized_entry_translations})
             else:
                 enabled = entry.get('enabled', True)
                 if type(enabled) is not bool:
                     raise ValueError('RSS feed enabled must be true or false')
                 normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
                                            'url': _valid_card_url(entry.get('url'), 'RSS feed URL'),
-                                           'enabled': enabled})
+                                           'enabled': enabled,
+                                           'source_language': entry_source_language,
+                                           'translations': normalized_entry_translations})
         normalized[field] = normalized_entries
         translations = card.get('translations', {})
         if not isinstance(translations, dict) or any(code not in SUPPORTED_LANGUAGES for code in translations):
@@ -408,13 +545,22 @@ def restore_empty_default_police_feeds(cards):
 
 def _localized_text(title, description, translations=None):
     localized = (translations or {}).get(current_language(), {})
-    return {'display_title': localized.get('title') or translate(title),
-            'display_description': localized.get('description') or translate(description)}
+    return {'display_title': localized.get('title') or title,
+            'display_description': localized.get('description') or description}
+
+
+def _localized_entry(entry):
+    return {**entry, **_localized_text(entry.get('title', ''), entry.get('description', ''),
+                                      entry.get('translations'))}
 
 
 def _localized_card(card):
-    return {**card, **_localized_text(card.get('title', ''), card.get('description', ''),
-                                      card.get('translations'))}
+    localized = {**card, **_localized_text(card.get('title', ''), card.get('description', ''),
+                                           card.get('translations'))}
+    for field in ('links', 'feeds'):
+        if isinstance(card.get(field), list):
+            localized[field] = [_localized_entry(entry) for entry in card[field]]
+    return localized
 
 
 def _rss_entry(card_id, feed_id):
@@ -760,8 +906,10 @@ def connect_db():
         display_order INTEGER NOT NULL, translations TEXT NOT NULL DEFAULT '{}',
         source_language TEXT NOT NULL DEFAULT 'en')''')
     if not subject_table_exists:
-        db.executemany('INSERT INTO library_subject(id,title,description,display_order) VALUES(?,?,?,?)',
-                       [(slug, title, description, order)
+        db.executemany('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) '
+                       'VALUES(?,?,?,?,?,?)',
+                       [(slug, title, description, order,
+                         json.dumps(DEFAULT_SUBJECT_TRANSLATIONS.get(slug, {}), ensure_ascii=False), 'en')
                         for order, (slug, title, description) in enumerate(DEFAULT_SUBJECTS)])
     subject_columns = {row['name'] for row in db.execute('PRAGMA table_info(library_subject)')}
     if 'translations' not in subject_columns:
@@ -795,6 +943,7 @@ def connect_db():
         WHEN NOT EXISTS (SELECT 1 FROM library_subject WHERE id=NEW.subject)
         BEGIN SELECT RAISE(ABORT, 'unknown subject'); END;
     ''')
+    _migrate_stored_card_locales(db)
     db.commit()
     return db
 
@@ -982,7 +1131,7 @@ def _subject_assigned_items(subject, limit=30):
 def _settings_only_plan(config, remove_omitted, include_labels=True):
     """Compare imported settings with current subjects without touching content."""
     current_rows = [dict(row) for row in g.db.execute(
-        'SELECT id,title,description,display_order FROM library_subject ORDER BY display_order,id')]
+        'SELECT id,title,description,display_order,translations,source_language FROM library_subject ORDER BY display_order,id')]
     current = {row['id']: row for row in current_rows}
     indexed = list(enumerate(config.get('subjects', [])))
     indexed.sort(key=lambda pair: (pair[1].get('display_order', pair[0]), pair[0]))
@@ -991,6 +1140,7 @@ def _settings_only_plan(config, remove_omitted, include_labels=True):
         incoming.append({'id': subject['id'], 'title': subject['title'],
                          'description': subject.get('description', ''),
                          'translations': subject.get('translations', {}),
+                         'source_language': subject.get('source_language', 'en'),
                          'display_order': order})
     incoming_ids = {row['id'] for row in incoming}
     additions, edits, unchanged = [], [], []
@@ -1000,7 +1150,7 @@ def _settings_only_plan(config, remove_omitted, include_labels=True):
             additions.append(subject)
             continue
         changes = {key: {'from': old[key], 'to': subject[key]}
-                   for key in ('title', 'description', 'display_order', 'translations')
+                   for key in ('title', 'description', 'display_order', 'translations', 'source_language')
                    if (json.loads(old.get('translations') or '{}') if key == 'translations' else old[key]) != subject[key]}
         if changes:
             edits.append({'id': subject['id'], 'title': subject['title'], 'changes': changes})
@@ -1013,6 +1163,8 @@ def _settings_only_plan(config, remove_omitted, include_labels=True):
         state_rows.append({'id': row['id'], 'title': row['title'],
                            'description': row['description'],
                            'display_order': row['display_order'],
+                           'translations': json.loads(row['translations'] or '{}'),
+                           'source_language': row['source_language'],
                            'assigned_count': assigned_count})
         if row['id'] in incoming_ids:
             continue
@@ -1912,9 +2064,12 @@ def _validate_import_config(config):
     if len(config.get('assets', [])) > 5000 or len(config.get('offline_catalogues', [])) > 5000:
         raise ValueError('Configuration contains too many entries')
     if 'online_source_cards' in config:
+        config['online_source_cards'] = _migrate_legacy_card_list(
+            config['online_source_cards'], 'online source')
         config['online_source_cards'] = _validate_card_list(
             config['online_source_cards'], 'online source')
     if 'rss_cards' in config:
+        config['rss_cards'] = _migrate_legacy_card_list(config['rss_cards'], 'RSS')
         config['rss_cards'] = _validate_card_list(config['rss_cards'], 'RSS')
     paths = set()
     for asset in config.get('assets', []):
@@ -1925,6 +2080,9 @@ def _validate_import_config(config):
     subjects = config.get('subjects', [])
     if not isinstance(subjects, list) or len(subjects) > 500:
         raise ValueError('Invalid subject list')
+    subjects = [_migrate_legacy_card_text(subject, ('title', 'description'))
+                if isinstance(subject, dict) else subject for subject in subjects]
+    config['subjects'] = subjects
     subject_ids = set()
     for subject in subjects:
         translations = subject.get('translations', {}) if isinstance(subject, dict) else {}
@@ -3588,8 +3746,14 @@ def logout():
 @app.get('/admin')
 @admin_required
 def admin_page():
+    config_subjects = []
+    for slug, title, description in get_subjects():
+        row = g.db.execute('SELECT translations FROM library_subject WHERE id=?', (slug,)).fetchone()
+        localized = _localized_text(title, description,
+                                   json.loads(row['translations'] or '{}') if row else {})
+        config_subjects.append((slug, localized['display_title'], localized['display_description']))
     return render_template('admin.html', csrf=session['csrf'], username=session['admin'],
-                           config_subjects=get_subjects(), preferences=site_preferences(),
+                           config_subjects=config_subjects, preferences=site_preferences(),
                            time_zones=timezone_choices(), card_languages=SUPPORTED_LANGUAGES,
                            hotspot_module_enabled=hotspot_module_enabled())
 
@@ -3989,7 +4153,8 @@ def _admin_card_records():
                              ('rss', configured_rss_cards())):
         field = 'links' if kind == 'online' else 'feeds'
         for card in collection:
-            cards.append({**_localized_card(card), 'type': kind, 'entries': card[field],
+            localized = _localized_card(card)
+            cards.append({**localized, 'type': kind, 'entries': localized[field],
                           'child_count': len(card[field])})
     return cards
 
@@ -4025,7 +4190,7 @@ def _validate_card_metadata(card):
             'translations': normalized_translations}
 
 
-def _merge_card_locale_edit(body, previous=None):
+def _merge_localized_record_edit(body, previous=None, fields=('title', 'description')):
     """Apply edits to the active locale while preserving every other locale."""
     language = body.get('language', previous.get('source_language', 'en') if previous else current_language())
     if not isinstance(language, str) or language not in SUPPORTED_LANGUAGES:
@@ -4044,9 +4209,10 @@ def _merge_card_locale_edit(body, previous=None):
             if not isinstance(body['translations'], dict):
                 raise ValueError('Card translations are invalid')
             translations = dict(body['translations'])
-        changed = body.get('changed_fields', ['title', 'description'])
-        if not isinstance(changed, list) or any(field not in {'title', 'description'} for field in changed):
-            raise ValueError('Card language changes are invalid')
+        default_changed = [field for field in fields if field in body]
+        changed = body.get('changed_fields', default_changed)
+        if not isinstance(changed, list) or any(field not in fields for field in changed):
+            raise ValueError('Language changes are invalid')
         if language == result['source_language']:
             for field in changed:
                 result[field] = body.get(field, result[field])
@@ -4070,7 +4236,7 @@ def _merge_card_locale_edit(body, previous=None):
         if not isinstance(value, dict):
             raise ValueError('Translation details are invalid')
         locale = dict(translations.get(target_language) or {})
-        for field in ('title', 'description'):
+        for field in fields:
             text = value.get(field, '')
             if not isinstance(text, str):
                 raise ValueError('Translation details are invalid')
@@ -4084,6 +4250,10 @@ def _merge_card_locale_edit(body, previous=None):
             translations.pop(target_language, None)
     result['translations'] = translations
     return result
+
+
+def _merge_card_locale_edit(body, previous=None):
+    return _merge_localized_record_edit(body, previous, ('title', 'description'))
 
 
 def _persist_card_collections(cards):
@@ -4209,7 +4379,9 @@ def admin_card_entry_create(card_id):
         if not card or card['type'] == 'subject':
             g.db.rollback()
             return jsonify(error='Online source or RSS card not found'), 404
-        entry = {'id': body.get('id'), 'title': body.get('title'), 'url': body.get('url')}
+        fields = ('title', 'description') if card['type'] == 'online' else ('title',)
+        entry = _merge_localized_record_edit(body, fields=fields)
+        entry.update({'id': body.get('id'), 'url': body.get('url')})
         if card['type'] == 'online':
             entry['description'] = body.get('description', '')
         else:
@@ -4252,9 +4424,13 @@ def admin_card_entry_update(card_id, entry_id):
                 return jsonify(error='That card already has an entry with this ID'), 409
             card['entries'].remove(entry)
             target['entries'].append(entry)
-        for key in ('title', 'url'):
-            if key in body:
-                entry[key] = body[key]
+        fields = ('title', 'description') if target['type'] == 'online' else ('title',)
+        if any(key in body for key in (*fields, 'changed_fields', 'translation_language', 'translations')):
+            merged = _merge_localized_record_edit({**body, 'id': entry_id}, entry, fields)
+            entry.clear()
+            entry.update(merged)
+        if 'url' in body:
+            entry['url'] = body['url']
         if target['type'] == 'online' and 'description' in body:
             entry['description'] = body['description']
         if target['type'] == 'rss' and 'enabled' in body:

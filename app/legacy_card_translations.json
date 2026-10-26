@@ -1,0 +1,142 @@
+{
+  "ui.0073": {
+    "en": "Water safety",
+    "da": "Vandsikkerhed"
+  },
+  "ui.0074": {
+    "en": "Safe drinking water, hygiene, and treatment.",
+    "da": "Sikkert drikkevand, hygiejne og behandling."
+  },
+  "ui.0475": {
+    "en": "Crisis preparedness",
+    "da": "Kriseberedskab"
+  },
+  "ui.0476": {
+    "en": "Practical guidance for outages, weather, and emergencies.",
+    "da": "Praktisk vejledning ved strømafbrydelser, vejrhændelser og nødsituationer."
+  },
+  "ui.0477": {
+    "en": "Medical and first aid",
+    "da": "Sundhed og førstehjælp"
+  },
+  "ui.0478": {
+    "en": "First aid, health references, and emergency care.",
+    "da": "Førstehjælp, sundhedsoplysninger og akut behandling."
+  },
+  "ui.0479": {
+    "en": "Repair and equipment",
+    "da": "Reparation og udstyr"
+  },
+  "ui.0480": {
+    "en": "Device manuals, repair guides, and workshop references.",
+    "da": "Enhedsmanualer, reparationsvejledninger og værkstedsoplysninger."
+  },
+  "ui.0481": {
+    "en": "General reference",
+    "da": "Generel reference"
+  },
+  "ui.0482": {
+    "en": "Wikipedia and broad reference collections.",
+    "da": "Wikipedia og brede referencesamlinger."
+  },
+  "ui.0483": {
+    "en": "Games and activities",
+    "da": "Spil og aktiviteter"
+  },
+  "ui.0484": {
+    "en": "Low-equipment games and family activities.",
+    "da": "Spil med få rekvisitter og familieaktiviteter."
+  },
+  "ui.0485": {
+    "en": "Knots and practical skills",
+    "da": "Knob og praktiske færdigheder"
+  },
+  "ui.0486": {
+    "en": "Knots, lashings, and useful hands-on skills.",
+    "da": "Knob, surringer og nyttige praktiske færdigheder."
+  },
+  "ui.0487": {
+    "en": "Off-grid cooking",
+    "da": "Madlavning uden strøm"
+  },
+  "ui.0488": {
+    "en": "Cooking, food safety, and water hygiene.",
+    "da": "Madlavning, fødevaresikkerhed og vandhygiejne."
+  },
+  "ui.0489": {
+    "en": "Maps and navigation",
+    "da": "Kort og navigation"
+  },
+  "ui.0490": {
+    "en": "Regional maps and navigation resources.",
+    "da": "Regionale kort og navigationsressourcer."
+  },
+  "ui.0491": {
+    "en": "Linux platforms",
+    "da": "Linux-platforme"
+  },
+  "ui.0492": {
+    "en": "Linux operating systems, server platforms, and administration references.",
+    "da": "Linux-operativsystemer, serverplatforme og vejledninger til administration."
+  },
+  "ui.0493": {
+    "en": "Computing and recovery",
+    "da": "Computere og gendannelse"
+  },
+  "ui.0494": {
+    "en": "Operating systems, software, and recovery material.",
+    "da": "Operativsystemer, software og materiale til gendannelse."
+  },
+  "ui.0714": {
+    "en": "Preparedness",
+    "da": "Beredskab"
+  },
+  "ui.0715": {
+    "en": "Health and first aid",
+    "da": "Sundhed og førstehjælp"
+  },
+  "ui.0716": {
+    "en": "Equipment and repair",
+    "da": "Udstyr og reparation"
+  },
+  "ui.0750": {
+    "en": "Internet-required sources",
+    "da": "Kilder, der kræver internet"
+  },
+  "ui.0751": {
+    "en": "Online news and crisis overview",
+    "da": "Online nyheder og kriseoverblik"
+  },
+  "ui.0752": {
+    "en": "Live information from external services. These links are hidden when the Hub cannot reach the internet.",
+    "da": "Aktuel information fra eksterne tjenester. Gruppen skjules, når Cyberdeck Hub ikke har internetadgang."
+  },
+  "ui.0756": {
+    "en": "Interactive global context from independent online sources. It is not an emergency alert service.",
+    "da": "Interaktivt globalt overblik fra uafhængige onlinetjenester. Det er ikke en officiel varslingskanal."
+  },
+  "ui.0757": {
+    "en": "Danish public-service news. Requires internet access.",
+    "da": "Dansk public service-nyhedstjeneste. Kræver internetadgang."
+  },
+  "ui.0758": {
+    "en": "Danish public-service radio streams. Streaming requires internet; use an FM radio if networks or power fail.",
+    "da": "Danske public service-radiostreams. Streaming kræver internet; brug en FM-radio, hvis netværk eller strøm svigter."
+  },
+  "ui.0759": {
+    "en": "Danish news. Requires internet access.",
+    "da": "Danske nyheder. Kræver internetadgang."
+  },
+  "ui.0761": {
+    "en": "Danish Police Update RSS",
+    "da": "Politi Update RSS"
+  },
+  "ui.0762": {
+    "en": "Load recent public operational updates from the Danish police. This reader does not send notifications and is not an emergency alert channel.",
+    "da": "Hent de seneste offentlige operative meddelelser fra politiet. Denne RSS-læser sender ikke notifikationer og er ikke en officiel varslingskanal."
+  },
+  "ui.0772": {
+    "en": "Official RSS feed list for Danish police districts.",
+    "da": "Officiel oversigt over politiets RSS-feeds for politikredsene."
+  }
+}

@@ -333,9 +333,10 @@ class WebAppTests(unittest.TestCase):
         self.assertIn('<html lang="da"', danish)
         self.assertIn('Udforsk efter emne', danish)
         self.assertIn('Gennemse ZIM-biblioteker', danish)
-        for _subject_id, title, description in webapp.DEFAULT_SUBJECTS:
-            self.assertIn(webapp.TRANSLATIONS['da'][webapp.DEFAULT_TEXT_IDS[title]], danish)
-            self.assertIn(webapp.TRANSLATIONS['da'][webapp.DEFAULT_TEXT_IDS[description]], danish)
+        for subject_id, title, description in webapp.DEFAULT_SUBJECTS:
+            translated = webapp.DEFAULT_SUBJECT_TRANSLATIONS[subject_id]['da']
+            self.assertIn(translated['title'], danish)
+            self.assertIn(translated['description'], danish)
         certificate_help = self.client.get('/help/certificate', base_url='https://localhost')
         self.assertEqual(certificate_help.status_code, 200)
         self.assertIn('FORBIND DIN ENHED', certificate_help.get_data(as_text=True))
@@ -432,6 +433,9 @@ class WebAppTests(unittest.TestCase):
 
         english = webapp.TRANSLATIONS['en']
         english_texts = set(english.values())
+        self.assertTrue(set(webapp.LEGACY_CARD_TRANSLATIONS).isdisjoint(english))
+        self.assertIn('CyberChef', english_texts)
+        self.assertIn('Kiwix', english_texts)
         self.assertFalse(source_keys - (english.keys() | english_texts),
                          f'UI source contains untranslated IDs or defaults: {sorted(source_keys - (english.keys() | english_texts))}')
 
@@ -484,9 +488,12 @@ class WebAppTests(unittest.TestCase):
         self.assertFalse(uncovered_template_text,
                          f'Template text is missing from English catalogue: {uncovered_template_text}')
 
-        for _subject_id, title, description in webapp.DEFAULT_SUBJECTS:
-            self.assertIn(title, english_texts)
-            self.assertIn(description, english_texts)
+        self.assertEqual(set(webapp.DEFAULT_SUBJECT_TRANSLATIONS),
+                         {subject_id for subject_id, _title, _description in webapp.DEFAULT_SUBJECTS})
+        for translations in webapp.DEFAULT_SUBJECT_TRANSLATIONS.values():
+            self.assertIn('da', translations)
+            self.assertIn('title', translations['da'])
+            self.assertIn('description', translations['da'])
         for language, catalogue in webapp.TRANSLATIONS.items():
             with self.subTest(language=language):
                 self.assertEqual(catalogue.keys(), english.keys())
@@ -1608,15 +1615,12 @@ class WebAppTests(unittest.TestCase):
         link = response.data.split(b'id="online-kiwix-catalog"', 1)[1].split(b'>', 1)[0]
         self.assertIn(b'target="_blank"', link)
 
-    def test_online_crisis_links_are_hidden_until_connectivity_is_checked(self):
+    def test_legacy_online_crisis_route_redirects_to_configured_card(self):
         with patch.object(webapp.urllib.request, 'urlopen') as network:
             response = self.client.get('/online-crisis-links')
         network.assert_not_called()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'id="online-crisis-content" hidden', response.data)
-        self.assertIn(b'id="police-rss-feed"', response.data)
-        self.assertIn(b'/static/online-crisis-links.js', response.data)
-        self.assertIn(b'https://www.worldmonitor.app/', response.data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], '/online-sources/online-sources')
 
     def test_police_rss_api_rejects_unlisted_feed_without_network_access(self):
         with patch.object(webapp.urllib.request, 'build_opener') as build_opener:
@@ -1770,8 +1774,9 @@ class WebAppTests(unittest.TestCase):
                       'source_language': 'da',
                       'description': 'Trusted health sources.', 'translations': {
                           'da': {'title': 'Sundhedskilder', 'description': 'Pålidelige kilder.'}},
-                      'links': []}],
-                  'rss_cards': [{'id': 'health-rss', 'title': 'Health RSS', 'description': '',
+                      'links': [{'id': 'world', 'title': 'World Monitor',
+                                'url': 'https://example.org', 'description': 'ui.0756'}]}],
+                  'rss_cards': [{'id': 'health-rss', 'title': 'ui.0761', 'description': 'ui.0762',
                       'feeds': [{'id': 'alerts', 'title': 'Alerts',
                                  'url': 'https://feeds.example.org/alerts.xml', 'enabled': False}]}]}
         normalized = webapp._validate_import_config(config)
@@ -1780,9 +1785,63 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(source['offline_display'], 'hide')
         self.assertEqual(source['translations']['da']['title'], 'Sundhedskilder')
         self.assertEqual(source['source_language'], 'da')
+        self.assertEqual(source['links'][0]['description'],
+                         webapp.LEGACY_CARD_TRANSLATIONS['ui.0756']['en'])
+        self.assertEqual(source['links'][0]['translations']['da']['description'],
+                         webapp.LEGACY_CARD_TRANSLATIONS['ui.0756']['da'])
         self.assertFalse(feed['feeds'][0]['enabled'])
         self.assertEqual(feed['source_language'], 'en')
         self.assertEqual(feed['offline_display'], 'hide')
+        self.assertEqual(feed['title'], 'Danish Police Update RSS')
+        self.assertEqual(feed['translations']['da']['title'], 'Politi Update RSS')
+
+    def test_legacy_card_translation_migration_preserves_custom_values_and_is_idempotent(self):
+        with closing(webapp.connect_db()) as db:
+            db.execute("DELETE FROM site_setting WHERE key='card_locale_migration_v1'")
+            db.execute('UPDATE library_subject SET title=?,description=?,translations=?,source_language=? WHERE id=?',
+                       ('ui.0477', 'ui.0478', json.dumps({'da': {'title': 'My edited title'}}),
+                        'en', 'first-aid'))
+            db.execute('INSERT INTO site_setting(key,value) VALUES(?,?)',
+                       ('online_source_cards', json.dumps([{
+                           'id': 'health-links', 'title': 'Health links', 'description': '',
+                           'links': [{'id': 'world', 'title': 'World Monitor',
+                                      'url': 'https://example.org', 'description': 'ui.0756'}]}])))
+            db.execute('INSERT INTO site_setting(key,value) VALUES(?,?)',
+                       ('rss_cards', json.dumps([{
+                           'id': 'police', 'title': 'ui.0761', 'description': 'ui.0762',
+                           'feeds': [{'id': 'all', 'title': 'All police updates',
+                                      'url': 'https://example.org/feed.xml'}]}])))
+            webapp._migrate_stored_card_locales(db)
+            db.commit()
+            subject = db.execute('SELECT id,title,description,translations FROM library_subject WHERE id=?',
+                                 ('first-aid',)).fetchone()
+            self.assertEqual(subject['id'], 'first-aid')
+            self.assertEqual(subject['title'], 'Medical and first aid')
+            subject_translations = json.loads(subject['translations'])
+            self.assertEqual(subject_translations['da']['title'], 'My edited title')
+            self.assertEqual(subject_translations['da']['description'], 'Førstehjælp, sundhedsoplysninger og akut behandling.')
+            online = json.loads(db.execute("SELECT value FROM site_setting WHERE key='online_source_cards'").fetchone()[0])
+            self.assertEqual(online[0]['links'][0]['translations']['da']['description'],
+                             webapp.LEGACY_CARD_TRANSLATIONS['ui.0756']['da'])
+            rss = json.loads(db.execute("SELECT value FROM site_setting WHERE key='rss_cards'").fetchone()[0])
+            self.assertEqual(rss[0]['title'], 'Danish Police Update RSS')
+            self.assertEqual(rss[0]['translations']['da']['title'], 'Politi Update RSS')
+            before = json.dumps(rss, sort_keys=True)
+            webapp._migrate_stored_card_locales(db)
+            after = db.execute("SELECT value FROM site_setting WHERE key='rss_cards'").fetchone()[0]
+            self.assertEqual(json.dumps(json.loads(after), sort_keys=True), before)
+
+    def test_legacy_card_translation_migration_rolls_back_without_marker_on_failure(self):
+        with closing(webapp.connect_db()) as db:
+            db.execute("DELETE FROM site_setting WHERE key='card_locale_migration_v1'")
+            db.execute('UPDATE library_subject SET title=? WHERE id=?', ('ui.0477', 'first-aid'))
+            with patch.object(webapp, '_migrate_legacy_card_text', side_effect=RuntimeError('conversion failed')):
+                with self.assertRaises(RuntimeError):
+                    webapp._migrate_stored_card_locales(db)
+            db.rollback()
+            self.assertIsNone(db.execute("SELECT 1 FROM site_setting WHERE key='card_locale_migration_v1'").fetchone())
+            self.assertEqual(db.execute('SELECT title FROM library_subject WHERE id=?',
+                                        ('first-aid',)).fetchone()['title'], 'ui.0477')
 
     def test_police_rss_reader_sanitizes_feed_links_and_caches_results(self):
         feed = b'''<?xml version="1.0" encoding="utf-8"?>
