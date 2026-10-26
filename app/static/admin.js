@@ -1221,93 +1221,60 @@ hostnameForm.addEventListener('submit',async event=>{
 refreshHostname().catch(error=>alert(error.message));
 setInterval(()=>refreshHostname().catch(()=>{}),5000);
 }
-function setupConfigurableCards({endpoint,listId,formId,cancelId,kind}){
-  const list=document.getElementById(listId);const form=document.getElementById(formId);const cancel=document.getElementById(cancelId);
-  if(!list||!form||!cancel)return;
-  const status=document.createElement('p');status.className='subtle';status.setAttribute('role','status');status.setAttribute('aria-live','polite');form.insertAdjacentElement('afterend',status);
-  let cards=[];
-  const rowsFor=card=>kind==='online'?card.links.map(entry=>`${entry.title} | ${entry.url} | ${entry.description?t(entry.description):''}`).join('\n'):card.feeds.map(entry=>`${entry.title} | ${entry.url}`).join('\n');
-  const reset=()=>{form.reset();form.elements.id.value='';cancel.hidden=true;status.textContent=''};
-  const render=()=>{
-    list.replaceChildren();
-    cards.forEach((card,index)=>{
-      const row=document.createElement('div');row.className='item-row card-definition-row';
-      const summary=document.createElement('span');summary.textContent=`${card.title} · ${kind==='online'?card.links.length:card.feeds.length}`;
-      const actions=document.createElement('div');actions.className='button-row';
-      const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent=t('ui.0798');
-      edit.addEventListener('click',()=>{form.elements.id.value=card.id;form.elements.title.value=card.title;form.elements.description.value=t(card.description||'');form.elements.entries.value=rowsFor(card);cancel.hidden=false;form.scrollIntoView({behavior:'smooth',block:'center'})});
-      const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent=t('ui.0799');
-      let armTimer;remove.addEventListener('click',async()=>{if(remove.dataset.armed!=='true'){remove.dataset.armed='true';remove.textContent=t('ui.0804');status.textContent=t('ui.0800',{title:card.title});armTimer=setTimeout(()=>{delete remove.dataset.armed;remove.textContent=t('ui.0799');status.textContent=''},8000);return}clearTimeout(armTimer);remove.disabled=true;status.textContent=t('ui.0805');try{const saved=await requestJson(endpoint,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({cards:cards.filter(item=>item.id!==card.id)})});cards=saved.cards;status.textContent='';render();reset()}catch(error){remove.disabled=false;delete remove.dataset.armed;remove.textContent=t('ui.0799');status.textContent=error.message}});
-      actions.append(edit,remove);row.append(summary,actions);list.append(row);
-    });
-  };
-  const makeId=(value,index)=>{let base=value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,52)||`entry-${index+1}`;return base};
-  form.addEventListener('submit',async event=>{
-    event.preventDefault();const title=form.elements.title.value.trim();const rawLines=form.elements.entries.value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
-    const existing=cards.find(card=>card.id===form.elements.id.value);const prior=kind==='online'?(existing?.links||[]):(existing?.feeds||[]);const priorByUrl=new Map(prior.map(item=>[item.url,item.id]));const seen=new Set();
-    const entries=[];for(const [index,line]of rawLines.entries()){
-      const parts=line.split('|').map(part=>part.trim());const entryTitle=parts[0]||'';const url=parts[1]||'';const description=parts[2]||'';
-      if(!entryTitle||!url){status.textContent=t('ui.0801');return}
-      let id=priorByUrl.get(url)||makeId(entryTitle,index);let suffix=2;while(seen.has(id)){id=`${makeId(entryTitle,index)}-${suffix++}`}seen.add(id);
-      entries.push(kind==='online'?{id,title:entryTitle,url,description}:{id,title:entryTitle,url});
-    }
-    if(!entries.length){status.textContent=t('ui.0802');return}
-    let id=form.elements.id.value; if(!id){id=makeId(title,0);let suffix=2;while(cards.some(card=>card.id===id))id=`${makeId(title,0)}-${suffix++}`}
-    const card={id,title,description:form.elements.description.value.trim(),[kind==='online'?'links':'feeds']:entries};
-    const next=existing?cards.map(item=>item.id===id?card:item):[...cards,card];
-    const submit=form.querySelector('[type="submit"]');submit.disabled=true;
-    status.textContent=t('ui.0806');try{const saved=await requestJson(endpoint,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({cards:next})});cards=saved.cards;render();reset();status.textContent=t('ui.0807')}catch(error){status.textContent=error.message}finally{submit.disabled=false}
-  });
-  cancel.addEventListener('click',reset);
-  requestJson(endpoint).then(result=>{cards=result.cards;render()}).catch(error=>{list.textContent=error.message});
-}
 const cardForm=document.querySelector('#card-form');
 const cardStatus=document.querySelector('#card-status');
 const cardType=cardForm?.elements.type;
-function cardEntriesText(card){return(card.entries||[]).map(entry=>card.type==='rss'
-  ?`${entry.title} | ${entry.url} | ${entry.enabled===false?'disabled':'enabled'}`
-  :`${entry.title} | ${entry.url}${entry.description?` | ${entry.description}`:''}`).join('\n')}
 function cardPayloadFromForm(){
-  const type=cardType.value;const existing=adminCards.find(card=>card.id===cardForm.elements.id.value);
-  const title=cardForm.elements.title.value.trim();
+  const type=cardType.value;const title=cardForm.elements.title.value.trim();
   const translations={};
   for(const code of ['en','da']){const translation={title:cardForm.elements[`translation_title_${code}`]?.value.trim()||'',description:cardForm.elements[`translation_description_${code}`]?.value.trim()||''};if(translation.title||translation.description)translations[code]=translation}
-  const entries=[];if(type!=='subject')for(const [index,line]of cardForm.elements.entries.value.split(/\r?\n/).map(value=>value.trim()).filter(Boolean).entries()){
-    const parts=line.split('|').map(value=>value.trim());const entryTitle=parts[0]||'';const url=parts[1]||'';if(!entryTitle||!url)throw new Error('Each link or feed needs a title and HTTPS URL separated by |');
-    const prior=existing?.entries?.find(item=>item.url===url);const id=prior?.id||`${slugify(entryTitle)}${index?`-${index+1}`:''}`;
-    entries.push(type==='rss'?{id,title:entryTitle,url,enabled:(parts[2]||'enabled').toLowerCase()!=='disabled'}:{id,title:entryTitle,url,description:parts[2]||''});
-  }
   let id=cardForm.elements.id.value||cardForm.elements.card_id.value.trim()||slugify(title);if(!id)throw new Error('Add a valid card ID.');if(!cardForm.elements.id.value){const base=id;let suffix=2;while(adminCards.some(card=>card.id===id))id=`${base.slice(0,60)}-${suffix++}`}
-  return{id,type,title,description:cardForm.elements.description.value.trim(),translations,entries,offline_display:type==='subject'?'hide':cardForm.elements.offline_display.value};
+  return{id,type,title,description:cardForm.elements.description.value.trim(),translations,offline_display:type==='subject'?'hide':cardForm.elements.offline_display.value};
 }
 function slugify(value){return value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64)}
 function resetCardForm(){cardForm.reset();cardForm.elements.id.value='';cardForm.elements.card_id.disabled=false;cardForm.querySelector('#card-cancel').hidden=true;cardForm.querySelector('#card-type-lock-note').hidden=true;cardType.disabled=false;cardStatus.textContent='';updateCardFormVisibility()}
-function updateCardFormVisibility(){const subject=cardType.value==='subject';const source=!subject;const titleLimit=subject?80:100;const descriptionLimit=subject?300:500;cardForm.elements.title.maxLength=titleLimit;cardForm.elements.description.maxLength=descriptionLimit;for(const code of ['en','da']){cardForm.elements[`translation_title_${code}`].maxLength=titleLimit;cardForm.elements[`translation_description_${code}`].maxLength=descriptionLimit}cardForm.querySelector('[data-kind="entries"]').hidden=!source;cardForm.querySelector('[data-kind="offline"]').hidden=!source}
+function updateCardFormVisibility(){const subject=cardType.value==='subject';const titleLimit=subject?80:100;const descriptionLimit=subject?300:500;cardForm.elements.title.maxLength=titleLimit;cardForm.elements.description.maxLength=descriptionLimit;for(const code of ['en','da']){cardForm.elements[`translation_title_${code}`].maxLength=titleLimit;cardForm.elements[`translation_description_${code}`].maxLength=descriptionLimit}cardForm.querySelector('[data-kind="offline"]').hidden=subject}
 function beginCardEdit(card){
   cardForm.elements.id.value=card.id;cardForm.elements.card_id.value=card.id;cardForm.elements.card_id.disabled=true;cardType.value=card.type;cardType.disabled=Boolean(card.child_count);
   cardForm.elements.title.value=card.title;cardForm.elements.description.value=card.description||'';cardForm.elements.offline_display.value=card.offline_display||'hide';
   for(const code of ['en','da']){const translation=card.translations?.[code]||{};cardForm.elements[`translation_title_${code}`].value=translation.title||'';cardForm.elements[`translation_description_${code}`].value=translation.description||''}
-  cardForm.elements.entries.value=cardEntriesText(card);cardForm.querySelector('#card-cancel').hidden=false;cardForm.querySelector('#card-type-lock-note').hidden=!card.child_count;updateCardFormVisibility();cardForm.scrollIntoView({behavior:'smooth',block:'center'});
+  const translated=Object.values(card.translations||{}).some(value=>value.title||value.description);cardForm.querySelector('.card-translations').open=translated;
+  cardForm.querySelector('#card-cancel').hidden=false;cardForm.querySelector('#card-type-lock-note').hidden=!card.child_count;updateCardFormVisibility();cardForm.scrollIntoView({behavior:'smooth',block:'center'});
 }
-function renderCardRow(card,editable=true,showFeeds=false){
-  const rowElement=document.createElement('div');rowElement.className='item-row card-definition-row';
-  const label=document.createElement('span');label.textContent=`${card.display_title||card.title} · ${card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources'} · ${card.child_count} connected`;rowElement.append(label);
-  const actions=document.createElement('div');actions.className='button-row';
-  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
-  if(card.type==='rss'&&showFeeds)for(const feed of card.entries){const field=document.createElement('label');field.className='check card-feed-toggle';const input=document.createElement('input');input.type='checkbox';input.checked=feed.enabled!==false;input.setAttribute('aria-label',`Enable ${feed.title}`);input.onchange=async()=>{feed.enabled=input.checked;try{await saveCard({...card,entries:card.entries});await refreshCards()}catch(error){input.checked=!input.checked;feed.enabled=input.checked;alert(error.message)}};field.append(input,document.createTextNode(` ${feed.title}`));actions.append(field)}
-  if(editable&&!card.child_count){const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Delete';remove.onclick=async()=>{if(!confirm(`Delete card “${card.title}”?`))return;try{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards()}catch(error){alert(error.message)}};actions.append(remove)}
-  rowElement.append(actions);return rowElement;
+function renderCardRow(card){
+  const row=document.createElement('div');row.className='item-row card-definition-row';const label=document.createElement('span');label.textContent=`${card.display_title||card.title} · ${card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources'} · ${card.child_count} connected`;row.append(label);
+  const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
+  if(!card.child_count){const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Delete';remove.onclick=async()=>{if(!confirm(`Delete card “${card.title}”?`))return;try{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards()}catch(error){alert(error.message)}};actions.append(remove)}
+  row.append(actions);return row;
+}
+function uniqueEntryId(card,title){const base=slugify(title)||'entry';let id=base;let suffix=2;while(card.entries.some(entry=>entry.id===id))id=`${base.slice(0,58)}-${suffix++}`;return id}
+function appendEntryFormFields(form,card,entry=null){
+  const title=document.createElement('input');title.name='title';title.required=true;title.maxLength=120;title.value=entry?.title||'';
+  const url=document.createElement('input');url.name='url';url.type='url';url.required=true;url.maxLength=2048;url.value=entry?.url||'';
+  form.append(Object.assign(document.createElement('label'),{textContent:'Title'}));form.lastChild.append(title);
+  form.append(Object.assign(document.createElement('label'),{textContent:card.type==='rss'?'HTTPS Feed URL':'HTTPS URL'}));form.lastChild.append(url);
+  if(card.type==='online'){const description=document.createElement('textarea');description.name='description';description.maxLength=300;description.rows=2;description.value=entry?.description||'';form.append(Object.assign(document.createElement('label'),{textContent:'Description'}));form.lastChild.append(description)}
+}
+async function persistEntry(card,entryId,body,method){const suffix=entryId?`/${encodeURIComponent(entryId)}`:'';await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}/entries${suffix}`,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});await refreshCards()}
+function renderEntryRow(card,entry){
+  const row=document.createElement('div');row.className='item-row source-entry-row';
+  if(card.type==='rss'){const label=document.createElement('label');label.className='check';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=entry.enabled!==false;checkbox.setAttribute('aria-label',`Enable ${entry.title}`);checkbox.onchange=async()=>{checkbox.disabled=true;try{await persistEntry(card,entry.id,{enabled:checkbox.checked},'PUT')}catch(error){checkbox.checked=!checkbox.checked;alert(error.message)}finally{checkbox.disabled=false}};label.append(checkbox,document.createTextNode(' Enabled'));row.append(label)}
+  const main=document.createElement('div');main.className='source-entry-details';const title=document.createElement('strong');title.textContent=entry.title;const url=document.createElement('span');url.className='subtle';url.textContent=entry.url;main.append(title,url);if(entry.description){const desc=document.createElement('span');desc.textContent=entry.description;main.append(desc)}row.append(main);
+  const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>{const form=document.createElement('form');form.className='stack source-entry-edit';appendEntryFormFields(form,card,entry);const save=document.createElement('button');save.className='button primary';save.textContent='Save';save.type='submit';const cancel=document.createElement('button');cancel.className='button';cancel.textContent='Cancel';cancel.type='button';cancel.onclick=renderCards;form.append(save,cancel);form.addEventListener('submit',async event=>{event.preventDefault();save.disabled=true;const body={title:form.elements.title.value.trim(),url:form.elements.url.value.trim()};if(card.type==='online')body.description=form.elements.description.value.trim();try{await persistEntry(card,entry.id,body,'PUT')}catch(error){alert(error.message);save.disabled=false}});main.replaceChildren(form)};actions.append(edit);
+  const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Delete';remove.onclick=async()=>{if(!confirm(`Delete “${entry.title}”?`))return;remove.disabled=true;try{await persistEntry(card,entry.id,{},'DELETE')}catch(error){alert(error.message);remove.disabled=false}};actions.append(remove);row.append(actions);return row;
 }
 function renderCards(){
-  const all=document.querySelector('#card-list');all.replaceChildren(...adminCards.map(card=>renderCardRow(card)));
-  for(const [kind,listId,filterId]of [['online','online-source-card-list','online-source-card-filter'],['rss','rss-card-list','rss-card-filter']]){
+  const all=document.querySelector('#card-list');all.replaceChildren(...adminCards.map(card=>renderCardRow(card)));document.querySelector('#cards-count').textContent=adminCards.length;
+  for(const [kind,listId,filterId,formId,countId]of [['online','online-source-card-list','online-source-card-filter','online-source-entry-form','online-source-count'],['rss','rss-card-list','rss-card-filter','rss-entry-form','rss-entry-count']]){
     const list=document.querySelector(`#${listId}`);const filter=document.querySelector(`#${filterId}`);const previous=filter.value;filter.replaceChildren(new Option('Show all',''));
     for(const card of adminCards.filter(item=>item.type===kind))filter.add(new Option(card.display_title||card.title,card.id));if([...filter.options].some(option=>option.value===previous))filter.value=previous;
-    const cards=adminCards.filter(item=>item.type===kind&&(!filter.value||item.id===filter.value));list.replaceChildren(...cards.map(card=>renderCardRow(card,false,kind==='rss')));
+    const cards=adminCards.filter(item=>item.type===kind&&(!filter.value||item.id===filter.value));const entries=cards.flatMap(card=>(card.entries||[]).map(entry=>({card,entry})));document.querySelector(`#${countId}`).textContent=entries.length;
+    list.replaceChildren(...entries.map(({card,entry})=>{const wrap=document.createElement('section');wrap.className='source-entry-card';if(!filter.value){const heading=document.createElement('h3');heading.textContent=card.display_title||card.title;wrap.append(heading)}wrap.append(renderEntryRow(card,entry));return wrap}));
+    const select=document.querySelector(`#${formId} [name="card"]`);if(select){const selected=select.value;select.replaceChildren(...adminCards.filter(item=>item.type===kind).map(card=>new Option(card.display_title||card.title,card.id)));if([...select.options].some(option=>option.value===selected))select.value=selected}
   }
-  fillCardFilter('document-card-filter','subject');fillCardFilter('zim-card-filter','subject');
-  refreshSubjectSelects();applyContentCardFilters();
+  fillCardFilter('document-card-filter','subject');fillCardFilter('zim-card-filter','subject');refreshSubjectSelects();applyContentCardFilters();
 }
+for(const [kind,formId]of [['online','online-source-entry-form'],['rss','rss-entry-form']]){const form=document.querySelector(`#${formId}`);form?.addEventListener('submit',async event=>{event.preventDefault();const card=adminCards.find(item=>item.id===form.elements.card.value);if(!card){alert(`Create a ${kind==='rss'?'RSS':'online source'} card first.`);return}const title=form.elements.title.value.trim();const body={id:uniqueEntryId(card,title),title,url:form.elements.url.value.trim()};if(kind==='online')body.description=form.elements.description.value.trim();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await persistEntry(card,null,body,'POST');form.reset()}catch(error){alert(error.message)}finally{button.disabled=false}})}
 function refreshSubjectSelects(){
   const subjects=adminCards.filter(card=>card.type==='subject');
   document.querySelectorAll('#zim-form [name="subject"],#item-form [name="subject"],#zim-editor-form [name="subject"],#preferences-form [name="always_show_subjects"]').forEach(select=>{
@@ -1316,12 +1283,11 @@ function refreshSubjectSelects(){
   const always=document.querySelector('.always-show-subjects');if(always){const selected=new Set([...always.querySelectorAll('input:checked')].map(input=>input.value));always.replaceChildren();for(const card of subjects){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.name='always_show_subjects';input.value=card.id;input.checked=selected.has(card.id);label.append(input,document.createTextNode(` ${card.display_title||card.title}`));always.append(label)}}
 }
 async function refreshCards(){const result=await requestJson('/api/admin/cards');adminCards=result.cards;renderCards()}
-async function saveCard(card){return requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(card)})}
 cardForm?.addEventListener('submit',async event=>{event.preventDefault();const button=cardForm.querySelector('[type="submit"]');button.disabled=true;try{const card=cardPayloadFromForm();const editing=Boolean(cardForm.elements.id.value);const path=editing?`/api/admin/cards/${encodeURIComponent(card.id)}`:'/api/admin/cards';const saved=await requestJson(path,{method:editing?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(card)});resetCardForm();await refreshCards();cardStatus.textContent='Card saved.'}catch(error){cardStatus.textContent=error.message}finally{button.disabled=false}});
 cardForm?.elements.type.addEventListener('change',updateCardFormVisibility);
 cardForm?.querySelector('#card-cancel').addEventListener('click',resetCardForm);
 updateCardFormVisibility();
-for(const id of ['online-source-card-filter','rss-card-filter','document-card-filter','zim-card-filter'])document.querySelector(`#${id}`)?.addEventListener('change',applyContentCardFilters);
+for(const id of ['document-card-filter','zim-card-filter'])document.querySelector(`#${id}`)?.addEventListener('change',applyContentCardFilters);
 document.querySelector('#online-source-card-filter')?.addEventListener('change',renderCards);document.querySelector('#rss-card-filter')?.addEventListener('change',renderCards);
 document.querySelector('#documents-list')&&new MutationObserver(applyContentCardFilters).observe(document.querySelector('#documents-list'),{childList:true});
 document.querySelector('#zim-list')&&new MutationObserver(()=>{const rows=document.querySelectorAll('#zim-list>.item-row').length;document.querySelector('#zim-count').textContent=rows;applyContentCardFilters()}).observe(document.querySelector('#zim-list'),{childList:true});

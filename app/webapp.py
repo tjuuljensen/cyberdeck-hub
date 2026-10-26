@@ -4086,6 +4086,93 @@ def admin_card_update(card_id):
     return jsonify(card=card)
 
 
+@app.post('/api/admin/cards/<card_id>/entries')
+@admin_required
+@csrf_required
+def admin_card_entry_create(card_id):
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error='Entry details must be a JSON object'), 400
+    try:
+        g.db.execute('BEGIN IMMEDIATE')
+        cards = _admin_card_records()
+        card = next((item for item in cards if item['id'] == card_id), None)
+        if not card or card['type'] == 'subject':
+            g.db.rollback()
+            return jsonify(error='Online source or RSS card not found'), 404
+        entry = {'id': body.get('id'), 'title': body.get('title'), 'url': body.get('url')}
+        if card['type'] == 'online':
+            entry['description'] = body.get('description', '')
+        else:
+            entry['enabled'] = body.get('enabled', True)
+        card['entries'] = [*card['entries'], entry]
+        _persist_card_collections(cards)
+        g.db.commit()
+        if card['type'] == 'rss':
+            with _police_rss_state_lock:
+                _police_rss_cache.clear()
+    except (ValueError, sqlite3.IntegrityError) as error:
+        g.db.rollback()
+        return jsonify(error=str(error) or 'Could not add entry'), 400
+    return jsonify(card=next(item for item in _admin_card_records() if item['id'] == card_id)), 201
+
+
+@app.put('/api/admin/cards/<card_id>/entries/<entry_id>')
+@admin_required
+@csrf_required
+def admin_card_entry_update(card_id, entry_id):
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error='Entry details must be a JSON object'), 400
+    try:
+        g.db.execute('BEGIN IMMEDIATE')
+        cards = _admin_card_records()
+        card = next((item for item in cards if item['id'] == card_id), None)
+        entry = next((item for item in card['entries'] if item['id'] == entry_id), None) if card else None
+        if not card or card['type'] == 'subject' or not entry:
+            g.db.rollback()
+            return jsonify(error='Card entry not found'), 404
+        for key in ('title', 'url'):
+            if key in body:
+                entry[key] = body[key]
+        if card['type'] == 'online' and 'description' in body:
+            entry['description'] = body['description']
+        if card['type'] == 'rss' and 'enabled' in body:
+            entry['enabled'] = body['enabled']
+        _persist_card_collections(cards)
+        g.db.commit()
+        if card['type'] == 'rss':
+            with _police_rss_state_lock:
+                _police_rss_cache.clear()
+    except (ValueError, sqlite3.IntegrityError) as error:
+        g.db.rollback()
+        return jsonify(error=str(error) or 'Could not save entry'), 400
+    return jsonify(card=next(item for item in _admin_card_records() if item['id'] == card_id))
+
+
+@app.delete('/api/admin/cards/<card_id>/entries/<entry_id>')
+@admin_required
+@csrf_required
+def admin_card_entry_remove(card_id, entry_id):
+    try:
+        g.db.execute('BEGIN IMMEDIATE')
+        cards = _admin_card_records()
+        card = next((item for item in cards if item['id'] == card_id), None)
+        if not card or card['type'] == 'subject' or not any(item['id'] == entry_id for item in card['entries']):
+            g.db.rollback()
+            return jsonify(error='Card entry not found'), 404
+        card['entries'] = [item for item in card['entries'] if item['id'] != entry_id]
+        _persist_card_collections(cards)
+        g.db.commit()
+        if card['type'] == 'rss':
+            with _police_rss_state_lock:
+                _police_rss_cache.clear()
+    except (ValueError, sqlite3.IntegrityError) as error:
+        g.db.rollback()
+        return jsonify(error=str(error) or 'Could not remove entry'), 400
+    return jsonify(card=next(item for item in _admin_card_records() if item['id'] == card_id))
+
+
 @app.delete('/api/admin/cards/<card_id>')
 @admin_required
 @csrf_required

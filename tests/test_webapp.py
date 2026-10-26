@@ -1674,6 +1674,37 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(changed.status_code, 200)
         self.assertEqual(changed.get_json()['card']['type'], 'subject')
 
+    def test_card_entry_admin_api_adds_edits_toggles_and_removes_entries(self):
+        headers = {'X-CSRF-Token': self.csrf, 'Content-Type': 'application/json'}
+        created = self.client.post('/api/admin/cards', json={'id': 'police-update', 'type': 'rss',
+            'title': 'Police Update', 'description': '', 'entries': []}, headers=headers,
+            base_url='https://localhost')
+        self.assertEqual(created.status_code, 201)
+        added = self.client.post('/api/admin/cards/police-update/entries', json={
+            'id': 'national-police', 'title': 'National Police',
+            'url': 'https://feeds.example.org/police.xml'}, headers=headers,
+            base_url='https://localhost')
+        self.assertEqual(added.status_code, 201)
+        self.assertTrue(added.get_json()['card']['entries'][0]['enabled'])
+        locked = self.client.put('/api/admin/cards/police-update', json={'type': 'online',
+            'title': 'Police Update', 'description': '', 'translations': {},
+            'offline_display': 'hide'}, headers=headers, base_url='https://localhost')
+        self.assertEqual(locked.status_code, 409)
+        disabled = self.client.put('/api/admin/cards/police-update/entries/national-police',
+            json={'enabled': False}, headers=headers, base_url='https://localhost')
+        self.assertEqual(disabled.status_code, 200)
+        self.assertFalse(disabled.get_json()['card']['entries'][0]['enabled'])
+        removed = self.client.delete('/api/admin/cards/police-update/entries/national-police',
+            headers=headers, base_url='https://localhost')
+        self.assertEqual(removed.status_code, 200)
+        self.assertEqual(removed.get_json()['card']['entries'], [])
+
+    def test_police_update_card_page_includes_feed_details(self):
+        response = self.client.get('/rss/danish-police', base_url='https://localhost')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-rss-feed', response.data)
+        self.assertIn(b'value="national-police"', response.data)
+
     def test_card_configuration_import_defaults_and_preserves_translations_and_feed_state(self):
         config = {'format': 'cyberdeck-config', 'version': 1, 'name': 'Cards',
                   'assets': [], 'offline_catalogues': [], 'subjects': [],
