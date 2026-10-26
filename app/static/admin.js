@@ -673,6 +673,8 @@ function renderApprovedStorageLocations(){
   }
   target.replaceChildren(...(rows.length?rows:[document.createTextNode(t('ui.0658'))]));
   const current=document.querySelector('#storage-data-location');
+  const partition=document.querySelector('#storage-config-partition');
+  if(partition){const filesystem=info.filesystems?.find(item=>item.mount===info.data_filesystem_mount);partition.textContent=filesystem?.device||info.data_filesystem_mount||t('ui.0233')}
   if(current){
     const filesystem=info.filesystems?.find(item=>item.mount===info.data_filesystem_mount);
     current.textContent=t('ui.0652',{path:info.data_root,mount:info.data_filesystem_mount||t('ui.0233'),
@@ -1066,6 +1068,15 @@ document.querySelector('#preferences-form').addEventListener('submit',async even
     accentStatus.textContent='Site preferences saved.';
   }catch(error){accentStatus.textContent=t('ui.0444',{error:error.message});alert(error.message)}
 });
+const hotspotModuleToggle=document.querySelector('#hotspot-module-enabled');
+if(hotspotModuleToggle){
+  hotspotModuleToggle.addEventListener('change',async()=>{
+    const enabled=hotspotModuleToggle.checked;const status=document.querySelector('#hotspot-module-status');
+    hotspotModuleToggle.disabled=true;status.textContent=enabled?'Enabling Hotspot module…':'Disabling Hotspot module…';
+    try{await requestJson('/api/admin/modules',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({hotspot_enabled:enabled})});window.location.reload()}
+    catch(error){hotspotModuleToggle.checked=!enabled;status.textContent=error.message;hotspotModuleToggle.disabled=false}
+  });
+}
 if(document.querySelector('#hotspot')){
 document.querySelectorAll('[data-hotspot]').forEach(button=>button.addEventListener('click',async()=>{try{await requestJson('/api/admin/hotspot',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:button.dataset.hotspot})});if(button.dataset.hotspot==='stop')hotspotConfigLoaded=false;await Promise.all([hotspotStatus(),refreshSystemOverview()])}catch(error){alert(error.message)}}));
 document.querySelector('#hotspot-form').addEventListener('submit',async event=>{event.preventDefault();const formElement=event.currentTarget;const form=new FormData(formElement);try{await requestJson('/api/admin/hotspot',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:'configure',device:form.get('device'),ssid:form.get('ssid'),password:form.get('password'),upstream_ssids:String(form.get('upstream_ssids')||'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean),redundancy_minutes:Number(form.get('redundancy_minutes')),autostart:form.has('autostart')})});formElement.elements.password.value='';hotspotConfigLoaded=false;hotspotPasswordLoaded=false;await hotspotStatus();alert('Hotspot profile saved.')}catch(error){alert(error.message)}});
@@ -1224,23 +1235,26 @@ setInterval(()=>refreshHostname().catch(()=>{}),5000);
 const cardForm=document.querySelector('#card-form');
 const cardStatus=document.querySelector('#card-status');
 const cardType=cardForm?.elements.type;
+const cardLanguage=cardForm?.dataset.language||'en';
 function cardPayloadFromForm(){
   const type=cardType.value;const title=cardForm.elements.title.value.trim();
-  const translations={};
-  for(const code of ['en','da']){const translation={title:cardForm.elements[`translation_title_${code}`]?.value.trim()||'',description:cardForm.elements[`translation_description_${code}`]?.value.trim()||''};if(translation.title||translation.description)translations[code]=translation}
   let id=cardForm.elements.id.value||cardForm.elements.card_id.value.trim()||slugify(title);if(!id)throw new Error('Add a valid card ID.');if(!cardForm.elements.id.value){const base=id;let suffix=2;while(adminCards.some(card=>card.id===id))id=`${base.slice(0,60)}-${suffix++}`}
-  return{id,type,title,description:cardForm.elements.description.value.trim(),translations,offline_display:type==='subject'?'hide':cardForm.elements.offline_display.value};
+  const description=cardForm.elements.description.value.trim();const editing=Boolean(cardForm.elements.id.value);const previous=adminCards.find(card=>card.id===id);const changed_fields=editing?['title','description'].filter(field=>cardForm.elements[field].value.trim()!==(field==='title'?previous?.display_title:previous?.display_description)):['title','description'];
+  const payload={id,type,title,description,language:cardLanguage,changed_fields,offline_display:type==='subject'?'hide':cardForm.elements.offline_display.value};
+  const translationLanguage=cardForm.elements.translation_language.value;if(translationLanguage)payload.translation_language=translationLanguage,payload.translation={title:cardForm.elements.translation_title.value.trim(),description:cardForm.elements.translation_description.value.trim()};
+  return payload;
 }
 function slugify(value){return value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64)}
-function resetCardForm(){cardForm.reset();cardForm.elements.id.value='';cardForm.elements.card_id.disabled=false;cardForm.querySelector('#card-cancel').hidden=true;cardForm.querySelector('#card-type-lock-note').hidden=true;cardType.disabled=false;cardStatus.textContent='';updateCardFormVisibility()}
-function updateCardFormVisibility(){const subject=cardType.value==='subject';const titleLimit=subject?80:100;const descriptionLimit=subject?300:500;cardForm.elements.title.maxLength=titleLimit;cardForm.elements.description.maxLength=descriptionLimit;for(const code of ['en','da']){cardForm.elements[`translation_title_${code}`].maxLength=titleLimit;cardForm.elements[`translation_description_${code}`].maxLength=descriptionLimit}cardForm.querySelector('[data-kind="offline"]').hidden=subject}
+function resetCardForm(){cardForm.reset();cardForm.elements.id.value='';cardForm.elements.card_id.disabled=false;cardForm.querySelector('#card-cancel').hidden=true;cardForm.querySelector('#card-type-lock-note').hidden=true;cardType.disabled=false;cardStatus.textContent='';cardForm.elements.translation_language.querySelectorAll('option').forEach(option=>option.disabled=false);updateCardFormVisibility()}
+function updateCardFormVisibility(){const subject=cardType.value==='subject';const titleLimit=subject?80:100;const descriptionLimit=subject?300:500;cardForm.elements.title.maxLength=titleLimit;cardForm.elements.description.maxLength=descriptionLimit;cardForm.elements.translation_title.maxLength=titleLimit;cardForm.elements.translation_description.maxLength=descriptionLimit;cardForm.querySelector('[data-kind="offline"]').hidden=subject}
 function beginCardEdit(card){
   cardForm.elements.id.value=card.id;cardForm.elements.card_id.value=card.id;cardForm.elements.card_id.disabled=true;cardType.value=card.type;cardType.disabled=Boolean(card.child_count);
-  cardForm.elements.title.value=card.title;cardForm.elements.description.value=card.description||'';cardForm.elements.offline_display.value=card.offline_display||'hide';
-  for(const code of ['en','da']){const translation=card.translations?.[code]||{};cardForm.elements[`translation_title_${code}`].value=translation.title||'';cardForm.elements[`translation_description_${code}`].value=translation.description||''}
-  const translated=Object.values(card.translations||{}).some(value=>value.title||value.description);cardForm.querySelector('.card-translations').open=translated;
+  cardForm.elements.title.value=card.display_title||card.title;cardForm.elements.description.value=card.display_description||card.description||'';cardForm.dataset.initialTitle=cardForm.elements.title.value;cardForm.dataset.initialDescription=cardForm.elements.description.value;cardForm.elements.offline_display.value=card.offline_display||'hide';
+  const translationSelect=cardForm.elements.translation_language;translationSelect.value='';cardForm.elements.translation_title.value='';cardForm.elements.translation_description.value='';cardForm.querySelector('.card-translations').open=false;
+  translationSelect.querySelectorAll('option').forEach(option=>{option.disabled=option.value===card.source_language});
   cardForm.querySelector('#card-cancel').hidden=false;cardForm.querySelector('#card-type-lock-note').hidden=!card.child_count;updateCardFormVisibility();cardForm.scrollIntoView({behavior:'smooth',block:'center'});
 }
+cardForm?.elements.translation_language.addEventListener('change',()=>{const card=adminCards.find(item=>item.id===cardForm.elements.id.value);const language=cardForm.elements.translation_language.value;const translation=card?.translations?.[language]||{};cardForm.elements.translation_title.value=translation.title||'';cardForm.elements.translation_description.value=translation.description||'';cardForm.elements.translation_title.placeholder=translation.title?'':'Uses original-language title';cardForm.elements.translation_description.placeholder=translation.description?'':'Uses original-language description'});
 function renderCardRow(card){
   const row=document.createElement('div');row.className='item-row card-definition-row';const label=document.createElement('span');label.textContent=`${card.display_title||card.title} · ${card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources'} · ${card.child_count} connected`;row.append(label);
   const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
@@ -1256,11 +1270,23 @@ function appendEntryFormFields(form,card,entry=null){
   if(card.type==='online'){const description=document.createElement('textarea');description.name='description';description.maxLength=300;description.rows=2;description.value=entry?.description||'';form.append(Object.assign(document.createElement('label'),{textContent:'Description'}));form.lastChild.append(description)}
 }
 async function persistEntry(card,entryId,body,method){const suffix=entryId?`/${encodeURIComponent(entryId)}`:'';await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}/entries${suffix}`,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});await refreshCards()}
+const sourceEntryDialog=document.querySelector('#source-entry-editor');
+const sourceEntryForm=document.querySelector('#source-entry-editor-form');
+function beginEntryEdit(card,entry){
+  const form=sourceEntryForm;form.reset();form.elements.entry_id.value=entry.id;form.elements.original_card_id.value=card.id;
+  const cardSelect=form.elements.card_id;cardSelect.replaceChildren(...adminCards.filter(item=>item.type===card.type).map(item=>new Option(item.display_title||item.title,item.id)));cardSelect.value=card.id;
+  form.elements.title.value=entry.title;form.elements.url.value=entry.url;form.elements.description.value=entry.description||'';form.elements.enabled.checked=entry.enabled!==false;
+  form.querySelector('[data-entry-kind="online"]').hidden=card.type!=='online';form.querySelector('[data-entry-kind="rss"]').hidden=card.type!=='rss';
+  document.querySelector('#source-entry-editor-kind').textContent=card.type==='rss'?'RSS FEED':'ONLINE SOURCE';document.querySelector('#source-entry-editor-heading').textContent=card.type==='rss'?'Edit RSS feed':'Edit online source';document.querySelector('#source-entry-editor-note').textContent='Changes apply to this entry. Choose a Card to move it within the same type.';document.querySelector('#source-entry-editor-error').hidden=true;sourceEntryDialog.showModal();
+}
+document.querySelector('#source-entry-editor-cancel')?.addEventListener('click',()=>sourceEntryDialog.close());
+sourceEntryDialog?.addEventListener('click',event=>{if(event.target===sourceEntryDialog)sourceEntryDialog.close()});
+sourceEntryForm?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const card=adminCards.find(item=>item.id===form.elements.original_card_id.value);if(!card)return;const body={card_id:form.elements.card_id.value,title:form.elements.title.value.trim(),url:form.elements.url.value.trim()};if(card.type==='online')body.description=form.elements.description.value.trim();else body.enabled=form.elements.enabled.checked;const button=form.querySelector('[type="submit"]');const error=document.querySelector('#source-entry-editor-error');button.disabled=true;error.hidden=true;try{await persistEntry(card,form.elements.entry_id.value,body,'PUT');sourceEntryDialog.close()}catch(failure){error.textContent=failure.message;error.hidden=false}finally{button.disabled=false}});
 function renderEntryRow(card,entry){
   const row=document.createElement('div');row.className='item-row source-entry-row';
   if(card.type==='rss'){const label=document.createElement('label');label.className='check';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=entry.enabled!==false;checkbox.setAttribute('aria-label',`Enable ${entry.title}`);checkbox.onchange=async()=>{checkbox.disabled=true;try{await persistEntry(card,entry.id,{enabled:checkbox.checked},'PUT')}catch(error){checkbox.checked=!checkbox.checked;alert(error.message)}finally{checkbox.disabled=false}};label.append(checkbox,document.createTextNode(' Enabled'));row.append(label)}
   const main=document.createElement('div');main.className='source-entry-details';const title=document.createElement('strong');title.textContent=entry.title;const url=document.createElement('span');url.className='subtle';url.textContent=entry.url;main.append(title,url);if(entry.description){const desc=document.createElement('span');desc.textContent=entry.description;main.append(desc)}row.append(main);
-  const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>{const form=document.createElement('form');form.className='stack source-entry-edit';appendEntryFormFields(form,card,entry);const save=document.createElement('button');save.className='button primary';save.textContent='Save';save.type='submit';const cancel=document.createElement('button');cancel.className='button';cancel.textContent='Cancel';cancel.type='button';cancel.onclick=renderCards;form.append(save,cancel);form.addEventListener('submit',async event=>{event.preventDefault();save.disabled=true;const body={title:form.elements.title.value.trim(),url:form.elements.url.value.trim()};if(card.type==='online')body.description=form.elements.description.value.trim();try{await persistEntry(card,entry.id,body,'PUT')}catch(error){alert(error.message);save.disabled=false}});main.replaceChildren(form)};actions.append(edit);
+  const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginEntryEdit(card,entry);actions.append(edit);
   const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Delete';remove.onclick=async()=>{if(!confirm(`Delete “${entry.title}”?`))return;remove.disabled=true;try{await persistEntry(card,entry.id,{},'DELETE')}catch(error){alert(error.message);remove.disabled=false}};actions.append(remove);row.append(actions);return row;
 }
 function renderCards(){

@@ -18,6 +18,7 @@ class HotspotHelperTests(unittest.TestCase):
         self.upstreams = Path(self.temp.name) / 'upstreams.json'
         self.redundancy = Path(self.temp.name) / 'redundancy-minutes'
         self.fallback_state = Path(self.temp.name) / 'hotspot-fallback.json'
+        self.module_disabled = Path(self.temp.name) / 'hotspot-module-disabled'
         self.profile_patcher = patch.object(helper, 'PROFILE', self.profile)
         self.profile_patcher.start()
         self.upstreams_patcher = patch.object(helper, 'UPSTREAMS', self.upstreams)
@@ -26,12 +27,15 @@ class HotspotHelperTests(unittest.TestCase):
         self.redundancy_patcher.start()
         self.fallback_state_patcher = patch.object(helper, 'FALLBACK_STATE', self.fallback_state)
         self.fallback_state_patcher.start()
+        self.module_disabled_patcher = patch.object(helper, 'HOTSPOT_MODULE_DISABLED', self.module_disabled)
+        self.module_disabled_patcher.start()
 
     def tearDown(self):
         self.profile_patcher.stop()
         self.upstreams_patcher.stop()
         self.redundancy_patcher.stop()
         self.fallback_state_patcher.stop()
+        self.module_disabled_patcher.stop()
         self.temp.cleanup()
 
     def test_web_service_sandbox_allows_root_helper_networkmanager_writes(self):
@@ -232,6 +236,24 @@ class HotspotHelperTests(unittest.TestCase):
             result = helper.hotspot_stop()
         self.assertTrue(result['stopped'])
         self.assertTrue(paused.exists())
+
+    def test_hotspot_module_disable_keeps_profile_and_autostart_dormant(self):
+        autostart = Path(self.temp.name) / 'autostart'
+        autostart.touch()
+        self.profile.touch()
+        with patch.object(helper, 'AUTOSTART', autostart), \
+                patch.object(helper, 'run', return_value=SimpleNamespace(returncode=0)):
+            disabled = helper.hotspot_module_set_enabled(False)
+            self.assertTrue(self.module_disabled.exists())
+            self.assertTrue(autostart.exists())
+            self.assertTrue(self.profile.exists())
+            result = helper.hotspot_autostart()
+            self.assertIn('module is disabled', result['reason'])
+            enabled = helper.hotspot_module_set_enabled(True)
+        self.assertFalse(self.module_disabled.exists())
+        self.assertTrue(autostart.exists())
+        self.assertTrue(disabled['stopped'])
+        self.assertTrue(enabled['enabled'])
 
     def test_only_configured_and_saved_wifi_networks_count_as_upstreams(self):
         responses = [

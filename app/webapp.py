@@ -49,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.11'
+APP_VERSION = '0.2.0-beta.12'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -305,6 +305,10 @@ def _validate_card_list(cards, kind):
             raise ValueError(f'Invalid or duplicate {kind} card definition')
         seen_cards.add(card_id)
         normalized = {'id': card_id, 'title': title.strip(), 'description': description.strip()}
+        source_language = card.get('source_language', 'en')
+        if not isinstance(source_language, str) or source_language not in SUPPORTED_LANGUAGES:
+            raise ValueError('Card source language must be supported')
+        normalized['source_language'] = source_language
         field = 'links' if kind == 'online source' else 'feeds'
         entries = card.get(field)
         if not isinstance(entries, list) or len(entries) > 100:
@@ -378,6 +382,28 @@ def configured_online_source_cards():
 
 def configured_rss_cards():
     return _configured_card_list('rss_cards', DEFAULT_RSS_CARDS, 'RSS')
+
+
+def restore_empty_default_police_feeds(cards):
+    """Repair the original built-in Police card once if a prior edit erased its feeds."""
+    was_in_transaction = getattr(g.db, 'in_transaction', False)
+    marker = g.db.execute("SELECT value FROM site_setting WHERE key='police_rss_feeds_restored'").fetchone()
+    if marker:
+        return cards
+    default = next((card for card in DEFAULT_RSS_CARDS if card['id'] == 'danish-police'), None)
+    existing = next((card for card in cards if card['id'] == 'danish-police'), None)
+    if existing and not existing['feeds'] and default:
+        existing['feeds'] = json.loads(json.dumps(default['feeds']))
+        cards = _validate_card_list(cards, 'RSS')
+        g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                     'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                     ('rss_cards', json.dumps(cards, ensure_ascii=False)))
+    g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                 'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                 ('police_rss_feeds_restored', '1'))
+    if not was_in_transaction:
+        g.db.commit()
+    return cards
 
 
 def _localized_text(title, description, translations=None):
@@ -693,6 +719,13 @@ def site_preferences():
             'always_show_subjects': always_show}
 
 
+def hotspot_module_enabled():
+    if not capability_available('hotspot'):
+        return False
+    row = g.db.execute("SELECT value FROM site_setting WHERE key='hotspot_module_enabled'").fetchone()
+    return row is None or row['value'] == 'true'
+
+
 def connect_db():
     PRIVATE_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     if DB_PATH.is_symlink():
@@ -724,7 +757,8 @@ def connect_db():
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='library_subject'").fetchone()
     db.execute('''CREATE TABLE IF NOT EXISTS library_subject (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
-        display_order INTEGER NOT NULL, translations TEXT NOT NULL DEFAULT '{}')''')
+        display_order INTEGER NOT NULL, translations TEXT NOT NULL DEFAULT '{}',
+        source_language TEXT NOT NULL DEFAULT 'en')''')
     if not subject_table_exists:
         db.executemany('INSERT INTO library_subject(id,title,description,display_order) VALUES(?,?,?,?)',
                        [(slug, title, description, order)
@@ -732,6 +766,8 @@ def connect_db():
     subject_columns = {row['name'] for row in db.execute('PRAGMA table_info(library_subject)')}
     if 'translations' not in subject_columns:
         db.execute("ALTER TABLE library_subject ADD COLUMN translations TEXT NOT NULL DEFAULT '{}'")
+    if 'source_language' not in subject_columns:
+        db.execute("ALTER TABLE library_subject ADD COLUMN source_language TEXT NOT NULL DEFAULT 'en'")
     db.execute('''CREATE TABLE IF NOT EXISTS archive_metadata (
         filename TEXT PRIMARY KEY, title TEXT NOT NULL, search_terms TEXT NOT NULL DEFAULT '',
         subject TEXT NOT NULL REFERENCES library_subject(id) ON DELETE CASCADE)''')
@@ -1158,7 +1194,7 @@ def online_source_page(card_id):
 
 @app.get('/rss/<card_id>')
 def rss_card_page(card_id):
-    cards = configured_rss_cards()
+    cards = restore_empty_default_police_feeds(configured_rss_cards())
     card = next((item for item in cards if item['id'] == card_id), None)
     if not card:
         abort(404)
@@ -1600,7 +1636,7 @@ def build_export_config(name, selected, include_settings):
         raise ValueError('Two selected sources use the same destination filename; select only one.')
     config['subjects'] = []
     for row in g.db.execute(
-            'SELECT id,title,description,display_order,translations FROM library_subject ORDER BY display_order,id'):
+            'SELECT id,title,description,display_order,translations,source_language FROM library_subject ORDER BY display_order,id'):
         subject = dict(row)
         subject['translations'] = json.loads(subject.pop('translations') or '{}')
         config['subjects'].append(subject)
@@ -1895,6 +1931,8 @@ def _validate_import_config(config):
         if (not isinstance(subject, dict) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', str(subject.get('id', ''))) or
                 not isinstance(subject.get('title'), str) or not 1 <= len(subject['title']) <= 80 or
                 not isinstance(subject.get('description', ''), str) or len(subject.get('description', '')) > 300 or
+                not isinstance(subject.get('source_language', 'en'), str) or
+                subject.get('source_language', 'en') not in SUPPORTED_LANGUAGES or
                 not isinstance(translations, dict) or any(code not in SUPPORTED_LANGUAGES for code in translations) or
                 any(not isinstance(value, dict) or not isinstance(value.get('title', ''), str) or
                     len(value.get('title', '')) > 80 or not isinstance(value.get('description', ''), str) or
@@ -2424,11 +2462,12 @@ def _apply_settings_only_import(stage_root, ticket, body):
         g.db.execute('INSERT INTO import_transaction(id) VALUES(?)', (ticket['id'],))
 
         for order, subject in enumerate(incoming):
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?) '
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?) '
                          'ON CONFLICT(id) DO UPDATE SET title=excluded.title, '
-                         'description=excluded.description,display_order=excluded.display_order,translations=excluded.translations',
+                         'description=excluded.description,display_order=excluded.display_order,translations=excluded.translations,source_language=excluded.source_language',
                          (subject['id'], subject['title'], subject['description'], order,
-                          json.dumps(subject.get('translations', {}), ensure_ascii=False)))
+                          json.dumps(subject.get('translations', {}), ensure_ascii=False),
+                          subject.get('source_language', 'en')))
         if not remove_omitted:
             for offset, subject in enumerate(plan['omitted'], start=len(incoming)):
                 g.db.execute('UPDATE library_subject SET display_order=? WHERE id=?',
@@ -3017,9 +3056,10 @@ def import_apply():
                 target_id = resolved[source_id]
                 if mapping[source_id] == '__create__':
                     order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
-                    g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?)',
+                    g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?)',
                                  (target_id, source['title'], source.get('description', ''), order,
-                                  json.dumps(source.get('translations', {}), ensure_ascii=False)))
+                                  json.dumps(source.get('translations', {}), ensure_ascii=False),
+                                  source.get('source_language', 'en')))
                     current[target_id] = source
             for path, metadata, _size, _html_bytes in catalogue_plans:
                 entry = metadata['entry']
@@ -3550,7 +3590,8 @@ def logout():
 def admin_page():
     return render_template('admin.html', csrf=session['csrf'], username=session['admin'],
                            config_subjects=get_subjects(), preferences=site_preferences(),
-                           time_zones=timezone_choices(), card_languages=SUPPORTED_LANGUAGES)
+                           time_zones=timezone_choices(), card_languages=SUPPORTED_LANGUAGES,
+                           hotspot_module_enabled=hotspot_module_enabled())
 
 
 def _system_mount_usage():
@@ -3934,11 +3975,12 @@ def admin_storage_action():
 
 def _admin_card_records():
     cards = []
-    for row in g.db.execute('SELECT id,title,description,translations FROM library_subject ORDER BY display_order,id'):
+    for row in g.db.execute('SELECT id,title,description,translations,source_language FROM library_subject ORDER BY display_order,id'):
         count = subject_assigned_count(row['id'])
         cards.append({'id': row['id'], 'type': 'subject', 'title': row['title'],
                       'description': row['description'],
                       'translations': json.loads(row['translations'] or '{}'),
+                      'source_language': row['source_language'],
                       'entries': [], 'child_count': count if count is not None else 1,
                       'offline_display': 'hide',
                       **_localized_text(row['title'], row['description'],
@@ -3955,6 +3997,7 @@ def _admin_card_records():
 def _validate_card_metadata(card):
     card_id, kind = card.get('id'), card.get('type')
     title, description = card.get('title'), card.get('description', '')
+    source_language = card.get('source_language', current_language())
     max_title, max_description = (80, 300) if kind == 'subject' else (100, 500)
     translations = card.get('translations', {})
     if (not isinstance(card_id, str) or len(card_id) > 64 or
@@ -3962,6 +4005,7 @@ def _validate_card_metadata(card):
             not isinstance(kind, str) or kind not in {'subject', 'online', 'rss'} or not isinstance(title, str) or
             not 1 <= len(title.strip()) <= max_title or not isinstance(description, str) or
             len(description) > max_description or any(ord(char) < 32 and char not in '\n\t' for char in title + description) or
+            not isinstance(source_language, str) or source_language not in SUPPORTED_LANGUAGES or
             not isinstance(translations, dict) or
             any(code not in SUPPORTED_LANGUAGES for code in translations)):
         raise ValueError('Card details are invalid')
@@ -3977,7 +4021,69 @@ def _validate_card_metadata(card):
         normalized_translations[code] = {'title': value.get('title', '').strip(),
                                          'description': value.get('description', '').strip()}
     return {'id': card_id, 'type': kind, 'title': title.strip(),
-            'description': description.strip(), 'translations': normalized_translations}
+            'description': description.strip(), 'source_language': source_language,
+            'translations': normalized_translations}
+
+
+def _merge_card_locale_edit(body, previous=None):
+    """Apply edits to the active locale while preserving every other locale."""
+    language = body.get('language', previous.get('source_language', 'en') if previous else current_language())
+    if not isinstance(language, str) or language not in SUPPORTED_LANGUAGES:
+        raise ValueError('Choose a supported card language')
+    if previous is None:
+        result = dict(body)
+        result['source_language'] = language
+        translations = dict(result.get('translations') or {})
+    else:
+        result = {**previous, **body}
+        result['title'] = previous['title']
+        result['description'] = previous.get('description', '')
+        result['source_language'] = previous.get('source_language', 'en')
+        translations = dict(previous.get('translations') or {})
+        if 'translations' in body:
+            if not isinstance(body['translations'], dict):
+                raise ValueError('Card translations are invalid')
+            translations = dict(body['translations'])
+        changed = body.get('changed_fields', ['title', 'description'])
+        if not isinstance(changed, list) or any(field not in {'title', 'description'} for field in changed):
+            raise ValueError('Card language changes are invalid')
+        if language == result['source_language']:
+            for field in changed:
+                result[field] = body.get(field, result[field])
+        elif changed:
+            locale = dict(translations.get(language) or {})
+            for field in changed:
+                value = body.get(field, '')
+                if value:
+                    locale[field] = value
+                else:
+                    locale.pop(field, None)
+            if locale:
+                translations[language] = locale
+            else:
+                translations.pop(language, None)
+    target_language = body.get('translation_language')
+    if target_language:
+        if not isinstance(target_language, str) or target_language not in SUPPORTED_LANGUAGES or target_language == language:
+            raise ValueError('Choose another supported language for the translation')
+        value = body.get('translation')
+        if not isinstance(value, dict):
+            raise ValueError('Translation details are invalid')
+        locale = dict(translations.get(target_language) or {})
+        for field in ('title', 'description'):
+            text = value.get(field, '')
+            if not isinstance(text, str):
+                raise ValueError('Translation details are invalid')
+            if text.strip():
+                locale[field] = text.strip()
+            else:
+                locale.pop(field, None)
+        if locale:
+            translations[target_language] = locale
+        else:
+            translations.pop(target_language, None)
+    result['translations'] = translations
+    return result
 
 
 def _persist_card_collections(cards):
@@ -3990,6 +4096,7 @@ def _persist_card_collections(cards):
             field = 'links' if kind == 'online' else 'feeds'
             values.append({'id': card['id'], 'title': card['title'],
                            'description': card['description'], 'translations': card['translations'],
+                           'source_language': card['source_language'],
                            'offline_display': card.get('offline_display', 'hide'), field: card.get('entries', [])})
         validated = _validate_card_list(values, label)
         g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
@@ -4000,6 +4107,7 @@ def _persist_card_collections(cards):
 @app.get('/api/admin/cards')
 @admin_required
 def admin_cards_list():
+    restore_empty_default_police_feeds(configured_rss_cards())
     return jsonify(cards=_admin_card_records(), languages=SUPPORTED_LANGUAGES)
 
 
@@ -4012,7 +4120,7 @@ def admin_card_create():
     body = request.get_json(silent=True)
     try:
         g.db.execute('BEGIN IMMEDIATE')
-        card = _validate_card_metadata(body if isinstance(body, dict) else {})
+        card = _validate_card_metadata(_merge_card_locale_edit(body if isinstance(body, dict) else {}))
         if any(existing['id'] == card['id'] for existing in _admin_card_records()):
             return jsonify(error='That card ID already exists'), 409
         card['entries'] = body.get('entries', [])
@@ -4020,9 +4128,9 @@ def admin_card_create():
         _persist_card_collections([*_admin_card_records(), card])
         if card['type'] == 'subject':
             order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?)',
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?)',
                          (card['id'], card['title'], card['description'], order,
-                          json.dumps(card['translations'], ensure_ascii=False)))
+                          json.dumps(card['translations'], ensure_ascii=False), card['source_language']))
         g.db.commit()
     except (ValueError, sqlite3.IntegrityError) as error:
         g.db.rollback()
@@ -4046,7 +4154,7 @@ def admin_card_update(card_id):
         if not previous:
             g.db.rollback()
             return jsonify(error='Card not found'), 404
-        card = _validate_card_metadata({**body, 'id': card_id})
+        card = _validate_card_metadata(_merge_card_locale_edit({**body, 'id': card_id}, previous))
         card['entries'] = body.get('entries', previous.get('entries', []))
         card['offline_display'] = body.get('offline_display', previous.get('offline_display', 'hide'))
         type_changed = card['type'] != previous['type']
@@ -4068,12 +4176,13 @@ def admin_card_update(card_id):
                                                               if value != card_id])))
         if type_changed and card['type'] == 'subject':
             order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations) VALUES(?,?,?,?,?)',
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?)',
                          (card_id, card['title'], card['description'], order,
-                          json.dumps(card['translations'], ensure_ascii=False)))
+                          json.dumps(card['translations'], ensure_ascii=False), card['source_language']))
         elif card['type'] == 'subject':
-            g.db.execute('UPDATE library_subject SET title=?,description=?,translations=? WHERE id=?',
-                         (card['title'], card['description'], json.dumps(card['translations'], ensure_ascii=False), card_id))
+            g.db.execute('UPDATE library_subject SET title=?,description=?,translations=?,source_language=? WHERE id=?',
+                         (card['title'], card['description'], json.dumps(card['translations'], ensure_ascii=False),
+                          card['source_language'], card_id))
         next_cards = [item for item in existing_cards if item['id'] != card_id] + [card]
         _persist_card_collections(next_cards)
         g.db.commit()
@@ -4132,22 +4241,33 @@ def admin_card_entry_update(card_id, entry_id):
         if not card or card['type'] == 'subject' or not entry:
             g.db.rollback()
             return jsonify(error='Card entry not found'), 404
+        target_card_id = body.get('card_id', card_id)
+        target = next((item for item in cards if item['id'] == target_card_id), None)
+        if not target or target['type'] != card['type']:
+            g.db.rollback()
+            return jsonify(error='Choose a card of the same type'), 400
+        if target is not card:
+            if any(item['id'] == entry_id for item in target['entries']):
+                g.db.rollback()
+                return jsonify(error='That card already has an entry with this ID'), 409
+            card['entries'].remove(entry)
+            target['entries'].append(entry)
         for key in ('title', 'url'):
             if key in body:
                 entry[key] = body[key]
-        if card['type'] == 'online' and 'description' in body:
+        if target['type'] == 'online' and 'description' in body:
             entry['description'] = body['description']
-        if card['type'] == 'rss' and 'enabled' in body:
+        if target['type'] == 'rss' and 'enabled' in body:
             entry['enabled'] = body['enabled']
         _persist_card_collections(cards)
         g.db.commit()
-        if card['type'] == 'rss':
+        if target['type'] == 'rss':
             with _police_rss_state_lock:
                 _police_rss_cache.clear()
     except (ValueError, sqlite3.IntegrityError) as error:
         g.db.rollback()
         return jsonify(error=str(error) or 'Could not save entry'), 400
-    return jsonify(card=next(item for item in _admin_card_records() if item['id'] == card_id))
+    return jsonify(card=next(item for item in _admin_card_records() if item['id'] == target_card_id))
 
 
 @app.delete('/api/admin/cards/<card_id>/entries/<entry_id>')
@@ -5448,10 +5568,39 @@ def restart_kiwix():
                           check=False, capture_output=True, text=True, timeout=30)
 
 
+@app.get('/api/admin/modules')
+@admin_required
+def admin_module_status():
+    return jsonify(hotspot_available=capability_available('hotspot'),
+                   hotspot_enabled=hotspot_module_enabled())
+
+
+@app.put('/api/admin/modules')
+@admin_required
+@csrf_required
+def admin_module_update():
+    if not capability_available('hotspot'):
+        abort(404)
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or type(body.get('hotspot_enabled')) is not bool:
+        return jsonify(error='Hotspot enabled must be true or false'), 400
+    enabled = body['hotspot_enabled']
+    try:
+        helper('hotspot-module-enable' if enabled else 'hotspot-module-disable')
+        g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                     'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                     ('hotspot_module_enabled', 'true' if enabled else 'false'))
+        g.db.commit()
+    except (RuntimeError, OSError, subprocess.SubprocessError, sqlite3.Error) as error:
+        g.db.rollback()
+        return jsonify(error=str(error) or 'Could not change the Hotspot module'), 503
+    return jsonify(hotspot_enabled=enabled)
+
+
 @app.get('/api/admin/hotspot')
 @admin_required
 def hotspot_status():
-    if not capability_available('hotspot'):
+    if not capability_available('hotspot') or not hotspot_module_enabled():
         abort(404)
     try:
         response = jsonify(helper('hotspot-status'))
@@ -5498,7 +5647,7 @@ def hostname_configure():
 @app.get('/api/admin/hotspot/password')
 @admin_required
 def hotspot_password():
-    if not capability_available('hotspot'):
+    if not capability_available('hotspot') or not hotspot_module_enabled():
         abort(404)
     try:
         response = jsonify(helper('hotspot-password'))
@@ -5512,7 +5661,7 @@ def hotspot_password():
 @admin_required
 @csrf_required
 def hotspot_configure():
-    if not capability_available('hotspot'):
+    if not capability_available('hotspot') or not hotspot_module_enabled():
         abort(404)
     body = request.get_json(silent=True) or {}
     action = body.get('action')

@@ -30,6 +30,10 @@ timezone-less values, and falls back to UTC display if a client cannot format
 the configured timezone.
 `0.2.0-beta.11` makes each RSS headline link to its article and aligns the
 publication time on the right side of the same header row.
+`0.2.0-beta.12` records each card's original language, lets administrators edit
+the active language and one selected translation while preserving other
+translations, and includes the language metadata in configuration imports and
+exports.
 
 ## Included scope
 

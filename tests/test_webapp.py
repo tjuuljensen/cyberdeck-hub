@@ -1686,6 +1686,14 @@ class WebAppTests(unittest.TestCase):
             base_url='https://localhost')
         self.assertEqual(added.status_code, 201)
         self.assertTrue(added.get_json()['card']['entries'][0]['enabled'])
+        edited_card = self.client.put('/api/admin/cards/police-update', json={
+            'type': 'rss', 'title': 'Police updates', 'description': 'Current notices',
+            'translations': {'da': {'title': 'Politimeddelelser', 'description': ''}},
+            'offline_display': 'inactive'}, headers=headers, base_url='https://localhost')
+        self.assertEqual(edited_card.status_code, 200)
+        self.assertEqual(edited_card.get_json()['card']['title'], 'Police updates')
+        self.assertEqual(edited_card.get_json()['card']['entries'][0]['id'], 'national-police')
+        self.assertEqual(edited_card.get_json()['card']['translations']['da']['title'], 'Politimeddelelser')
         locked = self.client.put('/api/admin/cards/police-update', json={'type': 'online',
             'title': 'Police Update', 'description': '', 'translations': {},
             'offline_display': 'hide'}, headers=headers, base_url='https://localhost')
@@ -1699,16 +1707,67 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(removed.status_code, 200)
         self.assertEqual(removed.get_json()['card']['entries'], [])
 
+    def test_card_language_edits_save_only_the_active_locale(self):
+        headers = {'X-CSRF-Token': self.csrf, 'Content-Type': 'application/json'}
+        created = self.client.post('/api/admin/cards', json={
+            'id': 'danish-notices', 'type': 'rss', 'title': 'Danske nyheder',
+            'description': 'Dansk beskrivelse', 'language': 'da', 'entries': []},
+            headers=headers, base_url='https://localhost')
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.get_json()['card']['source_language'], 'da')
+
+        unchanged_fallback = self.client.put('/api/admin/cards/danish-notices', json={
+            'type': 'rss', 'title': 'Danske nyheder', 'description': 'Dansk beskrivelse',
+            'language': 'en', 'changed_fields': []}, headers=headers,
+            base_url='https://localhost')
+        self.assertEqual(unchanged_fallback.status_code, 200)
+        self.assertEqual(unchanged_fallback.get_json()['card']['translations'], {})
+
+        english_edit = self.client.put('/api/admin/cards/danish-notices', json={
+            'type': 'rss', 'title': 'Danish notices', 'description': 'English description',
+            'language': 'en', 'changed_fields': ['title', 'description']},
+            headers=headers, base_url='https://localhost')
+        self.assertEqual(english_edit.status_code, 200)
+        saved = english_edit.get_json()['card']
+        self.assertEqual(saved['title'], 'Danske nyheder')
+        self.assertEqual(saved['source_language'], 'da')
+        self.assertEqual(saved['translations']['en']['title'], 'Danish notices')
+        self.assertEqual(saved['translations']['en']['description'], 'English description')
+
     def test_police_update_card_page_includes_feed_details(self):
+        with closing(webapp.connect_db()) as db:
+            db.execute('INSERT INTO site_setting(key,value) VALUES(?,?)',
+                       ('rss_cards', json.dumps([{'id': 'danish-police',
+                        'title': 'Danish Police Update RSS',
+                        'description': 'Police updates', 'feeds': []}])))
+            db.commit()
         response = self.client.get('/rss/danish-police', base_url='https://localhost')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'data-rss-feed', response.data)
         self.assertIn(b'value="national-police"', response.data)
 
+    def test_hotspot_module_toggle_is_persisted_without_removing_hotspot_settings(self):
+        headers = {'X-CSRF-Token': self.csrf, 'Content-Type': 'application/json'}
+        with closing(webapp.connect_db()) as db:
+            db.execute('INSERT INTO site_setting(key,value) VALUES(?,?)',
+                       ('hotspot_profile_snapshot', '{"ssid":"Saved network"}'))
+            db.commit()
+        with patch.object(webapp, 'capability_available', return_value=True), \
+                patch.object(webapp, 'helper', return_value={'enabled': False}) as helper:
+            response = self.client.put('/api/admin/modules', json={'hotspot_enabled': False},
+                                       headers=headers, base_url='https://localhost')
+        self.assertEqual(response.status_code, 200)
+        helper.assert_called_once_with('hotspot-module-disable')
+        with closing(webapp.connect_db()) as db:
+            settings = {row['key']: row['value'] for row in db.execute('SELECT key,value FROM site_setting')}
+        self.assertEqual(settings['hotspot_module_enabled'], 'false')
+        self.assertEqual(settings['hotspot_profile_snapshot'], '{"ssid":"Saved network"}')
+
     def test_card_configuration_import_defaults_and_preserves_translations_and_feed_state(self):
         config = {'format': 'cyberdeck-config', 'version': 1, 'name': 'Cards',
                   'assets': [], 'offline_catalogues': [], 'subjects': [],
                   'online_source_cards': [{'id': 'health-links', 'title': 'Health links',
+                      'source_language': 'da',
                       'description': 'Trusted health sources.', 'translations': {
                           'da': {'title': 'Sundhedskilder', 'description': 'Pålidelige kilder.'}},
                       'links': []}],
@@ -1720,7 +1779,9 @@ class WebAppTests(unittest.TestCase):
         feed = normalized['rss_cards'][0]
         self.assertEqual(source['offline_display'], 'hide')
         self.assertEqual(source['translations']['da']['title'], 'Sundhedskilder')
+        self.assertEqual(source['source_language'], 'da')
         self.assertFalse(feed['feeds'][0]['enabled'])
+        self.assertEqual(feed['source_language'], 'en')
         self.assertEqual(feed['offline_display'], 'hide')
 
     def test_police_rss_reader_sanitizes_feed_links_and_caches_results(self):

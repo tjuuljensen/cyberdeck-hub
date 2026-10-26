@@ -13,6 +13,7 @@ import host_identity
 
 AUTOSTART = Path('/etc/cyberdeck/hotspot-autostart')
 AUTOSTART_PAUSED = Path('/etc/cyberdeck/hotspot-autostart-paused')
+HOTSPOT_MODULE_DISABLED = Path('/etc/cyberdeck/hotspot-module-disabled')
 UPSTREAMS = Path('/etc/cyberdeck/hotspot-upstreams.json')
 REDUNDANCY_MINUTES = Path('/etc/cyberdeck/hotspot-redundancy-minutes')
 FALLBACK_STATE = Path('/run/cyberdeck-web/hotspot-fallback.json')
@@ -352,6 +353,8 @@ def hotspot_up():
 
 
 def hotspot_autostart():
+    if HOTSPOT_MODULE_DISABLED.exists():
+        return {'active': False, 'reason': 'Hotspot module is disabled'}
     if not PROFILE.is_file() or PROFILE.is_symlink():
         return {'active': False, 'reason': 'hotspot profile is not configured'}
     active = any('cyberdeck-hotspot' in line for line in run(['nmcli', '-t', '-f', 'NAME', 'connection', 'show', '--active'], check=False).stdout.splitlines())
@@ -404,6 +407,23 @@ def hotspot_stop():
         AUTOSTART_PAUSED.chmod(0o600)
     clear_fallback_state()
     return {'stopped': result.returncode == 0}
+
+
+def hotspot_module_set_enabled(enabled):
+    if type(enabled) is not bool:
+        raise ValueError('Hotspot module state must be a boolean')
+    if HOTSPOT_MODULE_DISABLED.is_symlink():
+        raise ValueError('Refusing a symlink at the Hotspot module setting')
+    if enabled:
+        HOTSPOT_MODULE_DISABLED.unlink(missing_ok=True)
+        return {'enabled': True}
+    HOTSPOT_MODULE_DISABLED.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(HOTSPOT_MODULE_DISABLED, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    with os.fdopen(fd, 'w', encoding='ascii') as stream:
+        stream.write('disabled\n')
+    result = run(['nmcli', 'connection', 'down', 'id', 'cyberdeck-hotspot'], check=False)
+    clear_fallback_state()
+    return {'enabled': False, 'stopped': result.returncode == 0}
 
 
 def hotspot_start_manual():
@@ -470,6 +490,8 @@ def main():
         'hotspot-start': lambda: hotspot_start_manual(),
         'hotspot-stop': lambda: hotspot_stop(),
         'hotspot-autostart': lambda: hotspot_autostart(),
+        'hotspot-module-enable': lambda: hotspot_module_set_enabled(True),
+        'hotspot-module-disable': lambda: hotspot_module_set_enabled(False),
         'storage-list': lambda: storage_operation('list', payload),
         'storage-adopt': lambda: storage_operation('adopt', payload),
         'storage-initialize': lambda: storage_operation('initialize', payload),
@@ -481,7 +503,8 @@ def main():
     }
     if action not in allowed:
         raise SystemExit('Unsupported operation')
-    if action in {'hotspot-configure', 'hotspot-start', 'hotspot-stop', 'hotspot-autostart'}:
+    if action in {'hotspot-configure', 'hotspot-start', 'hotspot-stop', 'hotspot-autostart',
+                  'hotspot-module-enable', 'hotspot-module-disable'}:
         with host_identity.change_lock():
             result = allowed[action]()
     else:
