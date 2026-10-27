@@ -41,6 +41,10 @@ class StylesheetTests(unittest.TestCase):
         for declarations in backgrounds.values():
             self.assertIn('background:linear-gradient(105deg,color-mix(in srgb,var(--text)',
                           declarations)
+        resource_card = [declarations for selector, declarations in rules
+                         if selector.strip() == '.resource-home-card']
+        self.assertEqual(len(resource_card), 1)
+        self.assertIn('border-color:var(--line)', resource_card[0])
 
 
 @unittest.skipUnless(HAS_FLASK, 'Flask is required for the web application tests')

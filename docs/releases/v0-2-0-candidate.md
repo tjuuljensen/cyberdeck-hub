@@ -48,6 +48,8 @@ Source, and RSS cards, and replaces the timezone text field with a region-groupe
 picker.
 `0.2.0-beta.18` gives Online Source and RSS home cards a primary-text gradient
 that fades from left to right, matching the service-card treatment.
+`0.2.0-beta.19` changes Online Source and RSS card borders to the muted document
+card border color.
 
 ## Included scope
 
