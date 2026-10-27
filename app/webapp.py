@@ -49,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.16'
+APP_VERSION = '0.2.0-beta.18'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -307,6 +307,16 @@ def timezone_choices():
                   if name == 'UTC' or not name.startswith(('posix/', 'right/')))
 
 
+def timezone_choice_groups():
+    groups = {}
+    for name in timezone_choices():
+        region, separator, _ = name.partition('/')
+        if not separator:
+            region = 'Other'
+        groups.setdefault(region, []).append(name)
+    return [{'region': region, 'zones': zones} for region, zones in sorted(groups.items())]
+
+
 def _valid_card_url(value, label):
     if not isinstance(value, str) or len(value) > 2048 or any(ord(char) < 32 for char in value):
         raise ValueError(f'{label} must be a valid HTTPS URL')
@@ -425,6 +435,10 @@ def _validate_card_list(cards, kind):
             raise ValueError(f'Invalid or duplicate {kind} card definition')
         seen_cards.add(card_id)
         normalized = {'id': card_id, 'title': title.strip(), 'description': description.strip()}
+        show_when_empty = card.get('show_when_empty', False)
+        if type(show_when_empty) is not bool:
+            raise ValueError('Card show when empty must be true or false')
+        normalized['show_when_empty'] = show_when_empty
         source_language = card.get('source_language', 'en')
         if not isinstance(source_language, str) or source_language not in SUPPORTED_LANGUAGES:
             raise ValueError('Card source language must be supported')
@@ -863,15 +877,6 @@ def site_preferences():
     accent_color = settings.get('accent_color', DEFAULT_ACCENT_COLOR).lower()
     if not re.fullmatch(r'#[0-9a-f]{6}', accent_color):
         accent_color = '#c4f36b'
-    try:
-        always_show = json.loads(settings.get('always_show_subjects', '[]'))
-    except (TypeError, json.JSONDecodeError):
-        always_show = []
-    valid_subjects = {row[0] for row in get_subjects()}
-    if not isinstance(always_show, list):
-        always_show = []
-    always_show = [subject for subject in always_show
-                   if isinstance(subject, str) and subject in valid_subjects]
     hostname = (os.environ.get('CYBERDECK_HOSTNAME') or socket.gethostname()).split('.', 1)[0].upper()
     display_timezone = settings.get('display_timezone', host_timezone_name())
     if not valid_timezone_name(display_timezone):
@@ -881,8 +886,7 @@ def site_preferences():
             'accent_color': accent_color,
             'home_columns': int(configured_columns),
             'display_timezone': display_timezone,
-            'hide_empty_subjects': settings.get('hide_empty_subjects') == 'true',
-            'always_show_subjects': always_show}
+            'hide_empty_cards': settings.get('hide_empty_cards', settings.get('hide_empty_subjects')) == 'true'}
 
 
 def hotspot_module_enabled():
@@ -924,7 +928,8 @@ def connect_db():
     db.execute('''CREATE TABLE IF NOT EXISTS library_subject (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
         display_order INTEGER NOT NULL, translations TEXT NOT NULL DEFAULT '{}',
-        source_language TEXT NOT NULL DEFAULT 'en')''')
+        source_language TEXT NOT NULL DEFAULT 'en',
+        show_when_empty INTEGER NOT NULL DEFAULT 0)''')
     if not subject_table_exists:
         db.executemany('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) '
                        'VALUES(?,?,?,?,?,?)',
@@ -936,6 +941,22 @@ def connect_db():
         db.execute("ALTER TABLE library_subject ADD COLUMN translations TEXT NOT NULL DEFAULT '{}'")
     if 'source_language' not in subject_columns:
         db.execute("ALTER TABLE library_subject ADD COLUMN source_language TEXT NOT NULL DEFAULT 'en'")
+    if 'show_when_empty' not in subject_columns:
+        db.execute('ALTER TABLE library_subject ADD COLUMN show_when_empty INTEGER NOT NULL DEFAULT 0')
+    legacy_always_show = db.execute("SELECT value FROM site_setting WHERE key='always_show_subjects'").fetchone()
+    if legacy_always_show:
+        try:
+            for subject_id in json.loads(legacy_always_show['value']):
+                if isinstance(subject_id, str):
+                    db.execute('UPDATE library_subject SET show_when_empty=1 WHERE id=?', (subject_id,))
+        except (TypeError, json.JSONDecodeError):
+            pass
+        db.execute("DELETE FROM site_setting WHERE key='always_show_subjects'")
+    legacy_hide_empty = db.execute("SELECT value FROM site_setting WHERE key='hide_empty_subjects'").fetchone()
+    if legacy_hide_empty:
+        db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING',
+                   ('hide_empty_cards', legacy_hide_empty['value']))
+        db.execute("DELETE FROM site_setting WHERE key='hide_empty_subjects'")
     db.execute('''CREATE TABLE IF NOT EXISTS archive_metadata (
         filename TEXT PRIMARY KEY, title TEXT NOT NULL, search_terms TEXT NOT NULL DEFAULT '',
         subject TEXT NOT NULL REFERENCES library_subject(id) ON DELETE CASCADE)''')
@@ -1304,8 +1325,8 @@ def home():
         items = public_items(slug)
         count = len(items)
         installed_zim_count += sum(item['kind'] == 'zim' for item in items)
-        if (preferences['hide_empty_subjects'] and count == 0 and
-                slug not in preferences['always_show_subjects']):
+        subject_row = g.db.execute('SELECT show_when_empty FROM library_subject WHERE id=?', (slug,)).fetchone()
+        if preferences['hide_empty_cards'] and count == 0 and not subject_row['show_when_empty']:
             continue
         translations_row = g.db.execute('SELECT translations FROM library_subject WHERE id=?', (slug,)).fetchone()
         display = _localized_text(title, description,
@@ -1333,8 +1354,10 @@ def home():
                          'new_tab': True})
     return render_template('index.html', subjects=subjects,
                            services=services,
-                           online_source_cards=[_localized_card(card) for card in configured_online_source_cards()],
-                           rss_cards=[_localized_card(card) for card in configured_rss_cards()],
+                           online_source_cards=[_localized_card(card) for card in configured_online_source_cards()
+                                                if not preferences['hide_empty_cards'] or card['links'] or card['show_when_empty']],
+                           rss_cards=[_localized_card(card) for card in configured_rss_cards()
+                                      if not preferences['hide_empty_cards'] or any(feed['enabled'] for feed in card['feeds']) or card['show_when_empty']],
                            home_columns=preferences['home_columns'])
 
 
@@ -1808,14 +1831,14 @@ def build_export_config(name, selected, include_settings):
         raise ValueError('Two selected sources use the same destination filename; select only one.')
     config['subjects'] = []
     for row in g.db.execute(
-            'SELECT id,title,description,display_order,translations,source_language FROM library_subject ORDER BY display_order,id'):
+            'SELECT id,title,description,display_order,translations,source_language,show_when_empty FROM library_subject ORDER BY display_order,id'):
         subject = dict(row)
         subject['translations'] = json.loads(subject.pop('translations') or '{}')
         config['subjects'].append(subject)
     if include_settings:
         # Export only stored display preferences, never the hostname-derived default.
         allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone',
-                   'hide_empty_subjects', 'always_show_subjects'}
+                   'hide_empty_cards'}
         config['site_settings'] = {row['key']: row['value'] for row in g.db.execute(
             'SELECT key,value FROM site_setting') if row['key'] in allowed}
     return name, slug, config, downloads, local_catalogues
@@ -2111,6 +2134,7 @@ def _validate_import_config(config):
                 not isinstance(subject.get('description', ''), str) or len(subject.get('description', '')) > 300 or
                 not isinstance(subject.get('source_language', 'en'), str) or
                 subject.get('source_language', 'en') not in SUPPORTED_LANGUAGES or
+                type(subject.get('show_when_empty', False)) is not bool or
                 not isinstance(translations, dict) or any(code not in SUPPORTED_LANGUAGES for code in translations) or
                 any(not isinstance(value, dict) or not isinstance(value.get('title', ''), str) or
                     len(value.get('title', '')) > 80 or not isinstance(value.get('description', ''), str) or
@@ -2161,7 +2185,7 @@ def _validate_import_config(config):
                     any(ord(char) < 32 and char not in '\t\r\n' for char in item_search_terms)):
                 raise ValueError('Invalid local document metadata')
     allowed_settings = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone',
-                        'hide_empty_subjects', 'always_show_subjects'}
+                        'hide_empty_cards', 'hide_empty_subjects', 'always_show_subjects'}
     settings = config.get('site_settings', {})
     if not isinstance(settings, dict) or set(settings) - allowed_settings:
         raise ValueError('Configuration contains unsupported site preferences')
@@ -2170,7 +2194,8 @@ def _validate_import_config(config):
             'subtitle' in settings and (not isinstance(settings['subtitle'], str) or not settings['subtitle'].strip() or len(settings['subtitle']) > 80) or
             'home_columns' in settings and str(settings['home_columns']) not in {'3', '4', '5'} or
             'display_timezone' in settings and not valid_timezone_name(settings['display_timezone']) or
-            'hide_empty_subjects' in settings and settings['hide_empty_subjects'] not in {'true', 'false', True, False}):
+            ('hide_empty_cards' in settings and settings['hide_empty_cards'] not in {'true', 'false', True, False}) or
+            ('hide_empty_subjects' in settings and settings['hide_empty_subjects'] not in {'true', 'false', True, False})):
         raise ValueError('Configuration contains invalid site preferences')
     if 'always_show_subjects' in settings:
         try:
@@ -2179,6 +2204,15 @@ def _validate_import_config(config):
             raise ValueError('Configuration contains invalid subject display preferences') from error
         if not isinstance(always_show, list) or any(not isinstance(value, str) for value in always_show):
             raise ValueError('Configuration contains invalid subject display preferences')
+    if 'site_settings' in config:
+        settings = config['site_settings']
+        if 'hide_empty_cards' not in settings and 'hide_empty_subjects' in settings:
+            settings['hide_empty_cards'] = settings['hide_empty_subjects']
+        settings.pop('hide_empty_subjects', None)
+        if 'always_show_subjects' in settings:
+            always_show = set(json.loads(settings.pop('always_show_subjects')))
+            for subject in config.get('subjects', []):
+                subject['show_when_empty'] = subject.get('show_when_empty', False) or subject['id'] in always_show
     return config
 
 
@@ -2640,12 +2674,12 @@ def _apply_settings_only_import(stage_root, ticket, body):
         g.db.execute('INSERT INTO import_transaction(id) VALUES(?)', (ticket['id'],))
 
         for order, subject in enumerate(incoming):
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?) '
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language,show_when_empty) VALUES(?,?,?,?,?,?,?) '
                          'ON CONFLICT(id) DO UPDATE SET title=excluded.title, '
-                         'description=excluded.description,display_order=excluded.display_order,translations=excluded.translations,source_language=excluded.source_language',
+                         'description=excluded.description,display_order=excluded.display_order,translations=excluded.translations,source_language=excluded.source_language,show_when_empty=excluded.show_when_empty',
                          (subject['id'], subject['title'], subject['description'], order,
                           json.dumps(subject.get('translations', {}), ensure_ascii=False),
-                          subject.get('source_language', 'en')))
+                          subject.get('source_language', 'en'), int(subject.get('show_when_empty', False))))
         if not remove_omitted:
             for offset, subject in enumerate(plan['omitted'], start=len(incoming)):
                 g.db.execute('UPDATE library_subject SET display_order=? WHERE id=?',
@@ -2657,27 +2691,13 @@ def _apply_settings_only_import(stage_root, ticket, body):
         for old_id in removed_ids:
             g.db.execute('DELETE FROM library_subject WHERE id=?', (old_id,))
 
-        preferences = site_preferences()
-        current_always = preferences['always_show_subjects']
         imported_settings = config.get('site_settings', {}) if body.get('apply_settings') is True else {}
-        if 'always_show_subjects' in imported_settings:
-            try:
-                incoming_always = json.loads(imported_settings['always_show_subjects'])
-            except (TypeError, json.JSONDecodeError):
-                incoming_always = []
-            always_show = [remap.get(subject, subject) for subject in incoming_always
-                           if remap.get(subject, subject) in final_ids]
-        else:
-            always_show = [remap.get(subject, subject) for subject in current_always
-                           if remap.get(subject, subject) in final_ids]
         settings_to_save = dict(imported_settings)
         if body.get('apply_settings') is True:
             if 'online_source_cards' in config:
                 settings_to_save['online_source_cards'] = config['online_source_cards']
             if 'rss_cards' in config:
                 settings_to_save['rss_cards'] = config['rss_cards']
-        if 'always_show_subjects' in imported_settings or removed_ids:
-            settings_to_save['always_show_subjects'] = always_show
         if settings_to_save:
             g.db.executemany(
                 'INSERT INTO site_setting(key,value) VALUES(?,?) '
@@ -3234,10 +3254,10 @@ def import_apply():
                 target_id = resolved[source_id]
                 if mapping[source_id] == '__create__':
                     order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
-                    g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?)',
+                    g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language,show_when_empty) VALUES(?,?,?,?,?,?,?)',
                                  (target_id, source['title'], source.get('description', ''), order,
                                   json.dumps(source.get('translations', {}), ensure_ascii=False),
-                                  source.get('source_language', 'en')))
+                                  source.get('source_language', 'en'), int(source.get('show_when_empty', False))))
                     current[target_id] = source
             for path, metadata, _size, _html_bytes in catalogue_plans:
                 entry = metadata['entry']
@@ -3329,11 +3349,6 @@ def import_apply():
             if 'rss_cards' in config:
                 import_settings['rss_cards'] = config['rss_cards']
             if import_settings:
-                if 'always_show_subjects' in import_settings:
-                    try: incoming_always = json.loads(import_settings['always_show_subjects'])
-                    except (TypeError, json.JSONDecodeError): incoming_always = []
-                    import_settings['always_show_subjects'] = json.dumps([resolved.get(i, i) for i in incoming_always
-                                                                          if resolved.get(i, i) in current or resolved.get(i, i) in source_subjects])
                 if 'accent_color' in import_settings and not re.fullmatch(r'#[0-9a-fA-F]{6}', str(import_settings['accent_color'])):
                     raise ValueError('Imported accent color is invalid')
                 if 'pdf_open_mode' in import_settings and import_settings['pdf_open_mode'] not in {'same_tab', 'new_tab'}:
@@ -3359,16 +3374,10 @@ def import_apply():
             for target_id in resolved.values():
                 target = current[target_id]
                 mapped_subjects[target_id] = {'id': target_id, 'title': target['title'],
-                                              'description': target['description'],
+                                               'description': target['description'],
+                                               'show_when_empty': target.get('show_when_empty', False),
                                               'display_order': target.get('display_order', 0)}
             saved_document['subjects'] = list(mapped_subjects.values())
-            if 'site_settings' in saved_document and 'always_show_subjects' in saved_document['site_settings']:
-                try:
-                    saved_always = json.loads(saved_document['site_settings']['always_show_subjects'])
-                except (TypeError, json.JSONDecodeError):
-                    saved_always = []
-                saved_document['site_settings']['always_show_subjects'] = json.dumps(
-                    [resolved.get(subject, subject) for subject in saved_always])
             config_dir.mkdir(mode=0o700, exist_ok=True)
             if config_dir.is_symlink():
                 raise ValueError('Refusing an unsafe imported-configuration directory')
@@ -3774,7 +3783,7 @@ def admin_page():
         config_subjects.append((slug, localized['display_title'], localized['display_description']))
     return render_template('admin.html', csrf=session['csrf'], username=session['admin'],
                            config_subjects=config_subjects, preferences=site_preferences(),
-                           time_zones=timezone_choices(), card_languages=SUPPORTED_LANGUAGES,
+                           time_zone_groups=timezone_choice_groups(), card_languages=SUPPORTED_LANGUAGES,
                            hotspot_module_enabled=hotspot_module_enabled())
 
 
@@ -4159,10 +4168,11 @@ def admin_storage_action():
 
 def _admin_card_records():
     cards = []
-    for row in g.db.execute('SELECT id,title,description,translations,source_language FROM library_subject ORDER BY display_order,id'):
+    for row in g.db.execute('SELECT id,title,description,translations,source_language,show_when_empty FROM library_subject ORDER BY display_order,id'):
         count = subject_assigned_count(row['id'])
         cards.append({'id': row['id'], 'type': 'subject', 'title': row['title'],
                       'description': row['description'],
+                      'show_when_empty': bool(row['show_when_empty']),
                       'translations': json.loads(row['translations'] or '{}'),
                       'source_language': row['source_language'],
                       'entries': [], 'child_count': count if count is not None else 1,
@@ -4205,9 +4215,12 @@ def _validate_card_metadata(card):
             raise ValueError('Card translations are invalid')
         normalized_translations[code] = {'title': value.get('title', '').strip(),
                                          'description': value.get('description', '').strip()}
+    show_when_empty = card.get('show_when_empty', False)
+    if type(show_when_empty) is not bool:
+        raise ValueError('Card show when empty must be true or false')
     return {'id': card_id, 'type': kind, 'title': title.strip(),
             'description': description.strip(), 'source_language': source_language,
-            'translations': normalized_translations}
+            'translations': normalized_translations, 'show_when_empty': show_when_empty}
 
 
 def _merge_localized_record_edit(body, previous=None, fields=('title', 'description')):
@@ -4287,6 +4300,7 @@ def _persist_card_collections(cards):
             values.append({'id': card['id'], 'title': card['title'],
                            'description': card['description'], 'translations': card['translations'],
                            'source_language': card['source_language'],
+                           'show_when_empty': card.get('show_when_empty', False),
                            'offline_display': card.get('offline_display', 'hide'), field: card.get('entries', [])})
         validated = _validate_card_list(values, label)
         g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
@@ -4318,9 +4332,10 @@ def admin_card_create():
         _persist_card_collections([*_admin_card_records(), card])
         if card['type'] == 'subject':
             order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?)',
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language,show_when_empty) VALUES(?,?,?,?,?,?,?)',
                          (card['id'], card['title'], card['description'], order,
-                          json.dumps(card['translations'], ensure_ascii=False), card['source_language']))
+                          json.dumps(card['translations'], ensure_ascii=False), card['source_language'],
+                          int(card['show_when_empty'])))
         g.db.commit()
     except (ValueError, sqlite3.IntegrityError) as error:
         g.db.rollback()
@@ -4358,21 +4373,17 @@ def admin_card_update(card_id):
             card['entries'] = []
             card['offline_display'] = 'hide'
         if type_changed and previous['type'] == 'subject':
-            prefs = site_preferences()
             g.db.execute('DELETE FROM library_subject WHERE id=?', (card_id,))
-            g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
-                         'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                         ('always_show_subjects', json.dumps([value for value in prefs['always_show_subjects']
-                                                              if value != card_id])))
         if type_changed and card['type'] == 'subject':
             order = g.db.execute('SELECT COALESCE(MAX(display_order),-1)+1 FROM library_subject').fetchone()[0]
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) VALUES(?,?,?,?,?,?)',
+            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language,show_when_empty) VALUES(?,?,?,?,?,?,?)',
                          (card_id, card['title'], card['description'], order,
-                          json.dumps(card['translations'], ensure_ascii=False), card['source_language']))
+                          json.dumps(card['translations'], ensure_ascii=False), card['source_language'],
+                          int(card['show_when_empty'])))
         elif card['type'] == 'subject':
-            g.db.execute('UPDATE library_subject SET title=?,description=?,translations=?,source_language=? WHERE id=?',
+            g.db.execute('UPDATE library_subject SET title=?,description=?,translations=?,source_language=?,show_when_empty=? WHERE id=?',
                          (card['title'], card['description'], json.dumps(card['translations'], ensure_ascii=False),
-                          card['source_language'], card_id))
+                          card['source_language'], int(card['show_when_empty']), card_id))
         next_cards = [item for item in existing_cards if item['id'] != card_id] + [card]
         _persist_card_collections(next_cards)
         g.db.commit()
@@ -4504,12 +4515,7 @@ def admin_card_remove(card_id):
         return jsonify(error='Remove the connected child data before deleting this card'), 409
     try:
         if card['type'] == 'subject':
-            prefs = site_preferences()
             g.db.execute('DELETE FROM library_subject WHERE id=?', (card_id,))
-            g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
-                         'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                         ('always_show_subjects', json.dumps([value for value in prefs['always_show_subjects']
-                                                              if value != card_id])))
         _persist_card_collections([item for item in cards if item['id'] != card_id])
         g.db.commit()
     except (ValueError, sqlite3.IntegrityError) as error:
@@ -4572,12 +4578,7 @@ def admin_subject_delete(slug):
         g.db.rollback()
         return jsonify(error='Subject still has {count} assigned content record(s)',
                        error_params={'count': count}), 409
-    prefs = site_preferences()
     g.db.execute('DELETE FROM library_subject WHERE id=?', (slug,))
-    remaining_always_show = [item for item in prefs['always_show_subjects'] if item != slug]
-    g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
-                 'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                 ('always_show_subjects', json.dumps(remaining_always_show)))
     g.db.commit()
     return '', 204
 
@@ -4592,8 +4593,7 @@ def admin_settings_update():
     subtitle = body.get('subtitle', current['subtitle'])
     home_columns = body.get('home_columns', current['home_columns'])
     display_timezone = body.get('display_timezone', current['display_timezone'])
-    hide_empty_subjects = body.get('hide_empty_subjects', current['hide_empty_subjects'])
-    always_show_subjects = body.get('always_show_subjects', current['always_show_subjects'])
+    hide_empty_cards = body.get('hide_empty_cards', body.get('hide_empty_subjects', current['hide_empty_cards']))
     accent_color = body.get('accent_color', current['accent_color'])
     if not isinstance(pdf_open_mode, str) or pdf_open_mode not in {'same_tab', 'new_tab'}:
         return jsonify(error='Choose whether PDFs open in this tab or a new tab'), 400
@@ -4610,22 +4610,15 @@ def admin_settings_update():
     if str(home_columns) not in {'3', '4', '5'} or isinstance(home_columns, bool):
         return jsonify(error='Choose 3, 4, or 5 subject columns'), 400
     home_columns = str(home_columns)
-    subject_ids = {row[0] for row in get_subjects()}
-    if not isinstance(hide_empty_subjects, bool):
-        return jsonify(error='Hide empty subjects must be true or false'), 400
-    if (not isinstance(always_show_subjects, list) or
-            any(not isinstance(subject, str) or subject not in subject_ids
-                for subject in always_show_subjects)):
-        return jsonify(error='Always-show subjects must be valid subject IDs'), 400
-    always_show_subjects = list(dict.fromkeys(always_show_subjects))
+    if not isinstance(hide_empty_cards, bool):
+        return jsonify(error='Hide empty cards must be true or false'), 400
     g.db.executemany('INSERT INTO site_setting(key,value) VALUES(?,?) '
                      'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                      [('pdf_open_mode', pdf_open_mode), ('subtitle', subtitle),
                       ('accent_color', accent_color),
                       ('home_columns', home_columns),
                       ('display_timezone', display_timezone),
-                      ('hide_empty_subjects', 'true' if hide_empty_subjects else 'false'),
-                      ('always_show_subjects', json.dumps(always_show_subjects))])
+                      ('hide_empty_cards', 'true' if hide_empty_cards else 'false')])
     g.db.commit()
     return jsonify(settings=site_preferences())
 

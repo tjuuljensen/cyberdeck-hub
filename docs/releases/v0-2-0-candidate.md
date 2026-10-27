@@ -43,6 +43,11 @@ status without sudo, and uses a checkbox for its module state like Hotspot.
 storage actions, and folds system details under the current server name.
 `0.2.0-beta.16` keeps network and local storage visible outside the System
 Overview fold and reads CyberChef status without relying on a helper version.
+`0.2.0-beta.17` makes empty-card visibility configurable for document, Online
+Source, and RSS cards, and replaces the timezone text field with a region-grouped
+picker.
+`0.2.0-beta.18` gives Online Source and RSS home cards a primary-text gradient
+that fades from left to right, matching the service-card treatment.
 
 ## Included scope
 

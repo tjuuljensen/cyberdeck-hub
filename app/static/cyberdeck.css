@@ -73,6 +73,8 @@ body{--cyan:var(--accent)}
 @media(max-width:480px){.library-search-controls{flex-direction:column}.library-search-controls .button{width:100%}}
 .cyberchef-admin{margin-top:20px;padding-top:14px;border-top:1px solid var(--line)}.cyberchef-admin h3{margin:0 0 8px}.cyberchef-admin [role=status]{min-height:1.4em}
 
+.online-cards-group .resource-home-card{background:linear-gradient(105deg,color-mix(in srgb,var(--text) 12%,#171c24),#171c24)}.online-cards-group .resource-home-card:hover{background:linear-gradient(105deg,color-mix(in srgb,var(--text) 17%,#191f28),#191f28)}
+
 .rss-reader{margin-top:24px}.rss-reader h2{margin:0 0 8px}.rss-reader>p{color:var(--muted)}
 .rss-controls{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}.rss-controls label{display:grid;gap:6px;flex:1 1 260px;min-width:0}.rss-controls select{width:100%}
 .rss-items{display:grid;gap:10px;margin-top:14px}.rss-entry{padding:14px;background:#111620;border:1px solid var(--line);overflow-wrap:anywhere}.rss-entry-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.rss-entry h3{min-width:0;flex:1;font-size:16px;margin:0}.rss-entry-head h3 a{display:inline;margin:0;color:var(--accent);text-decoration:underline;text-underline-offset:3px}.rss-entry p{margin:6px 0;color:var(--muted);font-size:13px}.rss-entry .rss-date{flex:none;margin:0;color:var(--muted);font-size:11px;text-align:right;white-space:nowrap}.rss-entry a{display:inline-block;margin-top:5px;color:var(--accent);text-decoration:underline;text-underline-offset:3px}

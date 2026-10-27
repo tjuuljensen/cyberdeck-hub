@@ -48,6 +48,7 @@ INSTALLER_REQUIRED_SOURCES = (
     'config/debian/systemd/sleep.conf.d/90-cyberdeck.conf',
     'config/debian/systemd/logind.conf.d/90-cyberdeck.conf',
     'scripts/debian/storage-helper.py',
+    'scripts/debian/wifi-diagnostics.py',
     'scripts/debian/http-redirect.py',
     'scripts/debian/configure-gnome-power.py',
 )

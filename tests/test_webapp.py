@@ -26,6 +26,23 @@ if HAS_FLASK:
     import webapp
 
 
+class StylesheetTests(unittest.TestCase):
+    def test_online_and_rss_home_cards_use_primary_text_gradient(self):
+        stylesheet = (Path(__file__).resolve().parents[1] / 'app' / 'static' /
+                      'cyberdeck.css').read_text(encoding='utf-8')
+        rules = re.findall(r'([^{}]+)\{([^{}]*)\}', stylesheet)
+        backgrounds = {selector.strip(): declarations for selector, declarations in rules
+                       if selector.strip() in {
+                           '.online-cards-group .resource-home-card',
+                           '.online-cards-group .resource-home-card:hover'}}
+        self.assertEqual(set(backgrounds), {
+            '.online-cards-group .resource-home-card',
+            '.online-cards-group .resource-home-card:hover'})
+        for declarations in backgrounds.values():
+            self.assertIn('background:linear-gradient(105deg,color-mix(in srgb,var(--text)',
+                          declarations)
+
+
 @unittest.skipUnless(HAS_FLASK, 'Flask is required for the web application tests')
 class WebAppTests(unittest.TestCase):
     def setUp(self):

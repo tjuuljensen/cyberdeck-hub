@@ -11,12 +11,25 @@ import shutil
 import subprocess
 import sys
 
+FIRMWARE_PACKAGE_BY_PATH = {
+    'zd1211/': 'firmware-zd1211',
+}
+
 
 def run(args: list[str], *, timeout: int = 20) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(args, check=False, text=True, capture_output=True, timeout=timeout)
     except (OSError, subprocess.SubprocessError) as exc:
         return subprocess.CompletedProcess(args, 1, '', str(exc))
+
+
+def run_interactive(args: list[str], *, timeout: int) -> int:
+    """Run a command with terminal input/output attached for visible prompts."""
+    try:
+        return subprocess.run(args, check=False, timeout=timeout).returncode
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f'Could not complete {args[0]}: {exc}', file=sys.stderr)
+        return 1
 
 
 def pci_devices() -> list[dict[str, str | None]]:
@@ -67,6 +80,30 @@ def firmware_errors() -> list[str]:
     return lines[-8:]
 
 
+def missing_firmware_paths() -> list[str]:
+    result = run(['dmesg', '--color=never'])
+    if result.returncode:
+        return []
+    paths = set()
+    patterns = (
+        r'firmware:\s+failed to load\s+([^\s]+)',
+        r'Direct firmware load for\s+([^\s]+)\s+failed',
+        r'Could not load firmware file\s+([^\s.]+)',
+    )
+    for line in result.stdout.splitlines():
+        for pattern in patterns:
+            match = re.search(pattern, line, re.I)
+            if match:
+                paths.add(match.group(1))
+    return sorted(paths)
+
+
+def firmware_packages(paths: list[str]) -> list[str]:
+    packages = {package for path in paths for prefix, package in FIRMWARE_PACKAGE_BY_PATH.items()
+                if path.startswith(prefix)}
+    return sorted(packages)
+
+
 def usb_devices() -> list[str]:
     if not shutil.which('lsusb'):
         return []
@@ -88,21 +125,16 @@ def install_firmware() -> int:
     if not shutil.which('apt-get'):
         print('apt-get was not found; install the matching firmware package for your distribution.', file=sys.stderr)
         return 2
-    print('Installing Debian firmware-linux. apt will show the packages and ask before continuing.')
-    update = run(['apt-get', 'update'], timeout=600)
-    if update.stdout:
-        print(update.stdout, end='')
-    if update.stderr:
-        print(update.stderr, file=sys.stderr, end='')
-    if update.returncode:
+    packages = firmware_packages(missing_firmware_paths()) or ['firmware-linux']
+    print('Installing Debian firmware package(s): ' + ', '.join(packages))
+    print('apt will show the packages and ask before continuing.')
+    print('\nUpdating package indexes...')
+    update_status = run_interactive(['apt-get', 'update'], timeout=600)
+    if update_status:
         print('Package index update failed. Check network access and Debian non-free-firmware sources.', file=sys.stderr)
-        return update.returncode
-    install = run(['apt-get', 'install', 'firmware-linux'], timeout=1800)
-    if install.stdout:
-        print(install.stdout, end='')
-    if install.stderr:
-        print(install.stderr, file=sys.stderr, end='')
-    return install.returncode
+        return update_status
+    print('\nInstalling firmware packages. Review and answer any apt prompts below.')
+    return run_interactive(['apt-get', 'install', *packages], timeout=1800)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -154,6 +186,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f'  {line}')
     else:
         print('  None found (or kernel log access is restricted). Try sudo for dmesg access.')
+    packages = firmware_packages(missing_firmware_paths())
+    if packages:
+        print('\nMatching Debian firmware package: ' + ', '.join(packages))
+        print('Install it with: sudo apt install ' + ' '.join(packages))
     if not wifi_interfaces:
         print('\nNext steps: check that the adapter is seated/connected; identify USB devices with lsusb;')
         print('check firmware errors with sudo dmesg | grep -i firmware; then install the matching')
@@ -161,7 +197,8 @@ def main(argv: list[str] | None = None) -> int:
     elif not nmcli or not any(':wifi:' in line for line in run([nmcli, '-t', '-f', 'DEVICE,TYPE,STATE', 'device', 'status']).stdout.splitlines()):
         print('\nThe kernel exposes Wi-Fi, but NetworkManager does not. Check that NetworkManager is running')
         print('and that the interface is not blocked: run rfkill list and nmcli device status.')
-    print('\nFor Debian, an optional broad firmware package install is available with:')
+    print('\nFor Debian, the opt-in installer uses a matching package when it recognizes')
+    print('the missing firmware; otherwise it offers the general firmware-linux package:')
     print('  sudo python3 scripts/debian/wifi-diagnostics.py --install-firmware')
     print('This does not replace chipset-specific driver installation; reboot may be needed afterward.')
     return 0

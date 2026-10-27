@@ -408,15 +408,15 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0105": {
-    "default": "Hide categories with no available items",
+    "default": "Hide cards with no available items",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0106": {
-    "default": "Choose categories below that should remain visible even when empty.",
+    "default": "Cards can be set to remain visible even when they have no available items.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0107": {
-    "default": "Always show these categories",
+    "default": "Always show these cards",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0108": {

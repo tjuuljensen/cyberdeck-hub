@@ -161,6 +161,7 @@ fi
    -f "$repo_root/scripts/debian/configure-gnome-power.py" &&
    -f "$repo_root/config/debian/tmpfiles.d/cyberdeck-storage.conf" &&
    -f "$repo_root/scripts/debian/storage-helper.py" &&
+   -f "$repo_root/scripts/debian/wifi-diagnostics.py" &&
    -f "$repo_root/scripts/debian/admin-helper.py" &&
    -f "$repo_root/scripts/debian/host_identity.py" &&
    -f "$repo_root/scripts/debian/http-redirect.py" ]] ||
@@ -195,6 +196,7 @@ for source_file in "$app_source/webapp.py" "$app_source/library.py" \
                    "$repo_root/config/debian/cyberdeck-hotspot-dns.conf" \
                    "$repo_root/config/debian/tmpfiles.d/cyberdeck-storage.conf" \
                    "$repo_root/scripts/debian/storage-helper.py" \
+                   "$repo_root/scripts/debian/wifi-diagnostics.py" \
                    "$repo_root/scripts/debian/deploy-helper.py" \
                    "$repo_root/scripts/debian/admin-helper.py" \
                    "$repo_root/scripts/debian/host_identity.py" \
@@ -569,6 +571,8 @@ install -o root -g root -m 0755 "$repo_root/scripts/debian/deploy-helper.py" \
     /usr/local/lib/cyberdeck/deploy-helper.py
 install -o root -g root -m 0755 "$repo_root/scripts/debian/admin-helper.py" \
     /usr/local/lib/cyberdeck/admin-helper.py
+install -o root -g root -m 0755 "$repo_root/scripts/debian/wifi-diagnostics.py" \
+    /usr/local/bin/cyberdeck-wifi-diagnostics
 install -o root -g root -m 0644 "$repo_root/scripts/debian/host_identity.py" \
     /usr/local/lib/cyberdeck/host_identity.py
 install -o root -g root -m 0755 "$repo_root/scripts/debian/http-redirect.py" \
