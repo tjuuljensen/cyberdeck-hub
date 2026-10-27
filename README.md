@@ -39,6 +39,21 @@ The current online crisis-links group is curated for a Danish household and
 contains external services only. It is hidden when the Hub cannot reach the
 internet. See the [online links source note](docs/content/online-crisis-links.md).
 
+If a Wi-Fi adapter is missing from the Hotspot settings, run the bundled
+diagnostic on the Debian server:
+
+```sh
+python3 scripts/debian/wifi-diagnostics.py
+sudo python3 scripts/debian/wifi-diagnostics.py  # also reads restricted kernel logs
+```
+
+It reports PCI wireless controllers, kernel Wi-Fi interfaces, NetworkManager
+visibility, and firmware load errors. For an opt-in Debian firmware package
+install, use `sudo python3 scripts/debian/wifi-diagnostics.py --install-firmware`;
+review apt's package prompt. Vendor-specific drivers may still need to be
+installed separately. The script does not change anything unless that option
+is passed.
+
 ## Optional components
 
 CyberChef is a pinned optional module. An online full Debian install stages it

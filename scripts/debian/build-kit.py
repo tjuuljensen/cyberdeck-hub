@@ -24,6 +24,7 @@ KIT_FILES = (
     'scripts/debian/deploy-helper.py',
     'scripts/debian/storage-helper.py',
     'scripts/debian/admin-helper.py',
+    'scripts/debian/wifi-diagnostics.py',
     'scripts/debian/host_identity.py',
     'scripts/debian/http-redirect.py',
     'scripts/debian/configure-gnome-power.py',
