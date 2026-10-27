@@ -1,0 +1,81 @@
+{
+  "format": "cyberdeck-config",
+  "version": 1,
+  "name": "Emergency Preparedness (International English)",
+  "reserve_bytes": 1000000000,
+  "assets": [
+    {
+      "path": "public/st-john-adult-cpr-en-GB.pdf",
+      "title": "St John Ambulance: adult CPR (UK, English)",
+      "description": "",
+      "collection": "first-aid",
+      "url": "https://assets.eu.ctfassets.net/e2agrqk9adjs/5lrN7La3CWfbvVBwBpYvDL/e45f433755efc7b774a1f519a9ec0509/how-to-give-cpr-to-an-adult-easy-read-booklet.pdf",
+      "max_bytes": 5000000
+    },
+    {
+      "path": "public/st-john-defibrillator-en-GB.pdf",
+      "title": "St John Ambulance: defibrillator (UK, English)",
+      "description": "",
+      "collection": "first-aid",
+      "url": "https://assets.eu.ctfassets.net/e2agrqk9adjs/6N87D4gJQlLAmGcJD5PB8i/4679a05361164a06967598bd96df3a05/how-to-use-a-defibrillator-easy-read-booklet.pdf",
+      "max_bytes": 5000000
+    },
+    {
+      "path": "public/st-john-primary-survey-en-GB.pdf",
+      "title": "St John Ambulance: primary survey (UK, English)",
+      "description": "",
+      "collection": "first-aid",
+      "url": "https://assets.eu.ctfassets.net/e2agrqk9adjs/7zV14GVcBbxwgrUlPOyzrR/4e609ff1b1578738a27dba2807ce4dca/how-to-do-a-primary-survey-on-an-adult-or-child-easy-read-booklet.pdf",
+      "max_bytes": 5000000
+    },
+    {
+      "path": "public/st-john-recovery-position-en-GB.pdf",
+      "title": "St John Ambulance: recovery position (UK, English)",
+      "description": "",
+      "collection": "first-aid",
+      "url": "https://assets.eu.ctfassets.net/e2agrqk9adjs/63jB2pVY0ZL2HPdvIB6yX4/8a45d44831b72d2695369549a2a41681/how-to-put-an-adult-or-child-in-the-recovery-position-easy-read-booklet.pdf",
+      "max_bytes": 5000000
+    },
+    {
+      "path": "public/scout-simple-knots-en.pdf",
+      "title": "Scout Adventures: Simple Knots (UK, English)",
+      "description": "",
+      "collection": "practical-skills",
+      "url": "https://prod-cms.scouts.org.uk/media/2709/scout-adventures-simple-knots-guide.pdf",
+      "max_bytes": 5000000
+    },
+    {
+      "path": "zim/library-of-knots-en.zim",
+      "title": "A Library of Knots",
+      "description": "",
+      "collection": "practical-skills",
+      "url": "https://mirror.download.kiwix.org/zim/other/zimgit-knots_en_2024-08.zim",
+      "max_bytes": 27945133
+    },
+    {
+      "path": "zim/medical-library-en.zim",
+      "title": "Medical Library",
+      "description": "",
+      "collection": "first-aid",
+      "url": "https://mirror.download.kiwix.org/zim/other/zimgit-medicine_en_2024-08.zim",
+      "max_bytes": 70179585
+    }
+  ],
+  "offline_catalogues": [],
+  "subjects": [
+    {
+      "id": "first-aid",
+      "title": "Health and first aid",
+      "description": "Short emergency first-aid guides; country-specific material is labeled.",
+      "display_order": 10,
+      "source_language": "en"
+    },
+    {
+      "id": "practical-skills",
+      "title": "Practical skills",
+      "description": "Practical reference material suitable across regions.",
+      "display_order": 20,
+      "source_language": "en"
+    }
+  ]
+}

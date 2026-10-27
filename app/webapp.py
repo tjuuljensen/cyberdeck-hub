@@ -49,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.19'
+APP_VERSION = '0.2.0-beta.20'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -402,7 +402,10 @@ def _migrate_stored_card_locales(db):
             row = db.execute('SELECT value FROM site_setting WHERE key=?', (setting_key,)).fetchone()
             if not row:
                 continue
-            stored = json.loads(row['value'])
+            try:
+                stored = json.loads(row['value'])
+            except (TypeError, json.JSONDecodeError):
+                continue
             migrated = _migrate_legacy_card_list(stored, kind)
             if migrated != stored:
                 db.execute('UPDATE site_setting SET value=? WHERE key=?',
@@ -521,12 +524,36 @@ def _validate_card_list(cards, kind):
 
 
 def _configured_card_list(key, defaults, kind):
-    row = g.db.execute('SELECT value FROM site_setting WHERE key=?', (key,)).fetchone()
-    if row is None:
-        return json.loads(json.dumps(defaults))
     try:
-        return _validate_card_list(json.loads(row['value']), kind)
-    except (TypeError, ValueError, json.JSONDecodeError):
+        card_type = 'online' if kind == 'online source' else 'rss'
+        cards = []
+        for row in g.db.execute('SELECT * FROM card WHERE type=? ORDER BY display_order,id', (card_type,)):
+            field = 'links' if card_type == 'online' else 'feeds'
+            entries = []
+            for entry in g.db.execute(
+                    'SELECT id,title,description,url,enabled,source_language,translations '
+                    'FROM card_entry WHERE card_id=? ORDER BY display_order,id', (row['id'],)):
+                value = {'id': entry['id'], 'title': entry['title'], 'url': entry['url'],
+                         'source_language': entry['source_language'],
+                         'translations': json.loads(entry['translations'] or '{}')}
+                if card_type == 'online':
+                    value['description'] = entry['description'] or ''
+                else:
+                    value['enabled'] = bool(entry['enabled'])
+                entries.append(value)
+            cards.append({'id': row['id'], 'title': row['title'],
+                          'description': row['description'],
+                          'translations': json.loads(row['translations'] or '{}'),
+                          'source_language': row['source_language'],
+                          'show_when_empty': bool(row['show_when_empty']),
+                          'offline_display': row['offline_display'], field: entries})
+        if not cards:
+            migrated = g.db.execute(
+                "SELECT 1 FROM site_setting WHERE key='card_storage_migration_v1' AND value='complete'").fetchone()
+            if not migrated:
+                cards = json.loads(json.dumps(defaults))
+        return _validate_card_list(cards, kind)
+    except (TypeError, ValueError, json.JSONDecodeError, sqlite3.Error):
         app.logger.error('Ignoring invalid stored %s card configuration', kind)
         return json.loads(json.dumps(defaults))
 
@@ -537,6 +564,47 @@ def configured_online_source_cards():
 
 def configured_rss_cards():
     return _configured_card_list('rss_cards', DEFAULT_RSS_CARDS, 'RSS')
+
+
+def _persist_card_collections(online=None, rss=None):
+    """Replace selected editable card collections using the relational card model."""
+    requested = [('online', online, 'online source'), ('rss', rss, 'RSS')]
+    replacing = {kind for kind, cards, _label in requested if cards is not None}
+    normalized_collections = [(kind, _validate_card_list(cards, label), label)
+                              for kind, cards, label in requested if cards is not None]
+    placeholders = ','.join('?' for _ in replacing)
+    if replacing:
+        preserved_ids = {row['id'] for row in g.db.execute(
+            f'SELECT id FROM card WHERE type NOT IN ({placeholders})', tuple(replacing))}
+    else:
+        preserved_ids = set()
+    seen_ids = set(preserved_ids)
+    for _kind, cards, _label in normalized_collections:
+        for card in cards:
+            if card['id'] in seen_ids:
+                raise ValueError('Card IDs must be unique across subjects, online sources, and RSS cards')
+            seen_ids.add(card['id'])
+    for kind, normalized, _label in normalized_collections:
+        old_ids = [row['id'] for row in g.db.execute('SELECT id FROM card WHERE type=?', (kind,))]
+        for card_id in old_ids:
+            g.db.execute('DELETE FROM card WHERE id=? AND type=?', (card_id, kind))
+        field = 'links' if kind == 'online' else 'feeds'
+        for position, card in enumerate(normalized):
+            g.db.execute('''INSERT INTO card(id,type,title,description,display_order,translations,
+                          source_language,show_when_empty,offline_display)
+                          VALUES(?,?,?,?,?,?,?,?,?)''',
+                         (card['id'], kind, card['title'], card['description'], position,
+                          json.dumps(card['translations'], ensure_ascii=False), card['source_language'],
+                          int(card['show_when_empty']), card['offline_display']))
+            for entry_position, entry in enumerate(card[field]):
+                g.db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
+                              enabled,source_language,translations) VALUES(?,?,?,?,?,?,?,?,?)''',
+                             (card['id'], entry['id'], entry_position, entry['title'],
+                              entry.get('description', ''), entry['url'], int(entry.get('enabled', True)),
+                              entry['source_language'], json.dumps(entry['translations'], ensure_ascii=False)))
+        if rss is not None:
+            with _police_rss_state_lock:
+                _police_rss_cache.clear()
 
 
 def restore_empty_default_police_feeds(cards):
@@ -550,15 +618,115 @@ def restore_empty_default_police_feeds(cards):
     if existing and not existing['feeds'] and default:
         existing['feeds'] = json.loads(json.dumps(default['feeds']))
         cards = _validate_card_list(cards, 'RSS')
-        g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
-                     'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                     ('rss_cards', json.dumps(cards, ensure_ascii=False)))
+        _persist_card_collections(rss=cards)
     g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
                  'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                  ('police_rss_feeds_restored', '1'))
     if not was_in_transaction:
         g.db.commit()
     return cards
+
+
+def _migrate_card_storage(db):
+    """Move editable subject/RSS/online card state into relational records once."""
+    db.execute('''CREATE TABLE IF NOT EXISTS card (
+        id TEXT PRIMARY KEY, type TEXT NOT NULL CHECK(type IN ('subject','online','rss')),
+        title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', display_order INTEGER NOT NULL DEFAULT 0,
+        translations TEXT NOT NULL DEFAULT '{}', source_language TEXT NOT NULL DEFAULT 'en',
+        show_when_empty INTEGER NOT NULL DEFAULT 0, offline_display TEXT NOT NULL DEFAULT 'hide')''')
+    db.execute('''CREATE TABLE IF NOT EXISTS card_entry (
+        card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
+        id TEXT NOT NULL, display_order INTEGER NOT NULL DEFAULT 0, title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '', url TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
+        source_language TEXT NOT NULL DEFAULT 'en', translations TEXT NOT NULL DEFAULT '{}',
+        PRIMARY KEY(card_id,id))''')
+    marker = db.execute("SELECT value FROM site_setting WHERE key='card_storage_migration_v1'").fetchone()
+    if marker and marker['value'] == 'complete':
+        return
+    try:
+        if not db.in_transaction:
+            db.execute('BEGIN IMMEDIATE')
+        legacy_object = db.execute(
+            "SELECT type FROM sqlite_master WHERE name='library_subject'").fetchone()
+        if legacy_object and legacy_object['type'] == 'table':
+            for row in db.execute('SELECT * FROM library_subject').fetchall():
+                db.execute('''INSERT INTO card(id,type,title,description,display_order,translations,
+                               source_language,show_when_empty,offline_display)
+                              VALUES(?,?,?,?,?,?,?,?,?)''',
+                           (row['id'], 'subject', row['title'], row['description'],
+                            row['display_order'], row['translations'] or '{}',
+                            row['source_language'] or 'en', int(row['show_when_empty']), 'hide'))
+        migrated_ids = {row['id'] for row in db.execute('SELECT id FROM card')}
+        for kind, key, defaults in (('online', 'online_source_cards', DEFAULT_ONLINE_SOURCE_CARDS),
+                                    ('rss', 'rss_cards', DEFAULT_RSS_CARDS)):
+            row = db.execute('SELECT value FROM site_setting WHERE key=?', (key,)).fetchone()
+            try:
+                old_cards = json.loads(row['value']) if row else json.loads(json.dumps(defaults))
+                label = 'online source' if kind == 'online' else 'RSS'
+                cards = _validate_card_list(old_cards, label)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                cards = _validate_card_list(defaults, label)
+            field = 'links' if kind == 'online' else 'feeds'
+            for position, card in enumerate(cards):
+                if card['id'] in migrated_ids:
+                    raise ValueError('Existing subject and card IDs collide; resolve the old configuration before upgrading')
+                migrated_ids.add(card['id'])
+                db.execute('''INSERT INTO card(id,type,title,description,display_order,translations,
+                               source_language,show_when_empty,offline_display)
+                              VALUES(?,?,?,?,?,?,?,?,?)''',
+                           (card['id'], kind, card['title'], card['description'], position,
+                            json.dumps(card['translations'], ensure_ascii=False),
+                            card['source_language'], int(card['show_when_empty']), card['offline_display']))
+                for entry_position, entry in enumerate(card[field]):
+                    db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
+                                   enabled,source_language,translations) VALUES(?,?,?,?,?,?,?,?,?)''',
+                               (card['id'], entry['id'], entry_position, entry['title'],
+                                entry.get('description', ''), entry['url'],
+                                int(entry.get('enabled', True)), entry['source_language'],
+                                json.dumps(entry['translations'], ensure_ascii=False)))
+
+        archive = db.execute("SELECT type FROM sqlite_master WHERE name='archive_metadata'").fetchone()
+        if archive and archive['type'] == 'table':
+            foreign_targets = {row['table'] for row in db.execute('PRAGMA foreign_key_list(archive_metadata)')}
+            if 'library_subject' in foreign_targets:
+                db.execute('ALTER TABLE archive_metadata RENAME TO archive_metadata_legacy_card_migration')
+                db.execute('''CREATE TABLE archive_metadata (
+                    filename TEXT PRIMARY KEY, title TEXT NOT NULL, search_terms TEXT NOT NULL DEFAULT '',
+                    subject TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE)''')
+                db.execute('''INSERT INTO archive_metadata(filename,title,search_terms,subject)
+                              SELECT filename,title,search_terms,subject
+                              FROM archive_metadata_legacy_card_migration''')
+                db.execute('DROP TABLE archive_metadata_legacy_card_migration')
+        if legacy_object and legacy_object['type'] == 'table':
+            db.execute('DROP TABLE library_subject')
+        db.execute('''CREATE VIEW IF NOT EXISTS library_subject AS
+                      SELECT id,title,description,display_order,translations,source_language,show_when_empty
+                      FROM card WHERE type='subject' ''')
+        db.execute('DROP TRIGGER IF EXISTS library_subject_insert')
+        db.execute('DROP TRIGGER IF EXISTS library_subject_update')
+        db.execute('DROP TRIGGER IF EXISTS library_subject_delete')
+        db.execute('''CREATE TRIGGER library_subject_insert INSTEAD OF INSERT ON library_subject
+            BEGIN
+                INSERT INTO card(id,type,title,description,display_order,translations,source_language,show_when_empty)
+                VALUES(NEW.id,'subject',NEW.title,COALESCE(NEW.description,''),COALESCE(NEW.display_order,0),
+                       COALESCE(NEW.translations,'{}'),COALESCE(NEW.source_language,'en'),
+                       COALESCE(NEW.show_when_empty,0));
+            END''')
+        db.execute('''CREATE TRIGGER library_subject_update INSTEAD OF UPDATE ON library_subject
+            BEGIN
+                UPDATE card SET title=NEW.title,description=NEW.description,display_order=NEW.display_order,
+                    translations=NEW.translations,source_language=NEW.source_language,
+                    show_when_empty=NEW.show_when_empty WHERE id=OLD.id AND type='subject';
+            END''')
+        db.execute('''CREATE TRIGGER library_subject_delete INSTEAD OF DELETE ON library_subject
+            BEGIN DELETE FROM card WHERE id=OLD.id AND type='subject'; END''')
+        db.execute("DELETE FROM site_setting WHERE key IN ('online_source_cards','rss_cards')")
+        db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
+                   'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                   ('card_storage_migration_v1', 'complete'))
+    except Exception:
+        db.rollback()
+        raise
 
 
 def _localized_text(title, description, translations=None):
@@ -714,8 +882,8 @@ def load_translation_catalogues(directory=TRANSLATIONS_DIR):
 SUPPORTED_LANGUAGES, TRANSLATIONS, ENGLISH_DEFAULTS = load_translation_catalogues()
 DEFAULT_TEXT_IDS = {message: message_id for message_id, message in ENGLISH_DEFAULTS.items()}
 RUNTIME_CAPABILITIES = {
-    'debian': frozenset({'system', 'hotspot', 'power', 'hostname', 'storage', 'cyberchef'}),
-    'headless': frozenset({'system', 'hotspot', 'power', 'hostname', 'storage', 'cyberchef'}),
+    'debian': frozenset({'system', 'hotspot', 'power', 'hostname', 'storage', 'cyberchef', 'firewall'}),
+    'headless': frozenset({'system', 'hotspot', 'power', 'hostname', 'storage', 'cyberchef', 'firewall'}),
     'container': frozenset(),
 }
 
@@ -790,7 +958,7 @@ def runtime_capabilities():
     mode = os.environ.get('CYBERDECK_RUNTIME_MODE', 'debian').lower()
     supported = RUNTIME_CAPABILITIES.get(mode, frozenset())
     return {name: name in supported for name in
-            ('system', 'hotspot', 'power', 'hostname', 'storage', 'cyberchef')}
+            ('system', 'hotspot', 'power', 'hostname', 'storage', 'cyberchef', 'firewall')}
 
 
 def cyberchef_request_host():
@@ -923,26 +1091,27 @@ def connect_db():
         key TEXT PRIMARY KEY, value TEXT NOT NULL)''')
     db.execute('''CREATE TABLE IF NOT EXISTS import_transaction (
         id TEXT PRIMARY KEY, committed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)''')
-    subject_table_exists = db.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='library_subject'").fetchone()
-    db.execute('''CREATE TABLE IF NOT EXISTS library_subject (
-        id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
-        display_order INTEGER NOT NULL, translations TEXT NOT NULL DEFAULT '{}',
-        source_language TEXT NOT NULL DEFAULT 'en',
-        show_when_empty INTEGER NOT NULL DEFAULT 0)''')
-    if not subject_table_exists:
+    subject_object = db.execute(
+        "SELECT type FROM sqlite_master WHERE name='library_subject'").fetchone()
+    if not subject_object:
+        db.execute('''CREATE TABLE library_subject (
+            id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
+            display_order INTEGER NOT NULL, translations TEXT NOT NULL DEFAULT '{}',
+            source_language TEXT NOT NULL DEFAULT 'en',
+            show_when_empty INTEGER NOT NULL DEFAULT 0)''')
         db.executemany('INSERT INTO library_subject(id,title,description,display_order,translations,source_language) '
                        'VALUES(?,?,?,?,?,?)',
                        [(slug, title, description, order,
                          json.dumps(DEFAULT_SUBJECT_TRANSLATIONS.get(slug, {}), ensure_ascii=False), 'en')
                         for order, (slug, title, description) in enumerate(DEFAULT_SUBJECTS)])
     subject_columns = {row['name'] for row in db.execute('PRAGMA table_info(library_subject)')}
-    if 'translations' not in subject_columns:
-        db.execute("ALTER TABLE library_subject ADD COLUMN translations TEXT NOT NULL DEFAULT '{}'")
-    if 'source_language' not in subject_columns:
-        db.execute("ALTER TABLE library_subject ADD COLUMN source_language TEXT NOT NULL DEFAULT 'en'")
-    if 'show_when_empty' not in subject_columns:
-        db.execute('ALTER TABLE library_subject ADD COLUMN show_when_empty INTEGER NOT NULL DEFAULT 0')
+    if subject_object is None or subject_object['type'] == 'table':
+        if 'translations' not in subject_columns:
+            db.execute("ALTER TABLE library_subject ADD COLUMN translations TEXT NOT NULL DEFAULT '{}'")
+        if 'source_language' not in subject_columns:
+            db.execute("ALTER TABLE library_subject ADD COLUMN source_language TEXT NOT NULL DEFAULT 'en'")
+        if 'show_when_empty' not in subject_columns:
+            db.execute('ALTER TABLE library_subject ADD COLUMN show_when_empty INTEGER NOT NULL DEFAULT 0')
     legacy_always_show = db.execute("SELECT value FROM site_setting WHERE key='always_show_subjects'").fetchone()
     if legacy_always_show:
         try:
@@ -985,6 +1154,7 @@ def connect_db():
         BEGIN SELECT RAISE(ABORT, 'unknown subject'); END;
     ''')
     _migrate_stored_card_locales(db)
+    _migrate_card_storage(db)
     db.commit()
     return db
 
@@ -2674,9 +2844,15 @@ def _apply_settings_only_import(stage_root, ticket, body):
         g.db.execute('INSERT INTO import_transaction(id) VALUES(?)', (ticket['id'],))
 
         for order, subject in enumerate(incoming):
-            g.db.execute('INSERT INTO library_subject(id,title,description,display_order,translations,source_language,show_when_empty) VALUES(?,?,?,?,?,?,?) '
-                         'ON CONFLICT(id) DO UPDATE SET title=excluded.title, '
-                         'description=excluded.description,display_order=excluded.display_order,translations=excluded.translations,source_language=excluded.source_language,show_when_empty=excluded.show_when_empty',
+            existing_card = g.db.execute('SELECT type FROM card WHERE id=?', (subject['id'],)).fetchone()
+            if existing_card and existing_card['type'] != 'subject':
+                raise ValueError('An imported subject ID conflicts with an online source or RSS card ID')
+            g.db.execute('''INSERT INTO card(id,type,title,description,display_order,translations,
+                          source_language,show_when_empty) VALUES(?,'subject',?,?,?,?,?,?)
+                          ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,
+                          display_order=excluded.display_order,translations=excluded.translations,
+                          source_language=excluded.source_language,show_when_empty=excluded.show_when_empty
+                          WHERE card.type='subject' ''',
                          (subject['id'], subject['title'], subject['description'], order,
                           json.dumps(subject.get('translations', {}), ensure_ascii=False),
                           subject.get('source_language', 'en'), int(subject.get('show_when_empty', False))))
@@ -2693,11 +2869,13 @@ def _apply_settings_only_import(stage_root, ticket, body):
 
         imported_settings = config.get('site_settings', {}) if body.get('apply_settings') is True else {}
         settings_to_save = dict(imported_settings)
-        if body.get('apply_settings') is True:
-            if 'online_source_cards' in config:
-                settings_to_save['online_source_cards'] = config['online_source_cards']
-            if 'rss_cards' in config:
-                settings_to_save['rss_cards'] = config['rss_cards']
+        imported_online = config.get('online_source_cards') if body.get('apply_settings') is True else None
+        imported_rss = config.get('rss_cards') if body.get('apply_settings') is True else None
+        card_settings_applied = imported_online is not None or imported_rss is not None
+        if card_settings_applied:
+            _persist_card_collections(imported_online, imported_rss)
+        settings_to_save.pop('online_source_cards', None)
+        settings_to_save.pop('rss_cards', None)
         if settings_to_save:
             g.db.executemany(
                 'INSERT INTO site_setting(key,value) VALUES(?,?) '
@@ -2714,9 +2892,6 @@ def _apply_settings_only_import(stage_root, ticket, body):
                 os.fsync(handle.fileno())
             os.replace(temporary_index, acquired_path)
         g.db.commit()
-        if 'rss_cards' in settings_to_save:
-            with _police_rss_state_lock:
-                _police_rss_cache.clear()
     except Exception:
         g.db.rollback()
         if temporary_index is not None:
@@ -2730,9 +2905,7 @@ def _apply_settings_only_import(stage_root, ticket, body):
               'subjects_removed': len(removed_ids),
               'content_records_remapped': sum(row['assigned_count'] for row in removals
                                               if row['id'] in remap),
-              'site_settings_applied': bool(imported_settings or
-                                            'online_source_cards' in settings_to_save or
-                                            'rss_cards' in settings_to_save)}
+              'site_settings_applied': bool(imported_settings or card_settings_applied)}
     try:
         shutil.rmtree(stage_root)
     except OSError as error:
@@ -3344,10 +3517,12 @@ def import_apply():
                         g.db.execute('UPDATE item SET cover=? WHERE id=?', (cover, item_id))
             settings = config.get('site_settings', {}) if body.get('apply_settings') is True else {}
             import_settings = dict(settings)
-            if 'online_source_cards' in config:
-                import_settings['online_source_cards'] = config['online_source_cards']
-            if 'rss_cards' in config:
-                import_settings['rss_cards'] = config['rss_cards']
+            imported_online = config.get('online_source_cards')
+            imported_rss = config.get('rss_cards')
+            if imported_online is not None or imported_rss is not None:
+                _persist_card_collections(imported_online, imported_rss)
+            import_settings.pop('online_source_cards', None)
+            import_settings.pop('rss_cards', None)
             if import_settings:
                 if 'accent_color' in import_settings and not re.fullmatch(r'#[0-9a-fA-F]{6}', str(import_settings['accent_color'])):
                     raise ValueError('Imported accent color is invalid')
@@ -3356,9 +3531,6 @@ def import_apply():
                 g.db.executemany('INSERT INTO site_setting(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                                  [(key, json.dumps(value) if isinstance(value, (dict, list)) else str(value))
                                   for key, value in import_settings.items()])
-                if 'rss_cards' in import_settings:
-                    with _police_rss_state_lock:
-                        _police_rss_cache.clear()
             saved_document = json.loads(json.dumps(config))
             for asset in saved_document.get('assets', []):
                 asset['collection'] = resolved.get(asset.get('collection'), asset.get('collection'))
@@ -4290,22 +4462,33 @@ def _merge_card_locale_edit(body, previous=None):
 
 
 def _persist_card_collections(cards):
-    for kind, key, label in (('online', 'online_source_cards', 'online source'),
-                             ('rss', 'rss_cards', 'RSS')):
+    for kind, label in (('online', 'online source'), ('rss', 'RSS')):
         values = []
+        field = 'links' if kind == 'online' else 'feeds'
         for card in cards:
-            if card['type'] != kind:
-                continue
-            field = 'links' if kind == 'online' else 'feeds'
-            values.append({'id': card['id'], 'title': card['title'],
-                           'description': card['description'], 'translations': card['translations'],
-                           'source_language': card['source_language'],
-                           'show_when_empty': card.get('show_when_empty', False),
-                           'offline_display': card.get('offline_display', 'hide'), field: card.get('entries', [])})
+            if card['type'] == kind:
+                values.append({'id': card['id'], 'title': card['title'],
+                               'description': card['description'], 'translations': card['translations'],
+                               'source_language': card['source_language'],
+                               'show_when_empty': card.get('show_when_empty', False),
+                               'offline_display': card.get('offline_display', 'hide'),
+                               field: card.get('entries', [])})
         validated = _validate_card_list(values, label)
-        g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
-                     'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                     (key, json.dumps(validated, ensure_ascii=False)))
+        g.db.execute('DELETE FROM card WHERE type=?', (kind,))
+        for position, card in enumerate(validated):
+            g.db.execute('''INSERT INTO card(id,type,title,description,display_order,translations,
+                           source_language,show_when_empty,offline_display)
+                           VALUES(?,?,?,?,?,?,?,?,?)''',
+                         (card['id'], kind, card['title'], card['description'], position,
+                          json.dumps(card['translations'], ensure_ascii=False), card['source_language'],
+                          int(card['show_when_empty']), card['offline_display']))
+            for entry_position, entry in enumerate(card[field]):
+                g.db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
+                               enabled,source_language,translations) VALUES(?,?,?,?,?,?,?,?,?)''',
+                             (card['id'], entry['id'], entry_position, entry['title'],
+                              entry.get('description', ''), entry['url'],
+                              int(entry.get('enabled', True)), entry['source_language'],
+                              json.dumps(entry['translations'], ensure_ascii=False)))
 
 
 @app.get('/api/admin/cards')
@@ -4633,13 +4816,12 @@ def _save_card_definitions(key, kind):
         cards = _validate_card_list(body['cards'], kind)
     except ValueError as error:
         return jsonify(error=str(error)), 400
-    g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
-                 'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                 (key, json.dumps(cards, ensure_ascii=False)))
+    try:
+        _persist_card_collections(online=cards if kind == 'online source' else None,
+                                  rss=cards if kind == 'RSS' else None)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
     g.db.commit()
-    if key == 'rss_cards':
-        with _police_rss_state_lock:
-            _police_rss_cache.clear()
     return jsonify(cards=cards)
 
 
@@ -5771,6 +5953,37 @@ def restart_kiwix():
 def admin_module_status():
     return jsonify(hotspot_available=capability_available('hotspot'),
                    hotspot_enabled=hotspot_module_enabled())
+
+
+@app.get('/api/admin/firewall')
+@admin_required
+def admin_firewall_status():
+    if not capability_available('firewall'):
+        abort(404)
+    try:
+        response = jsonify(helper('firewall-status'))
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+    except (RuntimeError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
+        return jsonify(error=str(error) or 'Could not read firewall status'), 503
+
+
+@app.put('/api/admin/firewall')
+@admin_required
+@csrf_required
+def admin_firewall_update():
+    if not capability_available('firewall'):
+        abort(404)
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or type(body.get('enabled')) is not bool:
+        return jsonify(error='Firewall enabled must be true or false'), 400
+    try:
+        result = helper('firewall-enable' if body['enabled'] else 'firewall-disable')
+        response = jsonify(result)
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+    except (RuntimeError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
+        return jsonify(error=str(error) or 'Could not change firewall state'), 503
 
 
 @app.put('/api/admin/modules')

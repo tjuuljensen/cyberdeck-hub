@@ -1092,6 +1092,50 @@ if(hotspotModuleToggle){
     catch(error){hotspotModuleToggle.checked=!enabled;status.textContent=error.message;hotspotModuleToggle.disabled=false}
   });
 }
+const firewallToggle=document.querySelector('#firewall-toggle');
+if(firewallToggle){
+  const firewallStatus=document.querySelector('#firewall-module-status');
+  const confirmation=document.querySelector('#firewall-confirmation');
+  const confirmationText=document.querySelector('#firewall-confirmation-text');
+  const confirmButton=document.querySelector('#firewall-confirm');
+  const cancelButton=document.querySelector('#firewall-cancel');
+  let firewallState=null;
+  let pendingFirewallState=null;
+  async function refreshFirewall(){
+    try{
+      firewallState=await requestJson('/api/admin/firewall',{cache:'no-store'});
+      firewallToggle.checked=firewallState.enabled;
+      firewallToggle.disabled=!firewallState.available;
+      firewallStatus.textContent=firewallState.reason||
+        cyberdeckTranslate(firewallState.active?'ui.0829':'ui.0828');
+    }catch(error){
+      firewallToggle.disabled=true;
+      firewallStatus.textContent=error.message;
+    }
+  }
+  firewallToggle.addEventListener('change',()=>{
+    if(!firewallState){firewallToggle.checked=false;return}
+    pendingFirewallState=firewallToggle.checked;
+    firewallToggle.checked=firewallState.enabled;
+    confirmationText.textContent=cyberdeckTranslate(pendingFirewallState?'ui.0832':'ui.0833');
+    confirmation.hidden=false;
+  });
+  cancelButton.addEventListener('click',()=>{pendingFirewallState=null;confirmation.hidden=true});
+  confirmButton.addEventListener('click',async()=>{
+    if(pendingFirewallState===null)return;
+    const requested=pendingFirewallState;
+    confirmButton.disabled=true;cancelButton.disabled=true;firewallToggle.disabled=true;
+    firewallStatus.textContent=cyberdeckTranslate(requested?'ui.0830':'ui.0831');
+    try{
+      await requestJson('/api/admin/firewall',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({enabled:requested})});
+      confirmation.hidden=true;pendingFirewallState=null;await refreshFirewall();
+    }catch(error){
+      firewallStatus.textContent=error.message;firewallToggle.checked=firewallState?.enabled||false;
+      firewallToggle.disabled=!firewallState?.available;
+    }finally{confirmButton.disabled=false;cancelButton.disabled=false}
+  });
+  refreshFirewall();
+}
 if(document.querySelector('#hotspot')){
 document.querySelectorAll('[data-hotspot]').forEach(button=>button.addEventListener('click',async()=>{try{await requestJson('/api/admin/hotspot',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:button.dataset.hotspot})});if(button.dataset.hotspot==='stop')hotspotConfigLoaded=false;await Promise.all([hotspotStatus(),refreshSystemOverview()])}catch(error){alert(error.message)}}));
 document.querySelector('#hotspot-form').addEventListener('submit',async event=>{event.preventDefault();const formElement=event.currentTarget;const form=new FormData(formElement);try{await requestJson('/api/admin/hotspot',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:'configure',device:form.get('device'),ssid:form.get('ssid'),password:form.get('password'),upstream_ssids:String(form.get('upstream_ssids')||'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean),redundancy_minutes:Number(form.get('redundancy_minutes')),autostart:form.has('autostart')})});formElement.elements.password.value='';hotspotConfigLoaded=false;hotspotPasswordLoaded=false;await hotspotStatus();alert('Hotspot profile saved.')}catch(error){alert(error.message)}});

@@ -2970,5 +2970,53 @@
   "ui.0821": {
     "default": "Showing cached updates from",
     "context": "Offline RSS reader status shown before the timestamp of cached feed items."
+  },
+  "ui.0822": {
+    "default": "Firewall",
+    "context": "Name of the optional Cyberdeck-managed host firewall module in Admin."
+  },
+  "ui.0823": {
+    "default": "When enabled, this module blocks unsolicited inbound traffic while allowing established connections, SSH, Hub web access, and hotspot essentials. Other firewall managers must be stopped first.",
+    "context": "Explains the managed firewall policy and the competing-manager limitation."
+  },
+  "ui.0824": {
+    "default": "Checking firewall status...",
+    "context": "Initial Admin status while the Cyberdeck firewall is checked."
+  },
+  "ui.0825": {
+    "default": "Enable Cyberdeck firewall",
+    "context": "Checkbox that enables the Cyberdeck-managed nftables host firewall."
+  },
+  "ui.0826": {
+    "default": "Confirm change",
+    "context": "Confirms enabling or disabling the Cyberdeck firewall module."
+  },
+  "ui.0827": {
+    "default": "Cancel",
+    "context": "Cancels a pending Cyberdeck firewall module change."
+  },
+  "ui.0828": {
+    "default": "Firewall is off. Enabling it blocks unsolicited inbound traffic while allowing SSH, Hub, and hotspot services.",
+    "context": "Admin status when the Cyberdeck firewall module is disabled."
+  },
+  "ui.0829": {
+    "default": "Cyberdeck firewall is active.",
+    "context": "Admin status when the Cyberdeck firewall module is active."
+  },
+  "ui.0830": {
+    "default": "Enabling firewall...",
+    "context": "Progress status while the administrator enables the firewall."
+  },
+  "ui.0831": {
+    "default": "Disabling firewall...",
+    "context": "Progress status while the administrator disables the firewall."
+  },
+  "ui.0832": {
+    "default": "Enabling the firewall blocks unsolicited inbound traffic. SSH, Hub web access, and hotspot essentials remain allowed. Confirm only if another firewall manager is not in use.",
+    "context": "Inline confirmation before enabling the Cyberdeck firewall."
+  },
+  "ui.0833": {
+    "default": "Disabling the Cyberdeck firewall removes only its managed rules.",
+    "context": "Inline confirmation before disabling the Cyberdeck firewall."
   }
 }

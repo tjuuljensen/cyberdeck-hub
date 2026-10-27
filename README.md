@@ -1,93 +1,86 @@
 # Cyberdeck Hub
 
 Cyberdeck Hub is a local-first library for keeping reference material available
-on a household network when the internet is unavailable. It provides subject
-groups for documents and offline Kiwix libraries, and an administrator area for
-managing content.
+to a household over a local network, including when internet access is down. It
+organizes documents and offline Kiwix libraries by subject and provides an
+administrator area for managing content, modules, and the server.
 
-## Candidate installation
+## Choose an installation path
 
-The source kit includes installer paths for existing Debian 13 amd64 and arm64
-systems. It does not install Debian or repartition disks. The v0.2.0 source and
-package checks are complete, but no v0.2.0 physical-target acceptance is
-recorded yet; follow the runbook before relying on the candidate. Generic
-arm64 support and each Raspberry Pi model require their own target checks;
-passing on arm64 does not establish support for a particular Pi model.
+Cyberdeck Hub is designed for Debian 13. Choose the path that fits your starting
+point:
 
-Build a source kit on a connected computer:
+| Starting point | Use this path |
+| --- | --- |
+| You are preparing a new Cyberdeck computer | Use the guided Debian USB bootstrap. It prepares custom Debian install media with the Hub source kit and first-boot setup. See the [bootstrap install guide](docs/runbooks/bootstrap-install.md). |
+| Debian 13 is already installed | Start at the existing-system installation section in the [manual Debian install guide](docs/runbooks/debian-install.md). It covers preview, install, configuration, customization, and recovery. |
+| You are developing or deploying a Hub change | Use the Windows developer deployment helper in the sibling `cyberdeck` repository. It packages a reviewed standalone Hub checkout and deploys that version to a target. See the sibling [developer deployment guide](../cyberdeck/docs/development.md) and [Debian target runbook](../cyberdeck/docs/runbooks/debian-install.md). |
 
-```sh
-python3 scripts/debian/build-kit.py --output /path/to/cyberdeck-hub-debian-kit.tar.gz
-```
+The install guide identifies supported Debian versions and architectures and
+separates source/package checks from physical-target acceptance. Generic ARM64
+support does not establish support for a particular Raspberry Pi model.
 
-Transfer and extract the kit on the Debian computer. Review the
-[installation and acceptance runbook](docs/runbooks/debian-install.md), then
-run the installer in preview mode before applying it:
+## First use
 
-```sh
-bash scripts/debian/install.sh --hostname cyberdeck
-sudo bash scripts/debian/install.sh --apply --hostname cyberdeck
-```
+After installation, open the Hub address printed by the installer, usually
+`https://cyberdeck.local/`. On first visit, create the administrator account.
+For a new browser or device, follow the certificate help page to verify and
+trust the local certificate authority before using HTTPS.
 
-The first browser visit creates the administrator account. The generic starter
-configuration is at `config/debian/starter.json`. Three optional, subject-only
-starter profiles are included for Danish crisis preparedness, generic off-grid
-preparedness, and a family off-grid library. They do not bundle guidance or
-household data. See the [starter profile guide](docs/content/starter-profiles.md).
+In **Admin**, review the available configuration profiles before applying one.
+Use **settings only** to preview subject and site settings without starting
+content downloads. A full import can queue acquisitions from its listed
+sources. Review the import preview and available storage first.
 
-The current online crisis-links group is curated for a Danish household and
-contains external services only. It is hidden when the Hub cannot reach the
-internet. See the [online links source note](docs/content/online-crisis-links.md).
+To add material, use **Admin > Documents** for reference files and **Admin >
+Kiwix libraries** for ZIM archives. Keep source, edition, publication date, and
+reuse terms with selected content. Hub stores acquired files locally; an
+internet source URL alone is not an offline copy.
 
-If a Wi-Fi adapter is missing from the Hotspot settings, run the diagnostic on
-the Debian server:
+## Daily use and recovery
 
-```sh
-cyberdeck-wifi-diagnostics
-sudo cyberdeck-wifi-diagnostics  # also reads restricted kernel logs
-```
+- Open a subject card to find related documents and Kiwix libraries. Hub search
+  searches catalogue metadata; use the Kiwix search bar to search inside ZIM
+  libraries.
+- Online Source and RSS cards require internet access. RSS is a reader, not an
+  emergency alert or notification service.
+- Check available storage in **Admin > System** before acquiring large files.
+- Export configuration for metadata and source links. It does not include
+  downloaded PDF payloads. Use the Debian recovery backup for acquired content,
+  and perform a restore rehearsal before relying on it.
+- Keep credentials, household records, and downloaded reference payloads out
+  of Git. Store administrator credentials separately from the server.
 
-It reports PCI wireless controllers, kernel Wi-Fi interfaces, NetworkManager
-visibility, and firmware load errors. For an opt-in Debian firmware package
-install, use `sudo cyberdeck-wifi-diagnostics --install-firmware`;
-review apt's package prompt. Vendor-specific drivers may still need to be
-installed separately. The script does not change anything unless that option
-is passed.
+See the [Debian install guide](docs/runbooks/debian-install.md) for detailed
+service behavior, custom data roots, offline installation, optional modules,
+backup and restore, and troubleshooting. The [content refresh runbook](docs/runbooks/content-refresh.md)
+covers the reviewed manual update workflow.
 
-## Optional components
+## Profiles and optional modules
 
-CyberChef is a pinned optional module. An online full Debian install stages it
-and leaves its service disabled; Admin can start or stop it later. Use
-`--skip-cyberchef` or `--offline` to omit it. After staging, the static module
-files remain on disk while CyberChef is stopped; the stopped service consumes
-no runtime resources. Staging needs internet access, and the files use disk
-space while installed.
+The install includes an empty generic starter configuration and optional
+profiles. Profiles define selected subjects and content sources; review their
+scope and import preview before applying. See the [profile guide](docs/content/starter-profiles.md)
+for the naming and content-selection policy.
 
-The Docker files are an experimental preview. They are not a supported
-deployment until persistence, backups, updates, restart recovery, and optional
-services pass acceptance on a disposable Docker host.
+CyberChef is an optional Debian module. Online installation can stage the
+pinned files while leaving the service disabled; Admin can enable it later.
+Staging requires internet access and consumes disk space. The Hotspot is also
+an optional host module. A managed nftables firewall can be enabled in Admin
+when the host has no competing firewall manager or input policy. It is disabled
+by default. Read the install guide before changing host network or firewall
+settings, especially when administering the host remotely.
 
-## Development and scope
+Docker is not currently a supported installation path. Use the Debian guide.
 
-The parent `cyberdeck` project covers hardware experiments, offline solutions,
-research, and target evidence. This repository contains the Hub product and its
-supported installation path. Keep payloads, household documents, credentials,
-and device-specific private details outside this repository.
+## Development and project boundaries
 
-From the repository root, run the workstation checks with Python 3, Flask,
-Node.js, and Bash available:
+This repository is the source of truth for the Hub application, its profiles,
+and user-facing bootstrap. The sibling `cyberdeck` repository owns hardware
+research, target evidence, and the Windows developer deployment helper. The
+developer helper must use a reviewed checkout of this standalone repository,
+not a nested copy.
 
-```sh
-python -m unittest discover -s tests
-python -m unittest discover -s scripts/debian -p 'test_*.py'
-node tests/test_accent.js
-node tests/test_i18n.js
-bash -n scripts/debian/install.sh
-```
-
-These checks use temporary data and mocks; they do not install packages or
-change a host. Hardware, Debian installation, disconnected startup,
-second-client, and backup/restore acceptance must be recorded separately from
-source and package checks. The reviewed manual content update workflow is
-documented in the [content refresh runbook](docs/runbooks/content-refresh.md).
-The local v0.2.0 candidate scope and remaining release gates are in the [candidate note](docs/releases/v0-2-0-candidate.md).
+For architecture and migration decisions, see the [architecture review](docs/architecture-review.md).
+The [v0.2.0 candidate note](docs/releases/v0-2-0-candidate.md) records release
+scope and remaining acceptance gates.

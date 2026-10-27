@@ -155,6 +155,7 @@ fi
    -f "$service_source/cyberdeck-storage-existing.service" &&
    -f "$service_source/cyberdeck-storage-recovery.service" &&
    -f "$service_source/cyberdeck-storage-boot-recovery.service" &&
+   -f "$service_source/cyberdeck-firewall.service" &&
    -f "$repo_root/config/debian/systemd/cyberdeck-hotspot-autostart.service" &&
    -f "$repo_root/config/debian/systemd/cyberdeck-hotspot-autostart.timer" &&
    -f "$repo_root/config/debian/cyberdeck-hotspot-dns.conf" &&
@@ -243,7 +244,7 @@ if (( ! apply )); then
         printf 'Storage suggestion: %s is a separate filesystem with more free space; confirm it during interactive apply or pass --data-root PATH.\n' "$storage_recommendation"
     fi
     printf '%s\n' \
-        'Would install/check Debian 13 packages: python3, python3-flask, gunicorn, kiwix-tools, zim-tools, openssl, sudo, avahi-daemon, network-manager, dnsmasq-base, iw, curl, rsync, parted, e2fsprogs, util-linux.' \
+        'Would install/check Debian 13 packages: python3, python3-flask, gunicorn, kiwix-tools, zim-tools, openssl, sudo, avahi-daemon, network-manager, dnsmasq-base, iw, nftables, curl, rsync, parted, e2fsprogs, util-linux.' \
         'Would install the pinned compatible zimcheck validator when Debian supplies an older libzim.' \
         'Would create the unprivileged cyberdeck service user, persistent data directories, a local CA and server certificate.' \
         'Would install Cyberdeck Hub on HTTPS port 443, certificate bootstrap and HTTP redirect on port 80, and Kiwix on loopback port 8080.' \
@@ -347,6 +348,7 @@ destination_files=(
     /etc/cyberdeck/tls/server.key /etc/cyberdeck/tls/server.crt
     /etc/cyberdeck/tls/server.csr /etc/cyberdeck/tls/server.ext /etc/cyberdeck/tls/ca.srl
     /etc/cyberdeck/environment /etc/systemd/system/cyberdeck-web.service
+    /etc/systemd/system/cyberdeck-firewall.service /etc/cyberdeck/firewall-enabled
     /etc/systemd/system/cyberdeck-kiwix.service /etc/systemd/system/cyberdeck-redirect.service
     /etc/sudoers.d/cyberdeck-web
     /etc/systemd/system/cyberdeck-hotspot-autostart.service
@@ -390,7 +392,7 @@ deployment_id=$(python3 "$repo_root/scripts/debian/deploy-helper.py" snapshot "$
 [[ $deployment_id =~ ^[0-9a-f]{32}$ ]] || die 'Could not create a valid deployment recovery ID.'
 printf 'Deployment recovery snapshot: %s\nBackup: /var/backups/cyberdeck/deployments/%s\n' \
     "$deployment_id" "$deployment_id"
-packages=(python3 python3-flask gunicorn kiwix-tools zim-tools openssl sudo avahi-daemon network-manager dnsmasq-base iw curl rsync parted e2fsprogs util-linux)
+packages=(python3 python3-flask gunicorn kiwix-tools zim-tools openssl sudo avahi-daemon network-manager dnsmasq-base iw nftables curl rsync parted e2fsprogs util-linux)
 if (( offline == 0 )); then
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}"
@@ -565,6 +567,8 @@ sed "s|@CYBERDECK_ROOT@|$data_root|g" "$service_source/cyberdeck-kiwix.service" 
     > /etc/systemd/system/cyberdeck-kiwix.service
 install -o root -g root -m 0644 "$service_source/cyberdeck-redirect.service" \
     /etc/systemd/system/cyberdeck-redirect.service
+install -o root -g root -m 0644 "$service_source/cyberdeck-firewall.service" \
+    /etc/systemd/system/cyberdeck-firewall.service
 install -o root -g root -m 0755 "$repo_root/scripts/debian/storage-helper.py" \
     /usr/local/lib/cyberdeck/storage-helper.py
 install -o root -g root -m 0755 "$repo_root/scripts/debian/deploy-helper.py" \
@@ -606,7 +610,7 @@ systemd-tmpfiles --create /etc/tmpfiles.d/cyberdeck-storage.conf
 chown root:root /etc/systemd/system/cyberdeck-web.service /etc/systemd/system/cyberdeck-kiwix.service
 chmod 0644 /etc/systemd/system/cyberdeck-web.service /etc/systemd/system/cyberdeck-kiwix.service
 printf '%s\n' \
-    'cyberdeck ALL=(root) NOPASSWD: /usr/local/lib/cyberdeck/storage-helper.py, /usr/bin/systemctl restart cyberdeck-kiwix.service, /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff, /usr/local/lib/cyberdeck/admin-helper.py hotspot-status, /usr/local/lib/cyberdeck/admin-helper.py hotspot-password, /usr/local/lib/cyberdeck/admin-helper.py hotspot-configure, /usr/local/lib/cyberdeck/admin-helper.py hotspot-start, /usr/local/lib/cyberdeck/admin-helper.py hotspot-stop, /usr/local/lib/cyberdeck/admin-helper.py hotspot-module-enable, /usr/local/lib/cyberdeck/admin-helper.py hotspot-module-disable, /usr/local/lib/cyberdeck/admin-helper.py hostname-status, /usr/local/lib/cyberdeck/admin-helper.py hostname-configure, /usr/local/lib/cyberdeck/admin-helper.py cyberchef-status, /usr/local/lib/cyberdeck/admin-helper.py cyberchef-enable, /usr/local/lib/cyberdeck/admin-helper.py cyberchef-disable' \
+    'cyberdeck ALL=(root) NOPASSWD: /usr/local/lib/cyberdeck/storage-helper.py, /usr/bin/systemctl restart cyberdeck-kiwix.service, /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff, /usr/local/lib/cyberdeck/admin-helper.py hotspot-status, /usr/local/lib/cyberdeck/admin-helper.py hotspot-password, /usr/local/lib/cyberdeck/admin-helper.py hotspot-configure, /usr/local/lib/cyberdeck/admin-helper.py hotspot-start, /usr/local/lib/cyberdeck/admin-helper.py hotspot-stop, /usr/local/lib/cyberdeck/admin-helper.py hotspot-module-enable, /usr/local/lib/cyberdeck/admin-helper.py hotspot-module-disable, /usr/local/lib/cyberdeck/admin-helper.py hostname-status, /usr/local/lib/cyberdeck/admin-helper.py hostname-configure, /usr/local/lib/cyberdeck/admin-helper.py cyberchef-status, /usr/local/lib/cyberdeck/admin-helper.py cyberchef-enable, /usr/local/lib/cyberdeck/admin-helper.py cyberchef-disable, /usr/local/lib/cyberdeck/admin-helper.py firewall-status, /usr/local/lib/cyberdeck/admin-helper.py firewall-enable, /usr/local/lib/cyberdeck/admin-helper.py firewall-disable' \
     > /etc/sudoers.d/cyberdeck-web
 chown root:root /etc/sudoers.d/cyberdeck-web
 chmod 0440 /etc/sudoers.d/cyberdeck-web

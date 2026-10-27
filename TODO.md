@@ -1,3 +1,3 @@
 # TODO
 
-- [ ] Migrate Subject, RSS, and Online Sources cards to a unified relational Card storage model. Preserve existing card IDs, document and ZIM assignments, routes, card settings and translations, and configuration import/export compatibility. Include a safe migration for existing SQLite subject records and JSON-backed RSS/Online Source settings.
+- [x] Move Subject, RSS, and Online Sources cards into unified relational Card storage. The startup migration preserves identifiers, assignments, routes, translations, and the portable configuration import/export shape; a subject compatibility view remains until feature queries and writes can move to the canonical model. Existing-install and rollback acceptance still require a Debian target.

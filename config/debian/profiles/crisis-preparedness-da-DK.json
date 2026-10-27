@@ -1,0 +1,110 @@
+{
+  "format": "cyberdeck-config",
+  "version": 1,
+  "name": "Kriseberedskab i Danmark",
+  "reserve_bytes": 1000000000,
+  "assets": [
+    {
+      "path": "public/first-aid-teacher-guide-da.pdf",
+      "title": "Kan du hjælpe? Førstehjælp for 7. - 10. klasse Lærervejledning - Frstehjlp_-_kan_du_hjlpe_-_lrervejledning.pdf",
+      "description": "",
+      "collection": "foerstehjaelp",
+      "url": "https://www.rodekors.dk/sites/rodekors.dk/files/2018-05/F%C3%B8rstehj%C3%A6lp%20-%20kan%20du%20hj%C3%A6lpe%20-%20l%C3%A6rervejledning.pdf",
+      "max_bytes": 14248722
+    },
+    {
+      "path": "public/brs-crisis-checklist-da.pdf",
+      "title": "Beredskabsstyrelsen: Forberedt på kriser - Tjekliste (Danish, one page)",
+      "description": "",
+      "collection": "myndigheder-og-varsling",
+      "url": "https://www.brs.dk/globalassets/brs---beredskabsstyrelsen/dokumenter/krisekommunikation/2024/-tjekliste-.pdf",
+      "max_bytes": 1000000
+    },
+    {
+      "path": "public/folk-og-sikkerhed-hvad-nu-hvis-da.pdf",
+      "title": "Folk & Sikkerhed: Hvad nu hvis? (Danish, revised 2024 download)",
+      "description": "",
+      "collection": "myndigheder-og-varsling",
+      "url": "https://clubportalne.blob.core.windows.net/sitesite2516286297783579217/f/Web%20billeder/FS-FOLDER-13-03-24-FSudgave-digital-version.pdf",
+      "max_bytes": 4000000
+    },
+    {
+      "path": "public/brs-prepared-for-crises-da.pdf",
+      "title": "Beredskabsstyrelsen: Forberedt på kriser (Danish, print-friendly)",
+      "description": "",
+      "collection": "myndigheder-og-varsling",
+      "url": "https://samsik.dk/wp-content/uploads/2025/08/Forberedt-paa-kriser_print-venlig-version.pdf",
+      "max_bytes": 2000000
+    },
+    {
+      "path": "public/tryg-aed-poster-da.pdf",
+      "title": "TrygFonden - Hjertestarter plakat - TrygFonden-hjertestarter-plakat-A3.pdf",
+      "description": "Sådan starter du et hjerte igen",
+      "collection": "foerstehjaelp",
+      "url": "https://hjertestarter.dk/-/media/files/trygfonden-hjertestarter-plakat-a3.pdf",
+      "max_bytes": 2010553
+    },
+    {
+      "path": "public/child-resuscitation-guidance-da.pdf",
+      "title": "Vejledning for lægmands genoplivning af børn (0 -18 år) - Dansk-Forstehjaelpsrads-anbefalinger-for-laegmands-genoplivning-af-born-0-18-ar.pdf",
+      "description": "Dansk Førstehjælpsråds vejledning for lægmands genoplivning af børn (0 -18 år)",
+      "collection": "foerstehjaelp",
+      "url": "https://foerstehjaelpsraad.dk/wp-content/uploads/2026/02/Dansk-Forstehjaelpsrads-anbefalinger-for-laegmands-genoplivning-af-born-0-18-ar.pdf",
+      "max_bytes": 670411
+    },
+    {
+      "path": "zim/denmark-maps-en.zim",
+      "title": "Denmark maps (English)",
+      "description": "English-language maps for Denmark.",
+      "collection": "kort-og-navigation",
+      "url": "https://mirror.download.kiwix.org/zim/maps/maps_en_denmark_2026-06.zim",
+      "max_bytes": 622355162
+    },
+    {
+      "path": "zim/wikipedia-da-maxi.zim",
+      "title": "Danish Wikipedia (maxi, September 2026)",
+      "description": "",
+      "collection": "generel-reference",
+      "url": "https://mirror.download.kiwix.org/zim/wikipedia/wikipedia_da_all_maxi_2026-09.zim",
+      "max_bytes": 4071428796
+    }
+  ],
+  "offline_catalogues": [],
+  "subjects": [
+    {
+      "id": "myndigheder-og-varsling",
+      "title": "Myndigheder og varsling",
+      "description": "Officielle råd, varsling og kommunikation i Danmark.",
+      "display_order": 10,
+      "source_language": "da"
+    },
+    {
+      "id": "foerstehjaelp",
+      "title": "Sundhed og førstehjælp",
+      "description": "Førstehjælp og sundhedsvejledning fra tydeligt angivne kilder.",
+      "display_order": 20,
+      "source_language": "da"
+    },
+    {
+      "id": "kort-og-navigation",
+      "title": "Kort og navigation",
+      "description": "Kort og geografisk reference for Danmark.",
+      "display_order": 30,
+      "source_language": "da"
+    },
+    {
+      "id": "praktiske-faerdigheder",
+      "title": "Praktiske færdigheder",
+      "description": "Grundlæggende praktiske færdigheder til hjem og hverdag.",
+      "display_order": 40,
+      "source_language": "da"
+    },
+    {
+      "id": "generel-reference",
+      "title": "Generel reference",
+      "description": "Dansksproget opslagsværk til brug uden internet.",
+      "display_order": 50,
+      "source_language": "da"
+    }
+  ]
+}

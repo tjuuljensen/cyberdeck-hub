@@ -23,6 +23,9 @@ DEFAULT_REDUNDANCY_MINUTES = 60
 STORAGE_HELPER = Path('/usr/local/lib/cyberdeck/storage-helper.py')
 CYBERCHEF_ROOT = Path('/opt/cyberdeck/modules/cyberchef')
 CYBERCHEF_SERVICE = 'cyberdeck-cyberchef.service'
+FIREWALL_ENABLED = Path('/etc/cyberdeck/firewall-enabled')
+FIREWALL_SERVICE = 'cyberdeck-firewall.service'
+NFT = '/usr/sbin/nft'
 
 
 def storage_operation(action, payload):
@@ -467,6 +470,124 @@ def cyberchef_set_enabled(enabled):
     return cyberchef_status()
 
 
+def firewall_conflicts():
+    """Find other host firewall managers that would compete with our base chain."""
+    conflicts = []
+    for unit in ('ufw.service', 'firewalld.service', 'nftables.service'):
+        result = run(['systemctl', 'is-active', '--quiet', unit], check=False)
+        if result.returncode == 0:
+            conflicts.append(unit)
+    if Path(NFT).is_file():
+        ruleset = run([NFT, 'list', 'ruleset'], check=False).stdout
+        other_rules = re.sub(r'(?ms)^table inet cyberdeck \{.*?^\}\s*', '', ruleset)
+        if 'hook input' in other_rules and 'nftables.service' not in conflicts:
+            conflicts.append('existing nftables input rules')
+    return conflicts
+
+
+def firewall_status():
+    conflicts = firewall_conflicts()
+    state_unsafe = FIREWALL_ENABLED.is_symlink()
+    available = Path(NFT).is_file() and not conflicts and not state_unsafe
+    enabled = FIREWALL_ENABLED.is_file() and not FIREWALL_ENABLED.is_symlink()
+    active = False
+    if Path(NFT).is_file():
+        active = run([NFT, 'list', 'table', 'inet', 'cyberdeck'], check=False).returncode == 0
+    reason = None
+    if not Path(NFT).is_file():
+        reason = 'nftables is not installed'
+    elif conflicts:
+        reason = 'another firewall manager or input ruleset is active: ' + ', '.join(conflicts)
+    elif state_unsafe:
+        reason = 'Cyberdeck firewall state path is a symlink'
+    return {'available': available, 'enabled': enabled, 'active': active,
+            'conflicts': conflicts, 'reason': reason}
+
+
+def firewall_ssh_ports():
+    """Preserve active SSH listeners when the managed default-deny chain loads."""
+    result = run(['/usr/bin/ss', '-H', '-ltnp'], check=False)
+    ports = set()
+    for line in result.stdout.splitlines():
+        if 'sshd' not in line:
+            continue
+        fields = line.split()
+        if len(fields) < 4:
+            continue
+        endpoint = fields[3]
+        port = endpoint.rsplit(':', 1)[-1]
+        if port.isdecimal() and 1 <= int(port) <= 65535:
+            ports.add(int(port))
+    return ports or {22}
+
+
+def firewall_load():
+    """Apply a dedicated nftables input policy without flushing other tables."""
+    if FIREWALL_ENABLED.is_symlink() or not FIREWALL_ENABLED.is_file():
+        raise ValueError('Cyberdeck firewall module is not enabled')
+    if not Path(NFT).is_file():
+        raise ValueError('nftables is not installed')
+    conflicts = firewall_conflicts()
+    if conflicts:
+        raise ValueError('Refusing to replace rules while another firewall manager is active: ' +
+                         ', '.join(conflicts))
+    run([NFT, 'delete', 'table', 'inet', 'cyberdeck'], check=False)
+    tcp_ports = sorted(firewall_ssh_ports() | {80, 443, 8445})
+    rules = '\n'.join((
+        'add table inet cyberdeck',
+        'add chain inet cyberdeck input { type filter hook input priority -10; policy drop; }',
+        'add rule inet cyberdeck input iifname "lo" accept',
+        'add rule inet cyberdeck input ct state established,related accept',
+        'add rule inet cyberdeck input meta l4proto { icmp, ipv6-icmp } accept',
+        'add rule inet cyberdeck input tcp dport { ' + ', '.join(map(str, tcp_ports)) + ' } accept',
+        'add rule inet cyberdeck input tcp dport 53 accept',
+        'add rule inet cyberdeck input udp dport { 53, 67, 68 } accept',
+        ''))
+    result = subprocess.run([NFT, '-f', '-'], input=rules, check=False,
+                            text=True, capture_output=True, timeout=20)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or 'Could not load Cyberdeck nftables rules')
+    return firewall_status()
+
+
+def firewall_remove():
+    """Remove only the Cyberdeck-owned nftables table."""
+    if not Path(NFT).is_file():
+        return {'active': False}
+    result = run([NFT, 'delete', 'table', 'inet', 'cyberdeck'], check=False)
+    if result.returncode and 'No such file' not in result.stderr:
+        raise RuntimeError(result.stderr.strip() or 'Could not remove Cyberdeck firewall rules')
+    return {'active': False}
+
+
+def firewall_set_enabled(enabled):
+    if type(enabled) is not bool:
+        raise ValueError('Firewall state must be a boolean')
+    if FIREWALL_ENABLED.is_symlink():
+        raise ValueError('Refusing a symlink at the Cyberdeck firewall state path')
+    if enabled:
+        status = firewall_status()
+        if not status['available']:
+            raise ValueError(status['reason'] or 'Cyberdeck firewall is unavailable')
+        FIREWALL_ENABLED.parent.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(FIREWALL_ENABLED, os.O_WRONLY | os.O_CREAT | os.O_TRUNC |
+                             getattr(os, 'O_NOFOLLOW', 0), 0o600)
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, 'w', encoding='ascii') as marker:
+            marker.write('enabled\n')
+        try:
+            run(['systemctl', 'enable', '--now', FIREWALL_SERVICE])
+        except (OSError, subprocess.SubprocessError):
+            run(['systemctl', 'disable', '--now', FIREWALL_SERVICE], check=False)
+            FIREWALL_ENABLED.unlink(missing_ok=True)
+            raise
+    else:
+        run(['systemctl', 'disable', '--now', FIREWALL_SERVICE], check=False)
+        firewall_remove()
+        FIREWALL_ENABLED.unlink(missing_ok=True)
+    return firewall_status()
+
+
 def main():
     action = sys.argv[1] if len(sys.argv) == 2 else ''
     payload_actions = {'hotspot-configure', 'hostname-configure',
@@ -485,6 +606,11 @@ def main():
         'cyberchef-status': cyberchef_status,
         'cyberchef-enable': lambda: cyberchef_set_enabled(True),
         'cyberchef-disable': lambda: cyberchef_set_enabled(False),
+        'firewall-status': firewall_status,
+        'firewall-enable': lambda: firewall_set_enabled(True),
+        'firewall-disable': lambda: firewall_set_enabled(False),
+        'firewall-load': firewall_load,
+        'firewall-remove': firewall_remove,
         'hotspot-password': lambda: {'password': hotspot_password()},
         'hotspot-configure': lambda: configure(payload),
         'hotspot-start': lambda: hotspot_start_manual(),
@@ -505,6 +631,9 @@ def main():
         raise SystemExit('Unsupported operation')
     if action in {'hotspot-configure', 'hotspot-start', 'hotspot-stop', 'hotspot-autostart',
                   'hotspot-module-enable', 'hotspot-module-disable'}:
+        with host_identity.change_lock():
+            result = allowed[action]()
+    elif action in {'firewall-enable', 'firewall-disable'}:
         with host_identity.change_lock():
             result = allowed[action]()
     else:

@@ -1,10 +1,11 @@
 # Debian installation and acceptance
 
-Reviewed 2026-10-25. This runbook covers Cyberdeck Hub on an existing Debian 13
+Reviewed 2026-10-27. This runbook covers Cyberdeck Hub on an existing Debian 13
 amd64 or arm64 computer. The installer does not install an operating system,
 partition disks, or configure a particular Raspberry Pi model. ARM64 support in
-the source is not Raspberry Pi acceptance. Docker remains an experimental
-preview.
+the source is not Raspberry Pi acceptance. For a new system, use the [guided
+Debian USB bootstrap](bootstrap-install.md); this runbook starts with an
+existing Debian installation. Docker is not a supported installation path.
 
 ## Prepare a source kit
 
@@ -56,7 +57,11 @@ on a matching Debian 13 architecture before transfer and use the installer's
 offline installation.
 
 The installer creates the Hub and Kiwix services and a local TLS certificate.
-It does not rewrite network profiles or firewall rules. The first visit to
+It leaves the optional Cyberdeck firewall module disabled by default. Admin can
+enable it only when no competing host firewall manager or external nftables
+input policy is detected; it preserves the active SSH port and Hub, DNS, and
+hotspot essentials. Review the displayed rules before enabling it on a remote
+host. The installer does not rewrite NetworkManager connection profiles. The first visit to
 `https://cyberdeck.local/` starts administrator setup; create and store the
 administrator credentials outside this repository. Install and trust the
 provided local CA on each client using the certificate help page.
@@ -70,6 +75,50 @@ systemctl is-enabled cyberdeck-web cyberdeck-kiwix
 
 Do not treat a successful installer exit or a workstation package build as
 proof of offline operation or recoverability.
+
+## Wi-Fi adapter troubleshooting
+
+When an adapter is missing from Hotspot settings or is listed as unavailable,
+run the server-side diagnostic:
+
+```sh
+sudo cyberdeck-wifi-diagnostics
+```
+
+The report separates kernel interface detection, NetworkManager visibility,
+access-point mode support, and firmware load errors. A Wi-Fi adapter can appear
+in NetworkManager even when its chipset firmware is missing. Check its specific
+reason and firmware status with:
+
+```sh
+nmcli -f GENERAL.STATE,GENERAL.REASON,GENERAL.NM-MANAGED,GENERAL.FIRMWARE-MISSING \
+  device show WIFI-INTERFACE
+sudo journalctl -k -b --no-pager | grep -i firmware
+```
+
+For example, the 3Com 3CRUSB10075 uses the ZyDAS ZD1211 chipset and the
+`zd1211rw` kernel driver. If the kernel reports that it cannot load
+`zd1211/zd1211_ub`, install Debian's `firmware-zd1211` package, then reconnect
+the adapter or reboot:
+
+```sh
+sudo apt update
+sudo apt install firmware-zd1211
+```
+
+Debian lists `firmware-zd1211` in the `non-free-firmware` component. The
+package contains `zd1211/zd1211_ub` and supports the `zd1211rw` driver ([package
+details](https://packages.debian.org/trixie/kernel/firmware-zd1211), [file
+list](https://packages.debian.org/uk/trixie/all/firmware-zd1211/filelist)). The
+general `firmware-linux` package did not provide this file on the observed
+Cyberdeck, so prefer the package indicated by the missing firmware path.
+
+On 2026-10-27, the reported Cyberdeck confirmed that installing
+`firmware-zd1211` resolved the adapter issue. For future cases, confirm
+`GENERAL.FIRMWARE-MISSING` is `no`, NetworkManager no longer reports the device
+as `unavailable`, and the Hotspot selector allows it to be selected. The
+diagnostic currently maps the ZD1211 firmware path to its Debian package; other
+chipset firmware errors still need package-specific identification.
 
 ## Content and optional services
 

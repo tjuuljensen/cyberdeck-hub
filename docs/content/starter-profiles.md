@@ -1,30 +1,30 @@
 # Starter profiles
 
-The Debian install kit includes three optional starter profiles in addition to
-the generic Hub starter configuration:
+Cyberdeck Hub installs an empty generic starter configuration and optional
+profiles. Use **Admin > Import**, choose **Settings only**, and preview before
+applying a profile. This mode changes subject definitions without starting
+content downloads. Applying a full curated profile can queue its listed source
+files and ZIM libraries; review the sources and available storage first.
 
-| Profile | Intended use | Language and region |
+## Curated profiles
+
+| File | Display name | Primary target | Contents |
+| --- | --- | --- | --- |
+| `crisis-preparedness-da-DK.json` | Kriseberedskab i Danmark | Danish; Denmark | Danish preparedness and first-aid subjects, selected direct-download PDFs, Denmark maps, and Danish Wikipedia. |
+| `emergency-preparedness-en-INT.json` | Emergency Preparedness (International English) | English; international | Practical-skills and first-aid subjects, English direct-download PDFs, and selected English Kiwix libraries. Country-specific sources are identified in their titles and descriptions. |
+
+The filename convention is `<purpose>-<language>-<region>.json`: use a language code and an ISO 3166-1 alpha-2 country code for country-specific profiles, or `INT` for an international target. The profile `name` is the user-facing display name. Keep content selections aligned with the target; do not put device-specific manuals into regional preparedness profiles.
+
+The curated PDFs are intended as standalone handouts, checklists, posters, worksheets, or short guidance documents published for direct download. Book-length PDFs and local archive imports are not treated as downloadable handouts. See the [curation and exclusion record](profile-curation.md) for each excluded item and its reason. The record is a source-selection note, not a separate license grant; retain publisher, edition, date, and reuse terms when maintaining a profile.
+
+## Subject-only templates
+
+These templates remain available for households that want to build their own library structure without preselected source links:
+
+| File | Intended use | Language and region |
 | --- | --- | --- |
 | `danish-crisis-preparedness.json` | Subject structure for locally selected Danish crisis references | Danish; Denmark |
 | `generic-off-grid.json` | Subject structure for general off-grid references | English; region-neutral |
 | `family-off-grid.json` | Subject structure for a household's own plans and records | English; region-neutral |
 
-These profiles contain subject names, descriptions, and display order only.
-They do not include government recommendations, document files, household
-contacts, quantities, locations, or download sources. This keeps regional
-guidance reviewable and avoids implying that an empty profile is a complete
-preparedness plan. Add only sources selected for the household and retain their
-publisher, edition, date, and reuse terms in the content record.
-
-To use one, open **Admin > Export and import**, choose **Settings only**, select
-the profile, and preview the subject changes before applying them. Applying a
-profile can add or edit subject definitions; choose the omitted-subject removal
-option only when that is intended. Profiles are available independently of the
-current interface language. The profile selector does not yet filter by
-language or region.
-
-The installer copies these JSON files into the installed profile directory.
-They are imported by the existing settings-only configuration workflow and do
-not trigger downloads. The package build and import preview remain required
-release checks; no target installation or regional preparedness review is
-implied by adding the templates.
+They contain subject names, descriptions, and display order only. They do not include government recommendations, document files, household contacts, quantities, locations, or download sources. The profile selector does not filter by language or region.

@@ -34,6 +34,7 @@ FILE_PATHS = (
     Path('/etc/systemd/system/cyberdeck-storage-existing.service'),
     Path('/etc/systemd/system/cyberdeck-storage-recovery.service'),
     Path('/etc/systemd/system/cyberdeck-storage-boot-recovery.service'),
+    Path('/etc/systemd/system/cyberdeck-firewall.service'),
     Path('/etc/systemd/system/cyberdeck-hotspot-autostart.service'),
     Path('/etc/systemd/system/cyberdeck-hotspot-autostart.timer'),
     Path('/etc/tmpfiles.d/cyberdeck-storage.conf'),

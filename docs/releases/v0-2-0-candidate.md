@@ -50,6 +50,11 @@ picker.
 that fades from left to right, matching the service-card treatment.
 `0.2.0-beta.19` changes Online Source and RSS card borders to the muted document
 card border color.
+`0.2.0-beta.20` adds a guided Debian USB bootstrap, Danish and international
+English curated profiles, an optional managed firewall module, and the
+relational Card storage migration. It removes the unsupported Docker preview
+and documents the split between Hub bootstrap and the parent's Windows
+developer deployment helper.
 
 ## Included scope
 
@@ -70,6 +75,12 @@ card border color.
   preparedness, generic off-grid preparedness, and a family off-grid pack. They
   contain no government guidance or household data and are not filtered by
   language or region.
+- Two curated profiles are included from the supplied emergency library:
+  a Danish/Denmark profile and an international-English profile. The source
+  curation rule and omissions are recorded in `docs/content/profile-curation.md`.
+- The Hub repository owns the guided Debian USB bootstrap as well as the direct
+  existing-Debian installer. The sibling `cyberdeck` repository retains its
+  Windows developer deployment helper and target evidence.
 - Online source and RSS card definitions are editable in Admin and included in
   configuration import/export. The default online links and Danish police RSS
   feeds appear as separate home cards, alongside subjects and services, and
@@ -81,12 +92,14 @@ card border color.
 
 ## Supported path and limitations
 
-The candidate installer is source-prepared for existing Debian 13 amd64 and
-arm64 systems, but no v0.2.0 physical target has been accepted. Use the Debian
-acceptance runbook to close those gates. This does not validate a specific
-Raspberry Pi model. Docker remains an experimental preview, not a supported
-deployment. Flatnotes and the customizable household preparedness checklist
-are deferred.
+The source installer targets existing Debian 13 amd64 and arm64 systems. The
+guided custom USB flow currently prepares Debian 13 amd64 media. No v0.2.0
+physical target has been accepted; use the Debian acceptance runbook to close
+those gates. Generic ARM64 support does not validate a particular Raspberry Pi
+model. Docker artifacts have been removed until a container path can pass
+startup, persistence, backup/restore, restart, upgrade, and optional-module
+acceptance. Flatnotes and the customizable household preparedness checklist
+remain deferred.
 
 See the [Debian install and acceptance runbook](../runbooks/debian-install.md)
 for install, rollback, backup, restore, offline startup, and second-client gates.

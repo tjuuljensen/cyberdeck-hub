@@ -741,5 +741,17 @@
   "ui.0816": "RSS-udgivelsestidspunkter vises i denne Cyberdeck-tidszone. Standardtidszonen hentes fra værtens konfiguration.",
   "ui.0817": "Udgivelsesdato ikke tilgængelig",
   "ui.0820": "Der er ingen cachede opdateringer til dette feed.",
-  "ui.0821": "Viser cachede opdateringer fra"
+  "ui.0821": "Viser cachede opdateringer fra",
+  "ui.0822": "Firewall",
+  "ui.0823": "Når modulet er aktiveret, blokeres uopfordret indgående trafik. Etablerede forbindelser, SSH, Hub-adgang og nødvendige hotspot-tjenester tillades. Andre firewallprogrammer skal være stoppet først.",
+  "ui.0824": "Kontrollerer firewallstatus…",
+  "ui.0825": "Aktivér Cyberdeck-firewall",
+  "ui.0826": "Bekræft ændring",
+  "ui.0827": "Annuller",
+  "ui.0828": "Firewall er slået fra. Hvis den aktiveres, blokeres uopfordret indgående trafik, mens SSH, Hub og hotspot-tjenester tillades.",
+  "ui.0829": "Cyberdeck-firewall er aktiv.",
+  "ui.0830": "Aktiverer firewall…",
+  "ui.0831": "Deaktiverer firewall…",
+  "ui.0832": "Hvis firewall aktiveres, blokeres uopfordret indgående trafik. SSH, Hub-adgang og nødvendige hotspot-tjenester tillades. Bekræft kun, hvis ingen anden firewall er aktiv.",
+  "ui.0833": "Hvis Cyberdeck-firewall deaktiveres, fjernes kun dens egne regler."
 }

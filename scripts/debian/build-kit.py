@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 KIT_FILES = (
     'LICENSE',
     'README.md',
+    'docs/runbooks/bootstrap-install.md',
     'docs/runbooks/debian-install.md',
     'scripts/debian/configure-deploy-cache.sh',
     'scripts/debian/install.sh',
@@ -45,6 +46,7 @@ INSTALLER_REQUIRED_SOURCES = (
     'config/debian/systemd/cyberdeck-storage-existing.service',
     'config/debian/systemd/cyberdeck-storage-recovery.service',
     'config/debian/systemd/cyberdeck-storage-boot-recovery.service',
+    'config/debian/systemd/cyberdeck-firewall.service',
     'config/debian/systemd/sleep.conf.d/90-cyberdeck.conf',
     'config/debian/systemd/logind.conf.d/90-cyberdeck.conf',
     'scripts/debian/storage-helper.py',
