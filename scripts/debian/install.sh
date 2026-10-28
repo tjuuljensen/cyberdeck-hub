@@ -4,7 +4,7 @@
 # Examples:
 #   bash scripts/debian/install.sh
 #   bash scripts/debian/install.sh --hostname cyberdeck
-#   sudo bash scripts/debian/install.sh --apply [--offline] [--skip-cyberchef]
+#   sudo bash scripts/debian/install.sh --apply [--offline]
 #   sudo bash scripts/debian/install.sh --apply --data-root /home/cyberdeck-data
 #
 # Parameters:
@@ -12,8 +12,7 @@
 #                      packages, accounts, data and TLS files, and services.
 #                      Without it, print a preview and make no host changes.
 #   --offline          Use already available packages and skip online package
-#                      setup and CyberChef staging.
-#   --skip-cyberchef   Omit optional CyberChef staging during an online apply.
+#                      setup and CyberChef installation.
 #   --hostname NAME    Expected short host name used for the Hub address and
 #                      certificates. Prompted interactively when omitted; it
 #                      must match the host's current short hostname.
@@ -25,7 +24,7 @@
 # Run from a complete source checkout on the intended Debian 13 host. The
 # installer preserves the existing Debian installation; it does not partition
 # disks, rename the host, or modify existing interface settings or firewall
-# rules. Online setup stages pinned CyberChef files but leaves the service
+# rules. Online setup installs pinned CyberChef files but leaves the service
 # disabled. After setup, choose an installed profile or import a configuration
 # JSON or bundle in Admin > Import.
 set -euo pipefail
@@ -44,7 +43,6 @@ data_root=''
 data_root_explicit=0
 apply=0
 offline=0
-skip_cyberchef=0
 
 usage() {
     cat <<'EOF'
@@ -53,7 +51,7 @@ Preview is the default; --apply changes the host.
 
   bash scripts/debian/install.sh
   bash scripts/debian/install.sh --hostname SERVER-NAME
-  sudo bash scripts/debian/install.sh --apply [--offline] [--skip-cyberchef]
+  sudo bash scripts/debian/install.sh --apply [--offline]
   sudo bash scripts/debian/install.sh --apply --data-root /home/cyberdeck-data
 
 The installer keeps the existing Debian installation. It installs
@@ -64,9 +62,9 @@ settings, or modify firewall rules. Run it from a complete Cyberdeck source
 checkout on the intended host.
 After setup, choose an installed profile or upload a Cyberdeck configuration
 JSON or bundle in Admin > Import.
-Online setup stages the pinned CyberChef module and leaves it disabled. Admin
-can enable it when needed. Use --skip-cyberchef to omit it; --offline also
-skips it.
+Online setup installs the pinned CyberChef module and leaves it disabled.
+Admin can enable it when needed. Offline setup cannot download CyberChef and
+does not install it.
 EOF
 }
 
@@ -76,7 +74,6 @@ while (($#)); do
     case "$1" in
         --apply) apply=1 ;;
         --offline) offline=1 ;;
-        --skip-cyberchef) skip_cyberchef=1 ;;
         --hostname)
             (($# >= 2)) || { usage; die '--hostname requires a value.'; }
             hostname_expected=$2
@@ -278,7 +275,7 @@ if (( ! apply )); then
         'Would enable cyberdeck-web, cyberdeck-kiwix, the hotspot fallback timer, and avahi-daemon; NetworkManager provides nmcli for interface reporting and hotspot management.' \
         'The allowlisted reboot and poweroff controls are available to the Hub administrator.' \
         'Would disable system sleep and logind idle suspend so the headless library stays available; GNOME idle-suspend locks apply only when dconf is installed.' \
-        'Online setup stages the pinned CyberChef module for isolated HTTPS port 8445 and leaves the service disabled; --skip-cyberchef or --offline omits it.' \
+        'Online setup installs the pinned CyberChef module for isolated HTTPS port 8445 and leaves the service disabled; --offline omits it because the archive cannot be downloaded.' \
         'After first boot, create an administrator and import a configuration profile through the admin page.'
     exit 0
 fi
@@ -655,14 +652,21 @@ if compgen -G "$data_root/zim/*.zim" >/dev/null; then
 else
     systemctl stop cyberdeck-kiwix 2>/dev/null || true
 fi
-if (( ! skip_cyberchef && ! offline )); then
-    if python3 "$repo_root/scripts/debian/install-cyberchef.py" --apply; then
-        printf '%s\n' 'CyberChef module staged successfully and left disabled.'
+if (( ! offline )); then
+    for directory in /opt/cyberdeck /opt/cyberdeck/modules; do
+        [[ ! -L $directory ]] || die "Refusing symlinked CyberChef directory: $directory"
+    done
+    install -d -o root -g root -m 0755 /opt/cyberdeck /opt/cyberdeck/modules
+    if python3 "$repo_root/scripts/debian/admin-helper.py" cyberchef-status |
+        python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("installed") is True else 1)'; then
+        printf '%s\n' 'CyberChef is already installed; preserving its current service state.'
     else
-        printf '%s\n' 'WARNING: CyberChef could not be staged; Hub remains installed. See the installer output above.' >&2
+        python3 "$repo_root/scripts/debian/install-cyberchef.py" --apply --replace ||
+            die 'CyberChef installation failed; the Hub update is incomplete. Resolve the reported issue and rerun the installer.'
+        printf '%s\n' 'CyberChef installed and left disabled.'
     fi
 else
-    printf '%s\n' 'CyberChef staging skipped by offline mode or --skip-cyberchef.'
+    printf '%s\n' 'CyberChef installation skipped because --offline prevents downloading its pinned archive.'
 fi
 printf '%s\n' 'Cyberdeck Hub installed in headless mode with hotspot and hostname controls.' \
     "Deployment recovery ID: $deployment_id (rollback preview: sudo python3 /usr/local/lib/cyberdeck/deploy-helper.py rollback $deployment_id $hostname_expected)" \
@@ -673,4 +677,4 @@ printf '%s\n' 'Cyberdeck Hub installed in headless mode with hotspot and hostnam
     "After installing the CA, open https://$hostname_expected.local/." \
     'The first visit will ask you to create the administrator account before opening the library.' \
     'After setup, import a configuration profile from Admin > Export and import.' \
-    'CyberChef is staged during online setup and starts disabled; Admin can enable it when needed.'
+    'CyberChef is installed during online setup and starts disabled; Admin can enable it when needed.'

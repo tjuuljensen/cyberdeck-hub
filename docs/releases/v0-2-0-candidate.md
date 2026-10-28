@@ -68,9 +68,10 @@ developer deployment helper.
   Debian recovery backup copies the entire configured data root, including
   acquired PDFs, their records, and other acquired content, then verifies the
   copy. There is no PDF-only backup option or scheduled backup in v0.2.0.
-- An online full Debian install stages the pinned CyberChef module and leaves
-  its service disabled. Admin can enable or disable it; `--skip-cyberchef` and
-  `--offline` omit staging.
+- An online full Debian install installs the pinned CyberChef module and leaves
+  its service disabled. Admin can enable or disable it; later updates preserve
+  that state. `--offline` omits installation because it cannot download the
+  pinned archive.
 - Three subject-only starter profiles are included: Danish crisis
   preparedness, generic off-grid preparedness, and a family off-grid pack. They
   contain no government guidance or household data and are not filtered by

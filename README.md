@@ -123,10 +123,11 @@ profiles. Profiles define selected subjects and content sources; review their
 scope and import preview before applying. See the [profile guide](docs/content/starter-profiles.md)
 for the naming and content-selection policy.
 
-CyberChef is an optional Debian module. Online installation can stage the
-pinned files while leaving the service disabled; Admin can enable it later.
+CyberChef is installed during online Debian setup from a pinned release, while
+its service stays disabled until an administrator enables it in Admin. Setup
+preserves the current CyberChef service state on later updates.
 CyberChef is a local browser tool for inspecting and transforming data, such as
-decoding text, parsing formats, or calculating hashes. Staging requires
+decoding text, parsing formats, or calculating hashes. Installation requires
 internet access and consumes disk space; once staged, it can run locally
 without the public CyberChef website. The Hotspot is also an optional host
 module. A managed nftables firewall can be enabled in Admin

@@ -13,7 +13,8 @@
 #
 # With no argument, this script exits quietly unless first-boot setup is pending
 # and the terminal is interactive. It previews the Hub install, asks before
-# applying changes, and offers optional CyberChef installation separately.
+# applying changes. The main installer also installs CyberChef during online
+# setup, leaving its service disabled until an administrator enables it.
 # Declining setup records a per-user skip marker; --retry removes it. The
 # CYBERDECK_INSTALL_HOSTNAME environment variable selects the default Hub name
 # (default: cyberdeck). --confirmed is reserved for the script's internal sudo
@@ -24,7 +25,6 @@ state_dir=/var/lib/cyberdeck-bootstrap
 source_dir=$state_dir/source
 archive=$state_dir/source.tar.gz
 installer=$source_dir/scripts/debian/install.sh
-cyberchef_installer=$source_dir/scripts/debian/install-cyberchef.py
 admin_helper=$source_dir/scripts/debian/admin-helper.py
 host=${CYBERDECK_INSTALL_HOSTNAME:-cyberdeck}
 
@@ -124,29 +124,6 @@ for action in hotspot-module-enable hotspot-module-disable cyberchef-status cybe
         fail "the sudoers allowlist is missing $action; rerun the installer from the current source kit."
 done
 say 'Installed the current privileged helper and validated its sudoers allowlist.'
-
-read -r -p 'Install optional CyberChef on HTTPS port 8445? [Y/n] ' cyberchef_choice ||
-    fail 'could not read the CyberChef choice; rerun setup to continue.'
-case "$cyberchef_choice" in
-    n|N|no|NO|No)
-        say 'Skipping CyberChef. It can be installed later from the staged source kit.'
-        ;;
-    *)
-        [[ -f $cyberchef_installer && ! -L $cyberchef_installer ]] ||
-            fail 'the staged CyberChef installer is missing or unsafe; restore the source kit and retry.'
-        say 'Previewing the pinned CyberChef installation; this preview does not change the host.'
-        python3 "$cyberchef_installer" || fail 'the CyberChef preview failed; resolve the reported issue and retry.'
-        read -r -p 'Apply the previewed CyberChef installation? Type APPLY to continue: ' cyberchef_confirmation ||
-            fail 'could not read the CyberChef confirmation; rerun setup to continue.'
-        if [[ $cyberchef_confirmation == APPLY ]]; then
-            python3 "$cyberchef_installer" --apply ||
-                fail 'CyberChef installation failed. The staged source remains available; fix the reported issue and retry.'
-            say "Open https://$host.local:8445/ from a client that trusts the Cyberdeck CA."
-        else
-            say 'CyberChef was not installed. It can be installed later from the staged source kit.'
-        fi
-        ;;
-esac
 
 touch "$state_dir/complete"
 rm -f -- "$state_dir/pending" "$skip_marker"

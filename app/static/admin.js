@@ -454,7 +454,7 @@ importForm.addEventListener('submit', async event => {
           body: JSON.stringify({token: result.token, subject_mapping, ...importConfigChoices(),
             selected_zims: [...zimSelection], selected_documents: [...documentSelection],
             selected_online_pdfs: [...onlinePdfSelection]})});
-        importStatus.textContent = t('ui.0544', {filename: done.saved_config, catalogues: done.imported_catalogues, included: done.imported_zims + done.zim_downloads_started, deferred: done.zims_deferred, zim_downloads: done.zim_downloads_started, pdf_downloads: done.pdf_downloads_started || 0, skipped_pdfs: done.skipped_pdf_attachments, sources: done.pending_sources, online_cards: done.online_source_cards_imported || 0, rss_cards: done.rss_cards_imported || 0});
+        importStatus.textContent = t('ui.0544', {filename: done.saved_config, catalogues: done.imported_catalogues, included: done.imported_zims + done.zim_downloads_started, deferred: done.zims_deferred, zim_downloads: done.zim_downloads_started, queued_zims: done.zim_downloads_queued || 0, pdf_downloads: done.pdf_downloads_started || 0, skipped_pdfs: done.skipped_pdf_attachments, sources: done.pending_sources, online_cards: done.online_source_cards_imported || 0, rss_cards: done.rss_cards_imported || 0});
         if (done.zim_download_errors?.length) {
           const errors = document.createElement('p'); errors.className = 'error';
           errors.textContent = t('ui.0364', {errors: done.zim_download_errors.join('; ')});
@@ -488,10 +488,13 @@ async function refreshPdfImports(){
     renderAdminDocuments();
     const newlyDownloaded=imports.some(job=>job.files.some(file=>file.status==='downloaded'&&!previouslyDownloaded.has(file.path)));
     if(newlyDownloaded)await refreshDocuments();
-    const active=imports.some(job=>job.files.some(file=>file.status==='queued'||file.status==='downloading'));
+    const active=imports.some(job=>job.files.some(file=>file.status==='queued'||file.status==='downloading')||
+      ['queued','starting'].includes(job.deferred_zim_state));
     document.querySelector('#pdf-retry-all').hidden=!imports.some(job=>
       !job.files.some(file=>file.status==='queued'||file.status==='downloading')&&
-      job.files.some(file=>file.status==='failed'));
+      !['queued','starting'].includes(job.deferred_zim_state)&&
+      (job.files.some(file=>file.status==='failed')||
+       job.deferred_zim_state==='failed'||(job.deferred_zim_state==='finished'&&job.deferred_zim_errors?.length)));
     clearTimeout(pdfImportPoll);if(active)pdfImportPoll=setTimeout(refreshPdfImports,3000);
   }catch(error){console.error('Could not load Internet PDF status:',error)}
 }
@@ -632,6 +635,7 @@ function createPdfImportDocumentRow(job,file,fileIndex){
     el.firstElementChild.append(progressText);
   }
   if(file.error){const error=document.createElement('small');error.className='error';error.textContent=file.error;el.firstElementChild.append(error)}
+  if(fileIndex===0&&job.deferred_zim_errors?.length){const error=document.createElement('small');error.className='error';error.textContent=job.deferred_zim_errors.join('; ');el.firstElementChild.append(error)}
   const actions=recordActions();
   if(file.status==='failed'||file.status==='canceled'){
     const retry=document.createElement('button');retry.type='button';retry.className='button';retry.textContent=t('ui.0695');
@@ -689,7 +693,10 @@ document.querySelector('#documents-reload').onclick=refreshDocuments;
 document.querySelector('#pdf-retry-all').onclick=async event=>{
   const button=event.currentTarget;button.disabled=true;
   try{
-    const jobs=pdfImportJobs.filter(job=>!job.files.some(file=>file.status==='queued'||file.status==='downloading')&&job.files.some(file=>file.status==='failed'));
+    const jobs=pdfImportJobs.filter(job=>!job.files.some(file=>file.status==='queued'||file.status==='downloading')&&
+      !['queued','starting'].includes(job.deferred_zim_state)&&
+      (job.files.some(file=>file.status==='failed')||job.deferred_zim_state==='failed'||
+       (job.deferred_zim_state==='finished'&&job.deferred_zim_errors?.length)));
     for(const job of jobs)await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/retry`,{method:'POST'});
     await refreshPdfImports();
   }catch(error){alert(error.message)}finally{button.disabled=false}

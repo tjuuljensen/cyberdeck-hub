@@ -2072,7 +2072,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0541": {
-    "default": "ZIM and internet PDF downloads start after you apply the import. Other online sources are saved for later acquisition.",
+    "default": "Internet PDF downloads start first after you apply the import. Selected ZIM downloads start when those PDFs finish. Other online sources are saved for later acquisition.",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0542": {
@@ -2084,7 +2084,7 @@
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0544": {
-    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIMs included: {included}; deferred: {deferred}. ZIM downloads started: {zim_downloads}. Internet PDF downloads started: {pdf_downloads}. PDF attachments skipped: {skipped_pdfs}. Other sources still to acquire: {sources}. Online source cards imported: {online_cards}; RSS cards imported: {rss_cards}.",
+    "default": "The configuration was saved privately as {filename}. Offline catalogues imported: {catalogues}. ZIMs included: {included}; deferred: {deferred}. ZIM downloads started: {zim_downloads}; queued until PDFs finish: {queued_zims}. Internet PDF downloads started: {pdf_downloads}. PDF attachments skipped: {skipped_pdfs}. Other sources still to acquire: {sources}. Online source cards imported: {online_cards}; RSS cards imported: {rss_cards}.",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0545": {

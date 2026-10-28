@@ -164,13 +164,15 @@ acquisition after the configuration is saved. PDF status is recorded per file;
 failed downloads can be retried. A recorded source URL is provenance, not a
 copy of the source file.
 
-CyberChef is pinned and staged automatically during an online full Debian
-install. Its systemd service is left disabled so it uses no CPU until an
-administrator enables it from Admin > CyberChef. Use `--skip-cyberchef` to
-omit the module; `--offline` also skips staging. The module files use disk
-space, and staging needs internet access. If staging fails, the Hub install
-continues and the warning is printed by the installer. Review storage and
-outbound network needs before enabling it on a low-resource computer.
+CyberChef is pinned and installed automatically during an online full Debian
+install. Its systemd service starts disabled so it uses no CPU until an
+administrator enables it from Admin > CyberChef. Later updates preserve its
+current enabled or disabled state. `--offline` skips installation because the
+pinned archive must be downloaded. The module files use disk space, and
+installation needs internet access. If CyberChef installation fails, the
+installer stops with an error; resolve it and rerun the installer. Review
+storage and outbound network needs before enabling it on a low-resource
+computer.
 
 Scheduled refresh of Wikipedia, maps, or other content is not yet a supported
 Hub workflow. Until a staged, verified update and rollback path is available,

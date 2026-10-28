@@ -233,6 +233,10 @@ def install(archive_arg: Path | None, replace: bool, enable: bool = False) -> No
     if not SERVER_SOURCE.is_file() or not SERVICE_SOURCE.is_file():
         fail('The CyberChef HTTPS server and systemd service sources are missing.')
     check_port_available()
+    for directory in (Path('/opt/cyberdeck'), MODULES_ROOT):
+        directory.mkdir(parents=True, exist_ok=True, mode=0o755)
+        os.chown(directory, 0, 0)
+        directory.chmod(0o755)
     MODULES_ROOT.mkdir(parents=True, exist_ok=True)
     previous = MODULES_ROOT / 'cyberchef.previous'
     if MODULE_ROOT.exists() and not replace:

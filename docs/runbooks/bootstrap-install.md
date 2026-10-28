@@ -42,7 +42,7 @@ This prepares and verifies a custom ISO but does not write a disk. To write it, 
 
 Boot the target computer from the USB. Debian's installer asks for language and keyboard, then guides you through country, target disk/partitioning, administrator account, and password. The preseed suggests hostname `cyberdeck` and username `operator`; do not use `cyberdeck` as the login account because that name is reserved for the Hub service. No disk or password is preselected.
 
-After Debian reboots, sign in on the local console and accept the Cyberdeck setup prompt. It previews the Hub install and requires typing `APPLY` before making host changes. The installer then offers optional CyberChef setup with its own preview and confirmation. Setup can be retried from SSH with:
+After Debian reboots, sign in on the local console and accept the Cyberdeck setup prompt. It previews the Hub install and requires typing `APPLY` before making host changes. Online setup installs CyberChef automatically and leaves its service disabled. Setup can be retried from SSH with:
 
 ```sh
 sudo /usr/local/sbin/cyberdeck-firstboot-install --retry

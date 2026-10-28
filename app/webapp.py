@@ -49,7 +49,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.21'
+APP_VERSION = '0.2.0-beta.22'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -976,17 +976,19 @@ def cyberchef_request_host():
 def cyberchef_module():
     """Return module metadata only when an installed static build is safe to serve."""
     host = cyberchef_request_host()
-    if not host or CYBERCHEF_ROOT.is_symlink():
-        return None
-    root = CYBERCHEF_ROOT.resolve()
-    index = root / 'index.html'
-    marker = root / 'cyberdeck-module.json'
-    if (not index.is_file() or index.is_symlink() or not marker.is_file() or
-            marker.is_symlink()):
+    if not host:
         return None
     try:
+        if CYBERCHEF_ROOT.is_symlink():
+            return None
+        root = CYBERCHEF_ROOT.resolve()
+        index = root / 'index.html'
+        marker = root / 'cyberdeck-module.json'
+        if (not index.is_file() or index.is_symlink() or not marker.is_file() or
+                marker.is_symlink()):
+            return None
         metadata = json.loads(marker.read_text(encoding='utf-8'))
-    except (OSError, UnicodeError, json.JSONDecodeError):
+    except (OSError, RuntimeError, UnicodeError, json.JSONDecodeError):
         return None
     if (not isinstance(metadata, dict) or metadata.get('name') != 'cyberchef' or
             not re.fullmatch(r'[a-f0-9]{40}', str(metadata.get('build', ''))) or
@@ -2045,6 +2047,7 @@ def build_export_config(name, selected, include_settings,
             'SELECT id,title,description,display_order,translations,source_language,show_when_empty FROM library_subject ORDER BY display_order,id'):
         subject = dict(row)
         subject['translations'] = json.loads(subject.pop('translations') or '{}')
+        subject['show_when_empty'] = bool(subject['show_when_empty'])
         config['subjects'].append(subject)
     if include_settings:
         # Export only stored display preferences, never the hostname-derived default.
@@ -2341,6 +2344,13 @@ def _validate_import_config(config):
         raise ValueError('Invalid subject list')
     subjects = [_migrate_legacy_card_text(subject, ('title', 'description'))
                 if isinstance(subject, dict) else subject for subject in subjects]
+    # Older exports copied SQLite's INTEGER representation (0/1) directly.
+    # Accept those values and normalize them to the JSON boolean used by the
+    # current export format.
+    for subject in subjects:
+        if (isinstance(subject, dict) and type(subject.get('show_when_empty')) is int and
+                subject['show_when_empty'] in (0, 1)):
+            subject['show_when_empty'] = bool(subject['show_when_empty'])
     config['subjects'] = subjects
     subject_ids = set()
     for subject in subjects:
@@ -2637,6 +2647,36 @@ def _document_import_options(db, catalogues):
     return candidates
 
 
+def _catalogue_pdf_identities(catalogues):
+    """Return paths and digests for PDF payloads included in catalogue ZIPs."""
+    paths = set()
+    digests = set()
+    for _filename, metadata in catalogues:
+        entry = metadata.get('entry', {})
+        files = {item.get('path'): item for item in metadata.get('files', [])
+                 if isinstance(item, dict)}
+        asset = entry.get('asset')
+        if isinstance(asset, dict):
+            path = asset.get('path', '')
+            if isinstance(path, str) and path.startswith('public/') and path.lower().endswith('.pdf'):
+                paths.add(path)
+                payload = files.get(path, {})
+                digest = str(payload.get('sha256', '')).lower()
+                if re.fullmatch(r'[0-9a-f]{64}', digest):
+                    digests.add(digest)
+        item = entry.get('item')
+        if isinstance(item, dict):
+            for attachment in item.get('attachments', []):
+                if not isinstance(attachment, dict) or attachment.get('kind') != 'pdf':
+                    continue
+                path = f"files/{item.get('id', '')}/{attachment.get('stored_path', '')}"
+                payload = files.get(path, {})
+                digest = str(payload.get('sha256', '')).lower()
+                if re.fullmatch(r'[0-9a-f]{64}', digest):
+                    digests.add(digest)
+    return paths, digests
+
+
 def _online_pdf_import_options(assets, catalogues=()):
     """Describe internet PDF acquisitions and mark matching content or paths."""
     options = []
@@ -2653,21 +2693,7 @@ def _online_pdf_import_options(assets, catalogues=()):
                 re.fullmatch(r'[0-9a-f]{64}', digest)):
             existing.setdefault(digest, asset_path)
 
-    incoming = set()
-    for _filename, metadata in catalogues:
-        entry = metadata.get('entry', {})
-        if 'item' not in entry:
-            continue
-        file_map = {file.get('path'): file for file in metadata.get('files', [])
-                    if isinstance(file, dict)}
-        for attachment in entry['item'].get('attachments', []):
-            if attachment.get('kind') != 'pdf':
-                continue
-            payload = file_map.get(f"files/{entry['item']['id']}/{attachment.get('stored_path', '')}", {})
-            digest = str(payload.get('sha256', '')).lower()
-            if re.fullmatch(r'[0-9a-f]{64}', digest):
-                incoming.add(digest)
-
+    incoming_paths, incoming = _catalogue_pdf_identities(catalogues)
     seen = set(incoming)
     for asset in assets:
         path = asset['path']
@@ -2676,8 +2702,12 @@ def _online_pdf_import_options(assets, catalogues=()):
         reason = ''
         if path in existing_paths or target.exists():
             reason = f'{path} is already installed or registered'
+        elif path in incoming_paths:
+            reason = 'included as a local copy in this ZIP'
         elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in existing:
             reason = f'matches installed {existing[digest]}'
+        elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in incoming:
+            reason = 'matches a PDF included in this ZIP'
         elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in seen:
             reason = 'matches another PDF in this import'
         if re.fullmatch(r'[0-9a-f]{64}', digest):
@@ -3405,8 +3435,12 @@ def import_apply():
                                not plan[1]['entry']['asset'].get('path', '').startswith('zim/') or
                                'catalog:' + plan[1]['_catalogue_filename'] in selected_zim_keys)]
         conflicts = []
+        bundled_pdf_paths, _bundled_pdf_digests = _catalogue_pdf_identities(
+            [(metadata['_catalogue_filename'], metadata)
+             for _path, metadata, _size, _html in catalogue_plans])
         online_pdf_assets = [asset for asset in all_online_pdf_assets
-                             if 'online-pdf:' + asset['path'] in selected_online_pdf_keys]
+                             if ('online-pdf:' + asset['path'] in selected_online_pdf_keys and
+                                 asset['path'] not in bundled_pdf_paths)]
         for _path, metadata, _size, _html_bytes in catalogue_plans:
             entry = metadata['entry']
             if 'asset' in entry:
@@ -3656,35 +3690,28 @@ def import_apply():
                                          not (asset.get('path', '').startswith('public/') and
                                               asset['path'].lower().endswith('.pdf') and 'url' in asset)
                                          for asset in config.get('assets', [])),
-                  'zim_downloads_started': 0, 'zim_download_errors': [],
+                  'zim_downloads_started': 0, 'zim_downloads_queued': 0,
+                  'zim_download_errors': [],
                   'pdf_downloads_started': 0, 'pdf_download_errors': [],
                   'zims_deferred': deferred_catalogue_zims + len(online_zim_paths) - sum(
                       1 for path in online_zim_paths if 'online:' + path in selected_zim_keys),
                   'saved_config': saved_config.name}
         # The import transaction is durable before network acquisition begins.
-        # ZIMs use the ordinary flow, which checks the Kiwix size and checksum
-        # sidecar before starting a resumable transfer and validator worker.
+        # Give selected PDFs the first download slots; defer this import's ZIMs
+        # until its PDF worker has finished updating the shared acquisition index.
+        online_zim_assets = []
         for asset in config.get('assets', []):
-            if not asset.get('path', '').startswith('zim/') or 'url' not in asset:
-                continue
-            if 'online:' + asset['path'] not in selected_zim_keys:
-                continue
-            title = str(asset.get('title') or Path(asset['path']).name)
-            try:
-                target = library.safe_path(DATA_ROOT, asset['path'])
-                filename = Path(asset['path']).name
-                if (target.exists() or
-                        g.db.execute('SELECT 1 FROM zim WHERE filename=?', (filename,)).fetchone()):
-                    raise ValueError(f'{asset["path"]} already exists or is already registered')
-                acquire_zim(title, resolved[asset['collection']], asset['url'])
-                result['zim_downloads_started'] += 1
-            except (OSError, ValueError, sqlite3.Error, subprocess.SubprocessError) as error:
-                result['zim_download_errors'].append(f'{title}: {str(error)[:300]}')
+            if (asset.get('path', '').startswith('zim/') and 'url' in asset and
+                    'online:' + asset['path'] in selected_zim_keys):
+                zim_asset = dict(asset)
+                zim_asset['collection'] = resolved[asset['collection']]
+                online_zim_assets.append(zim_asset)
         # Exported internet PDFs remain source references in the JSON. Reacquire
         # them through the verified library fetcher after the import is durable.
         # A single worker downloads this import's PDFs in order and waits for
-        # active ZIM workers before updating the shared acquisition index.
+        # already-active ZIM workers before updating the shared acquisition index.
         pdf_assets = []
+        pdf_worker_started = False
         for asset in online_pdf_assets:
             if asset['path'] in acquired or library.safe_path(DATA_ROOT, asset['path']).exists():
                 result['pdf_download_errors'].append(
@@ -3707,18 +3734,23 @@ def import_apply():
                 manifest_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 log_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 with manifest_path.open('x', encoding='utf-8') as manifest_file:
-                    json.dump({'reserve_bytes': 1_000_000_000, 'assets': pdf_assets},
+                    json.dump({'reserve_bytes': 1_000_000_000, 'assets': pdf_assets,
+                               'deferred_zims': online_zim_assets},
                               manifest_file, ensure_ascii=False, indent=2)
                     manifest_file.write('\n')
                 library.write_json(status_path, {
                     'id': request_id, 'created_at': time.time(), 'updated_at': time.time(),
+                    'deferred_zim_state': 'queued' if online_zim_assets else 'none',
+                    'deferred_zim_errors': [],
                     'files': [{'path': asset['path'],
                                'title': str(asset.get('title') or Path(asset['path']).name),
                                'subject': str(asset.get('collection') or ''),
                                'expected_bytes': asset.get('expected_bytes'),
                                'status': 'queued', 'error': ''} for asset in pdf_assets]})
                 start_pdf_import_worker(request_id)
+                pdf_worker_started = True
                 result['pdf_downloads_started'] = len(pdf_assets)
+                result['zim_downloads_queued'] = len(online_zim_assets)
                 result['pdf_import_id'] = request_id
             except (OSError, ValueError, subprocess.SubprocessError) as error:
                 if manifest_path is not None:
@@ -3729,6 +3761,10 @@ def import_apply():
                     log_path.unlink(missing_ok=True)
                 result['pdf_download_errors'].append(
                     f'Could not start PDF acquisition: {str(error)[:300]}')
+        if not pdf_worker_started:
+            started, errors = start_import_zim_downloads(online_zim_assets, g.db)
+            result['zim_downloads_started'] = started
+            result['zim_download_errors'].extend(errors)
         try:
             shutil.rmtree(stage_root)
         except OSError as error:
@@ -5273,9 +5309,10 @@ def zim_catalog():
                        error_params={'error': str(error)}), 502
 
 
-def acquire_zim(title, subject, source_url):
+def acquire_zim(title, subject, source_url, db=None):
+    db = db or g.db
     title = title.strip()[:200]
-    if not title or subject not in {row[0] for row in get_subjects()}:
+    if not title or not db.execute('SELECT 1 FROM library_subject WHERE id=?', (subject,)).fetchone():
         raise ValueError('Title and a known subject are required')
     clean_url, expected_bytes, checksum, checksum_url = inspect_kiwix_asset(source_url)
     filename = secure_filename(Path(urllib.parse.urlsplit(clean_url).path).name)
@@ -5289,16 +5326,16 @@ def acquire_zim(title, subject, source_url):
              'url': clean_url, 'max_bytes': expected_bytes, 'expected_bytes': expected_bytes,
              'sha256': checksum, 'checksum_url': checksum_url,
              'hash_provenance': 'Kiwix HTTPS SHA-256 sidecar inspected at acquisition time.'}
-    g.db.execute('BEGIN IMMEDIATE')
+    db.execute('BEGIN IMMEDIATE')
     proc = None
     try:
         target = library.safe_path(DATA_ROOT, asset['path'])
-        if target.exists() or g.db.execute('SELECT 1 FROM zim WHERE filename=?', (filename,)).fetchone():
+        if target.exists() or db.execute('SELECT 1 FROM zim WHERE filename=?', (filename,)).fetchone():
             raise ValueError(f'{asset["path"]} already exists or is already registered')
-        ensure_zim_capacity(g.db, expected_bytes)
+        ensure_zim_capacity(db, expected_bytes)
         manifest_path.write_text(json.dumps({'id': zid, 'reserve_bytes': ZIM_DOWNLOAD_RESERVE_BYTES,
                                              'assets': [asset]}, indent=2), encoding='utf-8')
-        g.db.execute('INSERT INTO zim(id,title,subject,filename,source_url,status) VALUES(?,?,?,?,?,?)',
+        db.execute('INSERT INTO zim(id,title,subject,filename,source_url,status) VALUES(?,?,?,?,?,?)',
                      (zid, title, subject, filename, clean_url, 'downloading'))
         # Start while the write lock is held. The child waits for this transaction
         # before reading the request, so no committed reservation can be orphaned
@@ -5306,11 +5343,11 @@ def acquire_zim(title, subject, source_url):
         proc = subprocess.Popen([sys.executable, str(APP_DIR / 'webapp.py'), 'fetch-zim', zid],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                 start_new_session=True)
-        g.db.execute('UPDATE zim SET status=? WHERE id=? AND status=?',
+        db.execute('UPDATE zim SET status=? WHERE id=? AND status=?',
                      (f'pid:{proc.pid}', zid, 'downloading'))
-        g.db.commit()
+        db.commit()
     except Exception as error:
-        g.db.rollback()
+        db.rollback()
         if proc is not None:
             try:
                 proc.terminate()
@@ -5326,6 +5363,25 @@ def acquire_zim(title, subject, source_url):
             raise ValueError(f'Could not start the ZIM download worker: {error}') from error
         raise
     return zid
+
+
+def start_import_zim_downloads(assets, db, skip_registered=False):
+    started, errors = 0, []
+    for asset in assets:
+        title = str(asset.get('title') or Path(asset['path']).name)
+        try:
+            target = library.safe_path(DATA_ROOT, asset['path'])
+            filename = Path(asset['path']).name
+            registered = db.execute('SELECT 1 FROM zim WHERE filename=?', (filename,)).fetchone()
+            if registered and skip_registered:
+                continue
+            if target.exists() or registered:
+                raise ValueError(f'{asset["path"]} already exists or is already registered')
+            acquire_zim(title, asset['collection'], asset['url'], db=db)
+            started += 1
+        except (OSError, ValueError, sqlite3.Error, subprocess.SubprocessError) as error:
+            errors.append(f'{title}: {str(error)[:300]}')
+    return started, errors
 
 
 def zim_validator(log):
@@ -6261,9 +6317,10 @@ def refresh_pdf_import_liveness(status):
             item['received_bytes'] = partial.stat().st_size if partial.is_file() else 0
         except (OSError, ValueError):
             item['received_bytes'] = 0
-    active = [item for item in status['files']
-              if item.get('status') in {'queued', 'downloading'}]
-    if not active:
+    active_files = [item for item in status['files']
+                    if item.get('status') in {'queued', 'downloading'}]
+    deferred_zims_active = status.get('deferred_zim_state') in {'queued', 'starting'}
+    if not active_files and not deferred_zims_active:
         if changed:
             _manifest, status_path, _log = pdf_import_paths(status['id'])
             library.write_json(status_path, status)
@@ -6282,10 +6339,13 @@ def refresh_pdf_import_liveness(status):
             _manifest, status_path, _log = pdf_import_paths(status['id'])
             library.write_json(status_path, status)
         return status
-    for item in active:
+    for item in active_files:
         item['status'] = 'failed'
         item['error'] = 'Download worker stopped before this file completed; retry is available.'
         item['updated_at'] = time.time()
+    if deferred_zims_active:
+        status['deferred_zim_state'] = 'failed'
+        status['deferred_zim_errors'] = ['Download worker stopped before queued ZIMs started; retry is available.']
     status['updated_at'] = time.time()
     _manifest, status_path, _log = pdf_import_paths(status['id'])
     library.write_json(status_path, status)
@@ -6357,15 +6417,23 @@ def admin_pdf_import_status(request_id):
 @csrf_required
 def admin_pdf_import_retry(request_id):
     try:
-        status = read_pdf_import_status(request_id)
-        if any(item.get('status') in {'queued', 'downloading'} for item in status['files']):
+        status = refresh_pdf_import_liveness(read_pdf_import_status(request_id))
+        if (any(item.get('status') in {'queued', 'downloading'} for item in status['files']) or
+                status.get('deferred_zim_state') in {'queued', 'starting'}):
             return jsonify(error='Wait for this PDF import to finish before retrying'), 409
         failed = [item for item in status['files'] if item.get('status') == 'failed']
-        if not failed:
+        retry_zims = (status.get('deferred_zim_state') == 'failed' or
+                      (status.get('deferred_zim_state') == 'finished' and
+                       bool(status.get('deferred_zim_errors'))))
+        if not failed and not retry_zims:
             return jsonify(error='This import has no failed PDF downloads'), 409
         original = json.loads(json.dumps(status))
         for item in failed:
             item['status'], item['error'] = 'queued', ''
+        if retry_zims:
+            status['deferred_zim_state'] = 'queued'
+            status['deferred_zim_errors'] = []
+            status['deferred_zim_retry'] = True
         status['updated_at'] = time.time()
         _manifest, status_path, _log = pdf_import_paths(request_id)
         library.write_json(status_path, status)
@@ -6384,8 +6452,9 @@ def admin_pdf_import_retry(request_id):
 @csrf_required
 def admin_pdf_import_file_retry(request_id, file_index):
     try:
-        status = read_pdf_import_status(request_id)
-        if any(item.get('status') in {'queued', 'downloading'} for item in status['files']):
+        status = refresh_pdf_import_liveness(read_pdf_import_status(request_id))
+        if (any(item.get('status') in {'queued', 'downloading'} for item in status['files']) or
+                status.get('deferred_zim_state') in {'queued', 'starting'}):
             return jsonify(error='Wait for active PDF downloads to finish before retrying one file'), 409
         if file_index >= len(status['files']):
             abort(404)
@@ -6442,7 +6511,7 @@ def admin_pdf_import_file_remove(request_id, file_index):
 
 
 def fetch_import_pdfs(request_id):
-    """Wait for active ZIM fetches, then acquire imported online PDFs safely."""
+    """Acquire imported online PDFs, then start this import's deferred ZIMs."""
     manifest, status_path, _log_path = pdf_import_paths(request_id)
 
     def report(path, state, error):
@@ -6476,8 +6545,26 @@ def fetch_import_pdfs(request_id):
     # A publisher can reject one PDF (for example with HTTP 403). Keep
     # acquiring the other independently selected documents and leave failures
     # visible in this import's private log for a later retry.
-    library.fetch(DATA_ROOT, manifest, missing_only=True, continue_on_error=True,
-                  status_callback=report, cancel_check=is_canceled)
+    try:
+        library.fetch(DATA_ROOT, manifest, missing_only=True, continue_on_error=True,
+                      status_callback=report, cancel_check=is_canceled)
+    finally:
+        document = json.loads(manifest.read_text(encoding='utf-8'))
+        deferred_zims = document.get('deferred_zims', [])
+        status = read_pdf_import_status(request_id)
+        if deferred_zims and status.get('deferred_zim_state') in {'queued', 'starting'}:
+            status['deferred_zim_state'] = 'starting'
+            status['updated_at'] = time.time()
+            library.write_json(status_path, status)
+            with closing(connect_db()) as db:
+                started, errors = start_import_zim_downloads(
+                    deferred_zims, db, skip_registered=bool(status.get('deferred_zim_retry')))
+            status['deferred_zim_downloads_started'] = started
+            status['deferred_zim_errors'] = errors
+            status['deferred_zim_state'] = 'failed' if errors else 'finished'
+            status['deferred_zim_retry'] = False
+            status['updated_at'] = time.time()
+            library.write_json(status_path, status)
 
 
 def create_admin(username, password):
