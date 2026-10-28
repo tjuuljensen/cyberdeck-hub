@@ -615,6 +615,8 @@ printf '%s\n' \
 chown root:root /etc/sudoers.d/cyberdeck-web
 chmod 0440 /etc/sudoers.d/cyberdeck-web
 visudo -cf /etc/sudoers.d/cyberdeck-web >/dev/null
+runuser -u cyberdeck -- sudo -n /usr/local/lib/cyberdeck/admin-helper.py firewall-status >/dev/null ||
+    die 'The installed web-service sudoers allowlist cannot run the firewall status helper.'
 
 systemctl daemon-reload
 systemctl disable --now sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null || true

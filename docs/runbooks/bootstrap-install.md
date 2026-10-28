@@ -48,7 +48,17 @@ After Debian reboots, sign in on the local console and accept the Cyberdeck setu
 sudo /usr/local/sbin/cyberdeck-firstboot-install --retry
 ```
 
-The staged kit remains under `/var/lib/cyberdeck-bootstrap` for recovery and retry. After setup, create the Hub administrator account in a browser. Open `http://cyberdeck.local/` for certificate guidance; compare the CA fingerprint shown by the server before trusting the certificate. If `.local` does not resolve, use the server IP on the same network. Once the CA is trusted, open `https://cyberdeck.local/`.
+The staged kit remains under `/var/lib/cyberdeck-bootstrap` for recovery and
+retry. Each retry refreshes the extracted installer source from the staged
+archive, so replacing the archive with a newer kit does not leave an older
+extracted installer in use. For a later update to an already installed Hub,
+follow the complete source-kit preview and apply workflow in the [manual Debian
+install guide](debian-install.md); patching only the web application does not
+update the privileged helper or sudoers allowlist. After setup, create the Hub
+administrator account in a browser. Open `http://cyberdeck.local/` for
+certificate guidance; compare the CA fingerprint shown by the server before
+trusting the certificate. If `.local` does not resolve, use the server IP on
+the same network. Once the CA is trusted, open `https://cyberdeck.local/`.
 
 ## Start with an existing Debian 13 install
 

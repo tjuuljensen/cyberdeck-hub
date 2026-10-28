@@ -6043,8 +6043,7 @@ def admin_module_status():
 
 def _firewall_helper_error(error, action):
     detail = str(error)
-    if ('password is required' in detail.lower() or
-            'unable to open /run/sudo/ts' in detail.lower()):
+    if 'password is required' in detail.lower():
         return ('The installed sudoers allowlist does not permit firewall ' + action +
                 '. Update this host with the current Cyberdeck Hub installer source kit.')
     return detail or f'Could not {action} firewall state'

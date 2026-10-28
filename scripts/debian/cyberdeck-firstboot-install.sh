@@ -60,11 +60,12 @@ if [[ ${1:-} != --confirmed ]]; then
     fi
 fi
 
-if [[ ! -f $installer ]]; then
-    [[ -f $archive ]] || fail "the staged install kit is missing; restore $archive and retry."
+if [[ -f $archive ]]; then
     install -d -o root -g root -m 0755 "$source_dir"
     tar --no-same-owner --no-same-permissions -xzf "$archive" -C "$source_dir" ||
         fail 'could not unpack the staged install kit; the archive was retained for recovery.'
+elif [[ ! -f $installer ]]; then
+    fail "the staged install kit is missing; restore $archive and retry."
 fi
 [[ -f $installer && ! -L $installer ]] || fail 'the staged Hub installer is missing or unsafe.'
 [[ -f $admin_helper && ! -L $admin_helper ]] || fail 'the staged admin helper is missing or unsafe.'

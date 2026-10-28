@@ -14,10 +14,14 @@ On a connected workstation with Python 3:
 ```sh
 python3 scripts/debian/build-kit.py --output ./cyberdeck-hub-debian-kit.tar.gz
 sha256sum cyberdeck-hub-debian-kit.tar.gz > cyberdeck-hub-debian-kit.tar.gz.sha256
+git rev-parse HEAD
+git status --short
 ```
 
 The builder normalizes archive timestamps and modes. Rebuilding from the same
 source files with the same toolchain produces the same archive checksum.
+Record the revision, working-tree status, and kit checksum together so the
+installed source can be traced back to this checkout.
 
 Transfer the kit and checksum using trusted media. On the Debian host, verify
 the checksum and extract into a new directory:
@@ -63,15 +67,40 @@ Shorewall, ferm, iptables, and ip6tables services, plus other nftables input
 rules. If it finds a conflict, it disables the control and shows what it found.
 It cannot detect every custom or externally managed firewall; leave the module
 off and ask the person who manages the host if unsure. When enabled, it preserves
-the active SSH port and Hub, DNS, and hotspot essentials. The installer installs the exact sudoers actions required to read and
-change firewall state. On an older installation, a `password is required` or
-`/run/sudo/ts` status error means the installed allowlist is stale; rebuild and
-apply a current source kit using the steps above, then reload Admin. Do not
-change `/run` permissions to work around this error. The installer does not
-rewrite NetworkManager connection profiles. The first visit to
+the active SSH port and Hub, DNS, and hotspot essentials. The installer installs
+the exact sudoers actions required to read and change firewall state, then
+checks that the `cyberdeck` service account can run the status helper through
+sudo. The installer does not rewrite NetworkManager connection profiles. The first visit to
 `https://cyberdeck.local/` starts administrator setup; create and store the
 administrator credentials outside this repository. Install and trust the
 provided local CA on each client using the certificate help page.
+
+### Repair an existing installation
+
+For an incremental update, rebuild and transfer a kit from the intended source
+checkout, record its checksum, and follow the preview/apply steps above on the
+server. Apply the complete installer even if only the web application was
+patched previously: it refreshes the installed application, privileged helper,
+service files, and sudoers allowlist together. Keep the existing hostname and
+use `--data-root` only when the installation uses a non-default data root.
+After apply, confirm that the `cyberdeck-web` service is active and reload
+Admin.
+
+If the firewall card reports that sudo does not permit the status helper, run
+these read-only checks on the server:
+
+```sh
+sudo visudo -cf /etc/sudoers.d/cyberdeck-web
+sudo grep -F 'admin-helper.py firewall-status' /etc/sudoers.d/cyberdeck-web
+sudo -u cyberdeck sudo -n /usr/local/lib/cyberdeck/admin-helper.py firewall-status
+```
+
+The last command exercises the same sudo authorization used by the web
+service. A `password is required` result indicates a missing or mismatched
+sudoers rule; rebuild and apply the current source kit. An error mentioning
+`/run/sudo/ts` is a separate sudo runtime-path permission problem. Inspect the
+full error and service sandbox before changing permissions; do not make `/run`
+writable as a workaround.
 
 Useful host checks after applying:
 
