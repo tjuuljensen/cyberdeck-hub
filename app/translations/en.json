@@ -584,7 +584,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0149": {
-    "default": "Name a collection and choose its content. Files added by URL are exported as download links in one JSON file. Uploaded files and local repository files have separate ZIP downloads with metadata; URL-added files are not duplicated in those ZIPs.",
+    "default": "Choose what to include in a named configuration export. Select content items and card definitions separately.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0150": {
@@ -596,7 +596,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0152": {
-    "default": "Document card definitions stay in the configuration. Accounts, passwords, network settings, and logs are excluded. Local documents are packaged separately; documents from online sources remain download links. HTML ZIPs retain their original archive.",
+    "default": "Choose the categories to include. Saved display preferences are optional. Local files are packaged separately; online PDFs can include their downloaded copies. Accounts, passwords, network settings, and logs are excluded.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0153": {
@@ -620,7 +620,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0158": {
-    "default": "Online source and RSS card definitions are included when their categories are selected. Online content itself requires internet access and is not downloaded by export. Each local entry gets a human-readable catalogue name. After preparing downloads, choose separate files or one ZIP bundle with the JSON and local catalogues. Building the combined ZIP needs temporary space for a second copy of the selected local content. Download links expire after one hour.",
+    "default": "Online source and RSS card definitions are included only when selected. The online PDF option includes downloaded copies that are present locally; missing copies and URL-based ZIMs remain download links, and RSS article data is not included. This is not a complete snapshot of every online item. Download catalogues separately or in one ZIP bundle with the configuration. The bundle needs temporary space for a second copy of the selected files. Download links expire after one hour.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0159": {
@@ -1244,7 +1244,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0314": {
-    "default": "Local storage",
+    "default": "Storage",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0315": {
@@ -1552,7 +1552,7 @@
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0391": {
-    "default": "{free} free of {total} ({percent}%)",
+    "default": "{free} free of {total}",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0392": {
@@ -3126,5 +3126,21 @@
   "ui.0861": {
     "default": "Password change request is invalid.",
     "context": "Error when the password change request is malformed."
+  },
+  "ui.0862": {
+    "default": "Danger Zone",
+    "context": "Section in Management containing sensitive server and account controls."
+  },
+  "ui.0863": {
+    "default": "These controls can interrupt the library or affect administrator access. Use them carefully.",
+    "context": "Warning shown above sensitive server and account controls."
+  },
+  "ui.0864": {
+    "default": "Include downloaded copies of selected online source PDFs",
+    "context": "Optional export setting for packaging locally stored PDFs from online document sources."
+  },
+  "ui.0865": {
+    "default": "Available local copies are included as catalogues. If a PDF has not been downloaded, its URL stays in the configuration and requires internet access when imported.",
+    "context": "Help text for including downloaded online source PDFs in an export."
   }
 }

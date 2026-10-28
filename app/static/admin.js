@@ -22,12 +22,10 @@ async function refreshExportOptions() {
   exportForm.querySelector('[type="submit"]').disabled = true;
   try {
     const entries = await requestJson('/api/admin/export/options');
-    const legend = document.createElement('legend');
-    legend.textContent = t('ui.0070');
     const intro = document.createElement('p');
     intro.className = 'subtle export-options-intro';
     intro.textContent = t('ui.0836');
-    exportOptions.replaceChildren(legend, intro);
+    exportOptions.replaceChildren(intro);
 
     const makeCategory = (title, {name = '', checked = false, description = ''} = {}) => {
       const details = document.createElement('details');
@@ -51,10 +49,24 @@ async function refreshExportOptions() {
       }
       return {details, toggle};
     };
-    const makeItemGroup = (title, groupEntries) => {
+    const makeItemGroup = (title, groupEntries, {includePdfToggle = false} = {}) => {
       const category = makeCategory(title);
       const list = document.createElement('div');
       list.className = 'export-category-items';
+      if (includePdfToggle) {
+        const pdfToggleLabel = document.createElement('label');
+        pdfToggleLabel.className = 'check export-pdf-toggle';
+        const pdfToggle = document.createElement('input');
+        pdfToggle.type = 'checkbox'; pdfToggle.name = 'include_online_source_pdfs';
+        const pdfToggleText = document.createElement('span');
+        pdfToggleText.textContent = t('ui.0864');
+        pdfToggleLabel.append(pdfToggle, pdfToggleText);
+        category.details.append(pdfToggleLabel);
+        const pdfHelp = document.createElement('p');
+        pdfHelp.className = 'subtle export-category-help';
+        pdfHelp.textContent = t('ui.0865');
+        category.details.append(pdfHelp);
+      }
       const checkboxes = [];
       for (const entry of groupEntries) {
         const label = document.createElement('label');
@@ -97,7 +109,7 @@ async function refreshExportOptions() {
     const documentsSummary = document.createElement('summary');
     documentsSummary.textContent = t('ui.0841');
     documents.append(documentsSummary,
-      makeItemGroup('ui.0842', entries.filter(entry => entry.category === 'documents-online')),
+      makeItemGroup('ui.0842', entries.filter(entry => entry.category === 'documents-online'), {includePdfToggle: true}),
       makeItemGroup('ui.0843', entries.filter(entry => entry.category === 'documents-local')));
     exportOptions.append(documents);
 
@@ -134,7 +146,8 @@ exportForm.addEventListener('submit', async event => {
       body: JSON.stringify({name: exportForm.elements.name.value, selected,
         include_settings: exportForm.elements.include_settings.checked,
         include_online_source_cards: exportForm.elements.include_online_source_cards.checked,
-        include_rss_cards: exportForm.elements.include_rss_cards.checked})});
+        include_rss_cards: exportForm.elements.include_rss_cards.checked,
+        include_online_source_pdfs: exportForm.elements.include_online_source_pdfs.checked})});
     exportObjectUrl = URL.createObjectURL(new Blob([JSON.stringify(result.config, null, 2) + '\n'], {type: 'application/json'}));
     const link = document.createElement('a');
     link.className = 'button primary'; link.href = exportObjectUrl; link.download = result.filename;
@@ -155,6 +168,7 @@ exportForm.addEventListener('submit', async event => {
       ['include_settings',String(exportForm.elements.include_settings.checked)],
       ['include_online_source_cards',String(exportForm.elements.include_online_source_cards.checked)],
       ['include_rss_cards',String(exportForm.elements.include_rss_cards.checked)],
+      ['include_online_source_pdfs',String(exportForm.elements.include_online_source_pdfs.checked)],
       ...selected.map(value=>['selected',value])];
     for(const[name,value]of bundleFields){const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;bundleForm.append(input)}
     const bundleButton=document.createElement('button');bundleButton.type='submit';bundleButton.className='button primary';bundleButton.textContent=t('ui.0240');bundleForm.append(bundleButton);exportDownloads.append(bundleForm);
@@ -789,17 +803,14 @@ async function refreshSystemOverview(){
       available:formatBytes(info.memory.available_bytes),
     }));
     addSystemFact(facts,'Uptime',formatUptime(info.uptime_seconds));
-    target.append(facts);
-    const storageFacts=document.createElement('div');
-    storageFacts.className='system-facts';
     const dataFilesystem=info.filesystems?.find(item=>item.mount===info.data_filesystem_mount);
-    addSystemFact(storageFacts,'ui.0619',t('ui.0652',{
+    addSystemFact(facts,'ui.0619',t('ui.0652',{
       path:info.data_root,
       mount:info.data_filesystem_mount||t('ui.0233'),
       device:dataFilesystem?.device||t('ui.0233'),
       type:dataFilesystem?.filesystem||t('ui.0233'),
     }));
-    storageTarget.append(storageFacts);
+    target.append(facts);
     const heading=document.createElement('h3');
     heading.className='system-storage-heading';
     heading.textContent=t('ui.0314');
@@ -825,7 +836,6 @@ async function refreshSystemOverview(){
       summary.textContent=t('ui.0391',{
         free:formatBytes(disk.free_bytes),
         total:formatBytes(disk.total_bytes),
-        percent:disk.used_percent,
       });
       top.append(mount,summary);
       const source=document.createElement('small');

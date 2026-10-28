@@ -1924,7 +1924,21 @@ def catalogue_files(entry):
     """Explicit payload allowlist: never recursively copy the private directory."""
     if 'asset' in entry:
         asset = entry['asset']
-        files = [(library.safe_path(DATA_ROOT, asset['path']), asset['path'])]
+        if entry.get('id', '').startswith('source:'):
+            attachment_id = entry['id'][len('source:'):]
+            attachment = g.db.execute(
+                'SELECT item_id,stored_path,kind FROM attachment WHERE id=?',
+                (attachment_id,)).fetchone()
+            if not attachment or attachment['kind'] != 'pdf':
+                raise ValueError('Online source PDF metadata is unavailable')
+            stored = attachment['stored_path']
+            if Path(stored).name != stored:
+                raise ValueError('Invalid attachment filename')
+            source = library.safe_path(
+                PRIVATE_ROOT, f"files/{attachment['item_id']}/{stored}")
+        else:
+            source = library.safe_path(DATA_ROOT, asset['path'])
+        files = [(source, asset['path'])]
     else:
         item = entry['item']
         files = []
@@ -1962,13 +1976,15 @@ def catalogue_name(slug, entry):
 
 
 def build_export_config(name, selected, include_settings,
-                        include_online_source_cards=True, include_rss_cards=True):
+                        include_online_source_cards=True, include_rss_cards=True,
+                        include_online_source_pdfs=False):
     """Build the versioned configuration and resolve every selected local payload."""
     if (not isinstance(name, str) or not 1 <= len(name.strip()) <= 80 or
             any(ord(c) < 32 for c in name) or not isinstance(selected, list) or
             len(selected) > 5000 or any(not isinstance(key, str) for key in selected) or
             len(set(selected)) != len(selected) or type(include_settings) is not bool or
-            type(include_online_source_cards) is not bool or type(include_rss_cards) is not bool):
+            type(include_online_source_cards) is not bool or type(include_rss_cards) is not bool or
+            type(include_online_source_pdfs) is not bool):
         raise ValueError('Choose an export name and distinct content entries')
     name = name.strip()
     slug = secure_filename(name).lower().strip('._-')[:80] or 'custom-config'
@@ -1988,7 +2004,24 @@ def build_export_config(name, selected, include_settings,
     used_catalogue_names = set()
     for key in selected:
         entry = inventory[key]
-        if entry['mode'] == 'online':
+        package_online_pdf = False
+        if (include_online_source_pdfs and entry['mode'] == 'online' and
+                entry['category'] == 'documents-online' and
+                entry['asset']['path'].lower().endswith('.pdf')):
+            if entry['id'].startswith('source:'):
+                attachment_id = entry['id'][len('source:'):]
+                attachment = g.db.execute(
+                    'SELECT item_id,stored_path,kind FROM attachment WHERE id=?',
+                    (attachment_id,)).fetchone()
+                local_pdf = None
+                if attachment and attachment['kind'] == 'pdf' and Path(attachment['stored_path']).name == attachment['stored_path']:
+                    local_pdf = library.safe_path(
+                        PRIVATE_ROOT,
+                        f"files/{attachment['item_id']}/{attachment['stored_path']}")
+            else:
+                local_pdf = library.safe_path(DATA_ROOT, entry['asset']['path'])
+            package_online_pdf = bool(local_pdf and local_pdf.is_file())
+        if entry['mode'] == 'online' and not package_online_pdf:
             config['assets'].append(entry['asset'])
             continue
         files, size = catalogue_files(entry)
@@ -2071,7 +2104,8 @@ def export_prepare():
     try:
         name, slug, config, downloads, local_catalogues = build_export_config(
             body.get('name'), body.get('selected'), body.get('include_settings', True),
-            body.get('include_online_source_cards', True), body.get('include_rss_cards', True))
+            body.get('include_online_source_cards', True), body.get('include_rss_cards', True),
+            body.get('include_online_source_pdfs', False))
         return jsonify(filename=slug + '.json', config=config, catalogues=downloads)
     except (OSError, ValueError, KeyError, TypeError) as error:
         if isinstance(error, ValueError) and str(error).startswith(('Choose an export name', 'Content selection changed')):
@@ -2090,9 +2124,10 @@ def export_bundle():
         include_settings = request.form.get('include_settings', 'true') == 'true'
         include_online_source_cards = request.form.get('include_online_source_cards', 'true') == 'true'
         include_rss_cards = request.form.get('include_rss_cards', 'true') == 'true'
+        include_online_source_pdfs = request.form.get('include_online_source_pdfs', 'false') == 'true'
         name, slug, config, _downloads, local_catalogues = build_export_config(
             request.form.get('name'), selected, include_settings,
-            include_online_source_cards, include_rss_cards)
+            include_online_source_cards, include_rss_cards, include_online_source_pdfs)
         payload_bytes = sum(item[3] for item in local_catalogues)
         if payload_bytes + 128 * 1024**2 > MAX_UPLOAD:
             raise ValueError('Combined bundle would exceed the 8 GiB import limit; use separate downloads instead')
