@@ -336,7 +336,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0087": {
-    "default": "Export and import",
+    "default": "Export",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0088": {
