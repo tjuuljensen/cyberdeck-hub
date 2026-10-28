@@ -57,7 +57,6 @@
 {% if capabilities.hotspot and hotspot_module_enabled %}<div id="system-hotspot" class="system-facts" aria-live="polite">Loading hotspot information...</div>{% endif %}
 <div id="system-interfaces" class="system-network-interfaces" aria-live="polite">Loading network interfaces...</div>
 <p class="subtle">Updates every 30 seconds. Connected interfaces do not necessarily have internet access.{% if capabilities.hotspot and hotspot_module_enabled %} <a href="#hotspot">Hotspot settings</a>{% endif %}</p></section>
-<div id="system-storage" class="system-overview" aria-live="polite">Loading storage information…</div>
 </article>{% endif %}
 <article class="admin-panel" id="management"><p class="eyebrow">MANAGEMENT</p><h2>{{ t('ui.0617') }}</h2>
 {% if capabilities.storage %}
@@ -80,7 +79,7 @@
 </section>
 {% endif %}
 <section class="management-danger-zone" aria-labelledby="management-danger-heading"><h3 id="management-danger-heading">{{ t('ui.0862') }}</h3><p class="subtle">{{ t('ui.0863') }}</p>
-{% if capabilities.hostname %}<details class="admin-fold management-fold"><summary>{{ t('ui.0174') }} (<span id="hostname-summary">{{ t('ui.0233') }}</span>)</summary>
+{% if capabilities.hostname %}<details class="management-fold"><summary>{{ t('ui.0174') }} (<span id="hostname-summary">{{ t('ui.0233') }}</span>)</summary>
 <section class="hostname-settings" aria-labelledby="hostname-heading"><h4 id="hostname-heading" class="visually-hidden">{{ t('ui.0173') }}</h4>
 <p>{{ t('ui.0258') }} <strong>knowledge-hub</strong>{{ t('ui.0259') }}</p>
 <form id="hostname-form" class="stack"><label>Server name<input name="hostname" required maxlength="63" pattern="[a-z]([a-z0-9\-]{0,61}[a-z0-9])?" placeholder="knowledge-hub" autocomplete="off" autocapitalize="none" spellcheck="false" disabled></label>
@@ -90,7 +89,7 @@
 <p id="hostname-status" role="status" aria-live="polite">Loading the current address...</p>
 <div id="hostname-links" class="stack hostname-address"></div></section>
 </details>{% endif %}
-<details class="admin-fold management-fold"><summary>{{ t('ui.0850') }}</summary><p class="subtle">{{ t('ui.0860') }}</p>
+<details class="management-fold"><summary>{{ t('ui.0850') }}</summary><p class="subtle">{{ t('ui.0860') }}</p>
 <form id="admin-password-form" class="stack"><label>{{ t('ui.0851') }}<input type="password" name="current_password" required maxlength="1024" autocomplete="current-password"></label><label>{{ t('ui.0852') }}<input type="password" name="new_password" required minlength="14" maxlength="1024" autocomplete="new-password"></label><label>{{ t('ui.0853') }}<input type="password" name="confirmation" required minlength="14" maxlength="1024" autocomplete="new-password"></label><button class="button">{{ t('ui.0854') }}</button></form><p id="admin-password-status" class="subtle" role="status" aria-live="polite"></p></details>
 {% if capabilities.power %}<section class="management-power" aria-labelledby="management-power-heading"><h3 id="management-power-heading">{{ t('ui.0618') }}</h3><p>These actions affect the whole server and interrupt anyone using the library.</p><div class="button-row"><button class="button" data-power="reboot">Reboot server</button><button class="button danger" data-power="poweroff">Shut down server</button></div></section>{% endif %}
 </section></article>

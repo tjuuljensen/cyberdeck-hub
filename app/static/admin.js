@@ -781,7 +781,6 @@ function renderApprovedStorageLocations(){
 }
 async function refreshSystemOverview(){
   const target=document.querySelector('#system-overview');
-  const storageTarget=document.querySelector('#system-storage');
   try{
     const info=await requestJson('/api/admin/system');
     const serverSummary=document.querySelector('#hostname-summary');
@@ -790,7 +789,6 @@ async function refreshSystemOverview(){
     renderApprovedStorageLocations();
     renderSystemNetwork(info.network);
     target.replaceChildren();
-    storageTarget.replaceChildren();
     const facts=document.createElement('div');
     facts.className='system-facts';
     addSystemFact(facts,'Hostname',info.hostname);
@@ -803,55 +801,11 @@ async function refreshSystemOverview(){
       available:formatBytes(info.memory.available_bytes),
     }));
     addSystemFact(facts,'Uptime',formatUptime(info.uptime_seconds));
-    const dataFilesystem=info.filesystems?.find(item=>item.mount===info.data_filesystem_mount);
-    addSystemFact(facts,'ui.0619',t('ui.0652',{
-      path:info.data_root,
-      mount:info.data_filesystem_mount||t('ui.0233'),
-      device:dataFilesystem?.device||t('ui.0233'),
-      type:dataFilesystem?.filesystem||t('ui.0233'),
-    }));
     target.append(facts);
-    const heading=document.createElement('h3');
-    heading.className='system-storage-heading';
-    heading.textContent=t('ui.0314');
-    storageTarget.append(heading);
-    if(!info.filesystems.length){
-      const empty=document.createElement('p');
-      empty.className='subtle';
-      empty.textContent=t('ui.0316');
-      storageTarget.append(empty);
-      return;
-    }
-    const disks=document.createElement('div');
-    disks.className='system-disks';
-    for(const disk of info.filesystems){
-      const row=document.createElement('div');
-      row.className='system-disk';
-      const top=document.createElement('div');
-      top.className='system-disk-top';
-      const mount=document.createElement('strong');
-      mount.textContent=disk.mount===info.data_filesystem_mount
-        ?t('ui.0360',{mount:disk.mount}):disk.mount;
-      const summary=document.createElement('span');
-      summary.textContent=t('ui.0391',{
-        free:formatBytes(disk.free_bytes),
-        total:formatBytes(disk.total_bytes),
-      });
-      top.append(mount,summary);
-      const source=document.createElement('small');
-      source.textContent=`${disk.usb_storage?t('ui.0315')+' · ':''}${t(disk.device)} · ${t(disk.filesystem)}`;
-      const meter=document.createElement('progress');
-      meter.max=100;
-      meter.value=disk.used_percent;
-      meter.setAttribute('aria-label',t('ui.0392',{mount:disk.mount,percent:disk.used_percent}));
-      row.append(top,source,meter);
-      disks.append(row);
-    }
-    storageTarget.append(disks);
+    renderStorageDiskUsage();
   }catch(error){
     renderSystemNetwork(null);
     target.textContent=t('ui.0393',{error:error.message});
-    storageTarget.textContent=t('ui.0393',{error:error.message});
   }
 }
 
@@ -859,6 +813,35 @@ const storageList=document.querySelector('#storage-management-list');
 const storageActions=document.querySelector('#storage-management-actions');
 const storageStatus=document.querySelector('#storage-management-status');
 const storageConfirmation=document.querySelector('#storage-action-confirmation');
+function renderStorageDiskUsage(card,disk,info=approvedLocationsSystemInfo){
+  if(!card){
+    document.querySelectorAll('#storage-management-list .storage-disk-card').forEach(item=>
+      renderStorageDiskUsage(item,item._storageDisk,info));
+    return;
+  }
+  card.querySelectorAll('.storage-disk-space').forEach(item=>item.remove());
+  if(!disk)return;
+  if(!info?.filesystems)return;
+  const mounts=new Set([...(disk.mounts||[]),...(disk.partitions||[]).flatMap(part=>part.mounts||[])]);
+  for(const filesystem of info.filesystems.filter(item=>mounts.has(item.mount))){
+    const usage=document.createElement('div');
+    usage.className='storage-disk-space';
+    const detail=document.createElement('p');
+    detail.className='subtle';
+    detail.textContent=`${filesystem.mount} · ${t('ui.0391',{free:formatBytes(filesystem.free_bytes),total:formatBytes(filesystem.total_bytes)})}`;
+    const meter=document.createElement('progress');
+    meter.max=100;
+    meter.value=filesystem.used_percent;
+    meter.setAttribute('aria-label',t('ui.0392',{mount:filesystem.mount,percent:filesystem.used_percent}));
+    usage.append(detail,meter);
+    if(filesystem.mount===info.data_filesystem_mount){
+      const libraryPath=document.createElement('small');
+      libraryPath.textContent=`${t('ui.0619')}: ${t('ui.0652',{path:info.data_root,mount:info.data_filesystem_mount||t('ui.0233'),device:filesystem.device||t('ui.0233'),type:filesystem.filesystem||t('ui.0233')})}`;
+      usage.append(libraryPath);
+    }
+    card.append(usage);
+  }
+}
 function storageButton(label,action){const button=document.createElement('button');button.className='button';button.type='button';button.textContent=t(label);button.addEventListener('click',action);return button}
 async function postStorage(action,target,extra={}){const identity=typeof target==='string'?{target_mount:target}:target?.stable_id?{stable_id:target.stable_id}:target?.target_mount?{target_mount:target.target_mount}:{};return requestJson('/api/admin/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...identity,...extra})})}
 function showStorageStatus(){storageStatus.scrollIntoView({block:'nearest',behavior:'smooth'})}
@@ -928,6 +911,7 @@ let storageTerminalNoticeKey=null;
 function createStorageCard(disk){
   const card=document.createElement('article');
   card.className='storage-disk-card';
+  card._storageDisk=disk;
   const heading=document.createElement('h4');
   heading.textContent=t('ui.0587',{model:disk.model,capacity:formatBytes(disk.capacity_bytes)});
   const transport=document.createElement('p');
@@ -995,6 +979,7 @@ function createStorageCard(disk){
   }else if(disk.adoptable){
     addAction(storageButton('ui.0591',()=>adoptStorage(disk)));
   }
+  renderStorageDiskUsage(card,disk);
   return {card,actions:actionBox.childElementCount?actionBox:null};
 }
 async function refreshStorage(){
