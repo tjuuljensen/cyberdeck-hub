@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
-# Build a Debian 13 Cyberdeck installer ISO; writing it erases the selected USB disk.
+# Build a Debian 13 Cyberdeck installer ISO and, optionally, write it to USB.
+#
+# Examples:
+#   scripts/debian/create-usb-linux.sh --iso debian-13.1.0-amd64-netinst.iso \
+#     --checksums SHA512SUMS --output-dir ./cyberdeck-media
+#   sudo scripts/debian/create-usb-linux.sh --iso debian-13.1.0-amd64-netinst.iso \
+#     --checksums SHA512SUMS --output-dir ./cyberdeck-media \
+#     --write --device /dev/sdX
+#
+# Parameters:
+#   --iso         Official Debian 13 amd64 netinst ISO to customize.
+#   --checksums   Debian SHA512SUMS file containing that ISO's SHA-512 entry.
+#   --output-dir  Directory for the generated installer ISO and build artifacts.
+#   --write       Also write the generated ISO to a removable USB disk. Omitted
+#                 by default; without it, no disk is written.
+#   --device      Whole USB disk (for example /dev/sdX), required with --write.
+#
+# The ISO and checksum file must match Debian's official amd64 iso-cd release.
+# Writing requires root, an explicitly selected removable whole disk with all
+# partitions unmounted, and typing the exact erase confirmation. This erases all
+# data on that device. The generated ISO is not overwritten if it already exists.
 set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)

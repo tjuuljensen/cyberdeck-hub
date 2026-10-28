@@ -1,5 +1,29 @@
 #!/usr/bin/env python3
-"""Inspect wireless adapter visibility and offer an opt-in Debian firmware install."""
+"""Inspect wireless adapter visibility and optionally install Debian firmware.
+
+The diagnostic report combines PCI and USB inventory, kernel wireless
+interfaces, NetworkManager device state, and firmware errors visible in the
+kernel log. Missing tools or restricted log access are reported without making
+changes. Some devices, especially USB adapters, may require chipset-specific
+identification beyond what this script can infer.
+
+Examples:
+    # Read-only diagnostic report.
+    python3 scripts/debian/wifi-diagnostics.py
+
+    # Update apt indexes and interactively install matching firmware (or the
+    # general firmware-linux package when no known match can be identified).
+    sudo python3 scripts/debian/wifi-diagnostics.py --install-firmware
+
+Parameters:
+    --install-firmware  On Debian-based Linux, use apt-get to update package
+                        indexes and interactively install the matching firmware
+                        package. If no recognized missing firmware path is
+                        found, offer firmware-linux. Requires root and network
+                        access; apt prompts for package installation.
+
+The default diagnostic mode does not install packages or change system state.
+"""
 from __future__ import annotations
 
 import argparse
@@ -138,9 +162,13 @@ def install_firmware() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__.split('\n\n', maxsplit=1)[0],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__.split('Examples:\n', maxsplit=1)[1],
+    )
     parser.add_argument('--install-firmware', action='store_true',
-                        help='on Debian, update apt indexes and interactively install firmware-linux')
+                        help='on Debian, update apt indexes and interactively install matching firmware')
     args = parser.parse_args(argv)
     if args.install_firmware:
         return install_firmware()

@@ -1,6 +1,27 @@
 #!/usr/bin/env bash
 # Configure or remove the sudo timestamp cache used by Debian deployments.
-# This changes /etc/sudoers.d on the selected Debian host; it never grants NOPASSWD.
+#
+# Usage: configure-deploy-cache.sh [--preview|--apply|--remove]
+#        [--user USER] [--timeout MINUTES]
+#
+# Examples:
+#   bash scripts/debian/configure-deploy-cache.sh --user operator
+#   sudo bash scripts/debian/configure-deploy-cache.sh --apply --user operator --timeout 60
+#   sudo bash scripts/debian/configure-deploy-cache.sh --remove --user operator
+#
+# Parameters:
+#   --preview   Validate and describe the change without modifying the host
+#               (default action).
+#   --apply     Write a managed sudoers drop-in after validating it with visudo.
+#   --remove    Remove only this script's recognized sudoers drop-in.
+#   --user      Existing Debian account to configure (example: operator). If
+#               omitted, the script uses its configured default account.
+#   --timeout   Sudo timestamp duration in minutes, from 1 to 1440 (default: 60).
+#
+# Apply and remove require root, normally via sudo. The configuration shares the
+# selected user's sudo authentication timestamp across SSH sessions. It is a
+# password cache only and never grants NOPASSWD access. Changes are confined to
+# /etc/sudoers.d/cyberdeck-deploy-cache; unrelated sudoers files are not edited.
 set -euo pipefail
 
 readonly SUDOERS_DIR=/etc/sudoers.d
@@ -17,12 +38,12 @@ usage() {
 Usage: configure-deploy-cache.sh [--apply|--remove] [--user USER] [--timeout MINUTES]
 
 Preview is the default. Apply or remove requires root, normally through sudo.
-Defaults: action=preview, user=cda, timeout=60 minutes.
+Defaults: action=preview, timeout=60 minutes. Use --user to select the account.
 
 Examples:
-  bash scripts/debian/configure-deploy-cache.sh --user cda
-  sudo bash scripts/debian/configure-deploy-cache.sh --apply --user cda --timeout 60
-  sudo bash scripts/debian/configure-deploy-cache.sh --remove --user cda
+  bash scripts/debian/configure-deploy-cache.sh --user operator
+  sudo bash scripts/debian/configure-deploy-cache.sh --apply --user operator --timeout 60
+  sudo bash scripts/debian/configure-deploy-cache.sh --remove --user operator
 EOF
 }
 

@@ -1,4 +1,58 @@
-"""Prepare a Rufus overlay or remastered Debian installer ISO payload."""
+"""Build a Cyberdeck USB media overlay for a Debian installer ISO.
+
+This script packages the repository's Debian preseed configuration and first-boot
+scripts into an overlay ZIP, and builds the matching install kit. It also writes
+the required ``file=/cdrom/preseed.cfg`` boot argument into copies of the ISO's
+GRUB and ISOLINUX configuration files. The original ISO and its configuration
+files are read-only inputs; generated files are written under ``--output-dir``.
+
+The input configuration files must be extracted from the same Debian installer
+ISO passed to ``--iso``. Supply the GRUB ``grub.cfg`` and ISOLINUX ``txt.cfg``
+files from that ISO. The output directory may already exist, but any colliding
+outputs from an earlier run require ``--overwrite`` and must be verifiable as
+outputs previously created by this builder.
+
+Examples:
+    # Extract the installer configuration files, then build the USB overlay.
+    python scripts/debian/build_usb_media.py \\
+        --iso D:/images/debian-12.8.0-amd64-netinst.iso \\
+        --grub-config D:/work/iso/boot/grub/grub.cfg \\
+        --isolinux-config D:/work/iso/isolinux/txt.cfg \\
+        --output-dir D:/work/cyberdeck-usb
+
+    # Rebuild a prior output directory created by this script.
+    python scripts/debian/build_usb_media.py \\
+        --iso D:/images/debian-12.8.0-amd64-netinst.iso \\
+        --grub-config D:/work/iso/boot/grub/grub.cfg \\
+        --isolinux-config D:/work/iso/isolinux/txt.cfg \\
+        --output-dir D:/work/cyberdeck-usb --overwrite
+
+Parameters:
+    --repo-root       Repository checkout containing the preseed, first-boot
+                      scripts, and install-kit builder. Defaults to the
+                      repository containing this script.
+    --iso             Path to the source Debian installer ISO. Its name and
+                      SHA-512 digest are recorded in the generated manifest.
+    --grub-config     Extracted GRUB configuration from that ISO, normally
+                      ``boot/grub/grub.cfg``.
+    --isolinux-config Extracted ISOLINUX configuration from that ISO, normally
+                      ``isolinux/txt.cfg``.
+    --output-dir      Directory for the ``overlay/`` staging tree, install kit,
+                      overlay ZIP, and media manifest. Existing files with
+                      those generated names require ``--overwrite`` and a
+                      valid manifest from this builder.
+    --overwrite       Replace a prior generated output only if its manifest
+                      validates the files and overlay as belonging to this
+                      builder. This does not authorize replacing arbitrary
+                      files or an unrecognized directory.
+
+The overlay ZIP contains ``preseed.cfg``, the two first-boot scripts, the
+generated ``cyberdeck-install-kit.tar.gz``, patched boot configuration files,
+and an embedded ``cyberdeck-media-manifest.json``. The output directory also
+contains the install kit, ZIP, and a manifest with their checksums. Use the ZIP
+as the Rufus overlay payload, or use the staged ``overlay/`` tree when preparing
+remastered media.
+"""
 from __future__ import annotations
 
 import argparse
@@ -217,14 +271,23 @@ def prepare_overlay(repo_root: Path, iso: Path, grub: Path, isolinux: Path,
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--repo-root', type=Path, default=REPO_ROOT)
-    parser.add_argument('--iso', type=Path, required=True)
-    parser.add_argument('--grub-config', type=Path, required=True)
-    parser.add_argument('--isolinux-config', type=Path, required=True)
-    parser.add_argument('--output-dir', type=Path, required=True)
+    parser = argparse.ArgumentParser(
+        description=__doc__.split('\n\n', maxsplit=1)[0],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__.split('Examples:\n', maxsplit=1)[1],
+    )
+    parser.add_argument('--repo-root', type=Path, default=REPO_ROOT,
+                        help='repository checkout (default: directory containing this script)')
+    parser.add_argument('--iso', type=Path, required=True,
+                        help='source Debian installer ISO; recorded in the output manifest')
+    parser.add_argument('--grub-config', type=Path, required=True,
+                        help='extracted GRUB configuration from the source ISO (normally boot/grub/grub.cfg)')
+    parser.add_argument('--isolinux-config', type=Path, required=True,
+                        help='extracted ISOLINUX configuration from the source ISO (normally isolinux/txt.cfg)')
+    parser.add_argument('--output-dir', type=Path, required=True,
+                        help='directory for the overlay, install kit, ZIP, and manifest')
     parser.add_argument('--overwrite', action='store_true',
-                        help='replace prior outputs only when this builder\'s manifest validates them')
+                        help='replace only prior outputs validated by this builder\'s manifest')
     args = parser.parse_args()
     try:
         manifest = prepare_overlay(args.repo_root, args.iso, args.grub_config,

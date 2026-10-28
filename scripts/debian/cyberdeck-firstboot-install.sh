@@ -1,5 +1,23 @@
 #!/usr/bin/env bash
-# Offer a local first-login Cyberdeck installation; applying changes needs sudo.
+# Run the staged Cyberdeck installation after the first Debian login.
+#
+# Usage: cyberdeck-firstboot-install.sh [--retry]
+#
+# Examples:
+#   sudo /var/lib/cyberdeck-bootstrap/source/scripts/debian/cyberdeck-firstboot-install.sh
+#   sudo /var/lib/cyberdeck-bootstrap/source/scripts/debian/cyberdeck-firstboot-install.sh --retry
+#
+# Parameters:
+#   --retry  Clear a prior "skip" choice and show the setup prompt again. If
+#            invoked without root, the script re-executes itself through sudo.
+#
+# With no argument, this script exits quietly unless first-boot setup is pending
+# and the terminal is interactive. It previews the Hub install, asks before
+# applying changes, and offers optional CyberChef installation separately.
+# Declining setup records a per-user skip marker; --retry removes it. The
+# CYBERDECK_INSTALL_HOSTNAME environment variable selects the default Hub name
+# (default: cyberdeck). --confirmed is reserved for the script's internal sudo
+# handoff and should not be supplied by users.
 set -euo pipefail
 
 state_dir=/var/lib/cyberdeck-bootstrap

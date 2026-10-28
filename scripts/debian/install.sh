@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
-# Install Cyberdeck Hub on an existing Debian 13 host; --apply installs packages,
-# creates the service/data/TLS accounts and files, and enables Hub/Kiwix services.
+# Install Cyberdeck Hub on an existing Debian 13 host.
+#
+# Examples:
+#   bash scripts/debian/install.sh
+#   bash scripts/debian/install.sh --hostname cyberdeck
+#   sudo bash scripts/debian/install.sh --apply [--offline] [--skip-cyberchef]
+#   sudo bash scripts/debian/install.sh --apply --data-root /home/cyberdeck-data
+#
+# Parameters:
+#   --apply            Apply changes to the host: install/configure
+#                      packages, accounts, data and TLS files, and services.
+#                      Without it, print a preview and make no host changes.
+#   --offline          Use already available packages and skip online package
+#                      setup and CyberChef staging.
+#   --skip-cyberchef   Omit optional CyberChef staging during an online apply.
+#   --hostname NAME    Expected short host name used for the Hub address and
+#                      certificates. Prompted interactively when omitted; it
+#                      must match the host's current short hostname.
+#   --data-root PATH   Library data directory, a direct child of /srv or /home
+#                      (default: /srv/cyberdeck). Avoid changing an existing
+#                      populated library location; use the storage migration
+#                      procedure instead.
+#
+# Run from a complete source checkout on the intended Debian 13 host. The
+# installer preserves the existing Debian installation; it does not partition
+# disks, rename the host, or modify existing interface settings or firewall
+# rules. Online setup stages pinned CyberChef files but leaves the service
+# disabled. After setup, choose an installed profile or import a configuration
+# JSON or bundle in Admin > Import.
 set -euo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
