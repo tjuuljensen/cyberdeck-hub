@@ -3142,5 +3142,9 @@
   "ui.0865": {
     "default": "Available local copies are included as catalogues. If a PDF has not been downloaded, its URL stays in the configuration and requires internet access when imported.",
     "context": "Help text for including downloaded online source PDFs in an export."
+  },
+  "ui.0866": {
+    "default": "Library folder configuration",
+    "context": "Heading for the Management control that configures the folder used for library data."
   }
 }

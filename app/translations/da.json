@@ -784,5 +784,6 @@
   "ui.0862": "Farezone",
   "ui.0863": "Disse handlinger kan afbryde biblioteket eller påvirke administratoradgangen. Brug dem med omtanke.",
   "ui.0864": "Medtag downloadede kopier af valgte onlinekilde-PDF'er",
-  "ui.0865": "Lokale kopier medtages som kataloger. Hvis en PDF ikke er downloadet, forbliver dens adresse i konfigurationen, og den kræver internetadgang ved import."
+  "ui.0865": "Lokale kopier medtages som kataloger. Hvis en PDF ikke er downloadet, forbliver dens adresse i konfigurationen, og den kræver internetadgang ved import.",
+  "ui.0866": "Konfiguration af bibliotekets mappe"
 }
