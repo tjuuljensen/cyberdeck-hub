@@ -32,7 +32,6 @@
 <label>{{ t('ui.0575') }}<select name="mode"><option value="full">{{ t('ui.0576') }}</option><option value="settings_only">{{ t('ui.0577') }}</option></select></label>
 <label>{{ t('ui.0167') }}<input name="files" type="file" accept=".json,.zip,application/json,application/zip" multiple></label>
 <label class="check"><input type="checkbox" name="remove_omitted_subjects" value="true"> {{ t('ui.0578') }}</label>
-<label class="check"><input type="checkbox" name="apply_settings"> {{ t('ui.0168') }}</label>
 <button class="button" type="submit">{{ t('ui.0169') }}</button></form>
 <div id="import-preview" class="stack" aria-live="polite"></div><p id="import-status" class="subtle" role="status" aria-live="polite"></p>
 </article>
@@ -43,7 +42,7 @@
 <form id="export-form" class="stack">
 <label>{{ t('ui.0150') }}<input name="name" required maxlength="80" placeholder="{{ t('ui.0071') }}"></label>
 <div class="button-row"><button class="button" type="button" id="export-reload">{{ t('ui.0153') }}</button><button class="button" type="button" id="export-all">{{ t('ui.0154') }}</button><button class="button" type="button" id="export-none">{{ t('ui.0155') }}</button></div>
-<details class="export-selection-fold"><summary>{{ t('ui.0070') }}</summary><p class="subtle export-selection-help">{{ t('ui.0152') }}</p><div id="export-options" class="export-options"><span>{{ t('ui.0156') }}</span></div><p class="subtle export-selection-help">{{ t('ui.0158') }}</p></details>
+<details class="content-add export-selection-fold"><summary>{{ t('ui.0070') }}</summary><p class="subtle export-selection-help">{{ t('ui.0152') }}</p><div id="export-options" class="export-options"><span>{{ t('ui.0156') }}</span></div><p class="subtle export-selection-help">{{ t('ui.0158') }}</p></details>
 <button class="button primary" type="submit">{{ t('ui.0157') }}</button>
 </form>
 <p id="export-status" class="subtle" role="status" aria-live="polite"></p>
@@ -64,7 +63,7 @@
   <h3 id="storage-management-heading">{{ t('ui.0582') }}</h3>
   <p class="subtle">{{ t('ui.0583') }}</p>
   <div id="storage-management-list" class="storage-management-list" aria-live="polite">{{ t('ui.0585') }}</div>
-  <details class="admin-fold storage-folder-configuration"><summary>Storage folder configuration (<span id="storage-config-partition">{{ t('ui.0233') }}</span>)</summary>
+  <details class="content-add storage-folder-configuration"><summary>Storage folder configuration (<span id="storage-config-partition">{{ t('ui.0233') }}</span>)</summary>
   <div id="storage-action-confirmation" class="storage-action-confirmation" hidden></div>
   <button class="button" type="button" id="storage-reload">{{ t('ui.0584') }}</button>
   <div id="storage-management-actions" class="storage-management-actions" aria-live="polite"></div>

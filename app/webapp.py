@@ -566,7 +566,7 @@ def configured_rss_cards():
     return _configured_card_list('rss_cards', DEFAULT_RSS_CARDS, 'RSS')
 
 
-def _persist_card_collections(online=None, rss=None):
+def _replace_card_collections(online=None, rss=None):
     """Replace selected editable card collections using the relational card model."""
     requested = [('online', online, 'online source'), ('rss', rss, 'RSS')]
     replacing = {kind for kind, cards, _label in requested if cards is not None}
@@ -618,7 +618,7 @@ def restore_empty_default_police_feeds(cards):
     if existing and not existing['feeds'] and default:
         existing['feeds'] = json.loads(json.dumps(default['feeds']))
         cards = _validate_card_list(cards, 'RSS')
-        _persist_card_collections(rss=cards)
+        _replace_card_collections(rss=cards)
     g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
                  'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                  ('police_rss_feeds_restored', '1'))
@@ -2813,6 +2813,23 @@ def import_profile_download(filename):
     return response
 
 
+def _import_configuration_choices(body, legacy_full_import=False):
+    """Read individual import choices, retaining the older combined API flag."""
+    legacy = body.get('apply_settings', False)
+    if type(legacy) is not bool:
+        raise ValueError('Import configuration choices must be boolean')
+    choices = {}
+    for key in ('apply_display_preferences', 'apply_online_source_cards', 'apply_rss_cards'):
+        default = legacy
+        if legacy_full_import and key in {'apply_online_source_cards', 'apply_rss_cards'}:
+            default = True
+        value = body.get(key, default)
+        if type(value) is not bool:
+            raise ValueError('Import configuration choices must be boolean')
+        choices[key] = value
+    return choices
+
+
 def _apply_settings_only_import(stage_root, ticket, body):
     """Apply subject metadata/order and optional site preferences without importing payloads."""
     config_path = stage_root / 'config.json'
@@ -2824,8 +2841,7 @@ def _apply_settings_only_import(stage_root, ticket, body):
     remove_omitted = ticket.get('remove_omitted')
     if type(remove_omitted) is not bool:
         raise ValueError('Settings-only preview has an invalid removal choice')
-    if type(body.get('apply_settings', False)) is not bool:
-        raise ValueError('Choose whether to apply saved site preferences')
+    choices = _import_configuration_choices(body)
     mapping = body.get('subject_mapping', {})
     if not isinstance(mapping, dict) or any(not isinstance(key, str) or not isinstance(value, str)
                                             for key, value in mapping.items()):
@@ -2913,13 +2929,13 @@ def _apply_settings_only_import(stage_root, ticket, body):
         for old_id in removed_ids:
             g.db.execute('DELETE FROM library_subject WHERE id=?', (old_id,))
 
-        imported_settings = config.get('site_settings', {}) if body.get('apply_settings') is True else {}
+        imported_settings = config.get('site_settings', {}) if choices['apply_display_preferences'] else {}
         settings_to_save = dict(imported_settings)
-        imported_online = config.get('online_source_cards') if body.get('apply_settings') is True else None
-        imported_rss = config.get('rss_cards') if body.get('apply_settings') is True else None
+        imported_online = config.get('online_source_cards') if choices['apply_online_source_cards'] else None
+        imported_rss = config.get('rss_cards') if choices['apply_rss_cards'] else None
         card_settings_applied = imported_online is not None or imported_rss is not None
         if card_settings_applied:
-            _persist_card_collections(imported_online, imported_rss)
+            _replace_card_collections(imported_online, imported_rss)
         settings_to_save.pop('online_source_cards', None)
         settings_to_save.pop('rss_cards', None)
         if settings_to_save:
@@ -3080,9 +3096,7 @@ def import_preview():
                            remove_omitted=remove_omitted,
                            ignored_content={'assets': ignored_assets,
                                             'catalogues': ignored_catalogues},
-                           site_settings_available=bool(config.get('site_settings') or
-                                                       config.get('online_source_cards') is not None or
-                                                       config.get('rss_cards') is not None),
+                           site_settings_available='site_settings' in config,
                            online_source_cards=config.get('online_source_cards'),
                            rss_cards=config.get('rss_cards'),
                            can_remove=not any(item['assigned_count'] is None
@@ -3189,6 +3203,7 @@ def import_preview():
         candidates = [{'id': subject['id'], 'title': subject['title']} for subject in config.get('subjects', [])]
         return jsonify(token=token, name=config['name'],
                        online_sources=sum('url' in asset for asset in config.get('assets', [])),
+                       site_settings_available='site_settings' in config,
                        online_source_cards=config.get('online_source_cards'),
                        rss_cards=config.get('rss_cards'),
                        local_sources=sum('source_file' in asset or asset.get('local_payload') is True
@@ -3242,6 +3257,7 @@ def import_apply():
             return _apply_settings_only_import(stage_root, ticket, body)
         if ticket.get('mode') not in (None, 'full'):
             raise ValueError('Import preview has an unsupported mode')
+        choices = _import_configuration_choices(body, legacy_full_import=True)
         config = _validate_import_config(json.loads((stage_root / 'config.json').read_text(encoding='utf-8')))
         selected_zims = body.get('selected_zims')
         catalogue_names = json.loads((stage_root / 'catalogue-map.json').read_text(encoding='utf-8'))
@@ -3561,12 +3577,12 @@ def import_apply():
                                 raise ValueError('Imported cover changed after preview')
                             os.replace(temp, item_dir / cover)
                         g.db.execute('UPDATE item SET cover=? WHERE id=?', (cover, item_id))
-            settings = config.get('site_settings', {}) if body.get('apply_settings') is True else {}
+            settings = config.get('site_settings', {}) if choices['apply_display_preferences'] else {}
             import_settings = dict(settings)
-            imported_online = config.get('online_source_cards')
-            imported_rss = config.get('rss_cards')
+            imported_online = config.get('online_source_cards') if choices['apply_online_source_cards'] else None
+            imported_rss = config.get('rss_cards') if choices['apply_rss_cards'] else None
             if imported_online is not None or imported_rss is not None:
-                _persist_card_collections(imported_online, imported_rss)
+                _replace_card_collections(imported_online, imported_rss)
             import_settings.pop('online_source_cards', None)
             import_settings.pop('rss_cards', None)
             if import_settings:
@@ -4887,7 +4903,7 @@ def _save_card_definitions(key, kind):
     except ValueError as error:
         return jsonify(error=str(error)), 400
     try:
-        _persist_card_collections(online=cards if kind == 'online source' else None,
+        _replace_card_collections(online=cards if kind == 'online source' else None,
                                   rss=cards if kind == 'RSS' else None)
     except ValueError as error:
         return jsonify(error=str(error)), 400

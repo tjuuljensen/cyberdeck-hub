@@ -182,6 +182,64 @@ const importStatus = document.querySelector('#import-status');
 const importProfile = document.querySelector('#import-profile');
 const importProfileLabel = document.querySelector('#import-profile-label');
 let importPlan = null;
+function appendImportConfigGroup(result, kind, root=importPreview){
+  const group={
+    preferences:{available:result.site_settings_available,title:'ui.0838',help:'ui.0839',name:'apply_display_preferences'},
+    online:{available:result.online_source_cards!==null,title:'ui.0844',help:'ui.0846',name:'apply_online_source_cards'},
+    rss:{available:result.rss_cards!==null,title:'ui.0845',help:'ui.0847',name:'apply_rss_cards'},
+  }[kind];
+  if(!group?.available)return null;
+  const details=document.createElement('details');details.className='export-category import-config-category';
+  const summary=document.createElement('summary');
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.name=group.name;
+  checkbox.checked=group.name!=='apply_display_preferences'&&result.mode!=='settings_only';
+  checkbox.setAttribute('aria-label',t(group.title));
+  const heading=document.createElement('span');heading.textContent=t(group.title);
+  summary.append(checkbox,heading);details.append(summary);
+  const help=document.createElement('p');help.className='subtle export-category-help';help.textContent=t(group.help);
+  details.append(help);root.append(details);return details;
+}
+function importConfigChoices(){
+  return Object.fromEntries(['apply_display_preferences','apply_online_source_cards','apply_rss_cards'].map(name=>[
+    name,Boolean(importPreview.querySelector(`input[name="${name}"]`)?.checked)]));
+}
+function appendImportItemGroup({title,help,items,selection,keyFor,describe,onChange=()=>{},duplicateMessage='ui.0533'}){
+  if(!items?.length)return null;
+  const details=document.createElement('details');details.className='export-category import-item-category';
+  const summary=document.createElement('summary');
+  const master=document.createElement('input');master.type='checkbox';master.setAttribute('aria-label',t(title));
+  const heading=document.createElement('span');heading.textContent=t(title);
+  summary.append(master,heading);details.append(summary);
+  if(help){const note=document.createElement('p');note.className='subtle export-category-help';note.textContent=t(help);details.append(note)}
+  const list=document.createElement('div');list.className='export-category-items';
+  const checkboxes=[];
+  const updateMaster=()=>{
+    const count=checkboxes.filter(input=>input.checked).length;
+    master.checked=checkboxes.length>0&&count===checkboxes.length;
+    master.indeterminate=count>0&&count<checkboxes.length;
+  };
+  for(const item of items){
+    const label=document.createElement('label');label.className='check';
+    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=!item.duplicate;
+    checkbox.dataset[keyFor]=item.key;
+    const content=document.createElement('span');
+    const text=document.createElement('span');text.textContent=describe(item);content.append(text);
+    if(item.duplicate){const error=document.createElement('span');error.className='import-option-error';error.textContent=t(duplicateMessage,{reason:item.reason});content.append(error)}
+    label.append(checkbox,content);list.append(label);checkboxes.push(checkbox);
+    checkbox.addEventListener('change',()=>{
+      if(checkbox.checked)selection.add(item.key);else selection.delete(item.key);
+      updateMaster();onChange();
+    });
+  }
+  master.addEventListener('change',()=>{
+    checkboxes.forEach((checkbox,index)=>{
+      checkbox.checked=master.checked;
+      if(master.checked)selection.add(items[index].key);else selection.delete(items[index].key);
+    });
+    master.indeterminate=false;onChange();
+  });
+  details.append(list);updateMaster();return details;
+}
 async function loadImportProfiles() {
   try {
     const result = await requestJson('/api/admin/import/profiles');
@@ -238,11 +296,9 @@ importForm.addEventListener('submit', async event => {
       const ignored = document.createElement('p'); ignored.className = 'subtle';
       ignored.textContent = t('ui.0557', result.ignored_content);
       importPreview.append(ignored);
-      if (result.online_source_cards !== null || result.rss_cards !== null) {
-        const cards = document.createElement('p'); cards.className = 'subtle';
-        cards.textContent = t('ui.0808', {sources: result.online_source_cards?.length || 0, feeds: result.rss_cards?.length || 0});
-        importPreview.append(cards);
-      }
+      appendImportConfigGroup(result,'preferences');
+      appendImportConfigGroup(result,'online');
+      appendImportConfigGroup(result,'rss');
       const addList = (title, entries, describe) => {
         const section = document.createElement('section'); section.className = 'stack';
         const h = document.createElement('h4'); h.textContent = `${title} (${entries.length})`; section.append(h);
@@ -298,7 +354,7 @@ importForm.addEventListener('submit', async event => {
         const subject_mapping = Object.fromEntries([...mappings.querySelectorAll('select')].map(select => [select.dataset.subjectId, select.value]));
         try {
           const done = await requestJson('/api/admin/import/apply', {method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({token: result.token, subject_mapping, apply_settings: importForm.elements.apply_settings.checked})});
+            body: JSON.stringify({token: result.token, subject_mapping, ...importConfigChoices()})});
           importStatus.textContent = t('ui.0570',
             {added: done.subjects_added, updated: done.subjects_updated, removed: done.subjects_removed, remapped: done.content_records_remapped});
           importPlan = null; importPreview.replaceChildren();
@@ -312,11 +368,6 @@ importForm.addEventListener('submit', async event => {
     const details = document.createElement('p');
     details.textContent = t('ui.0356', {count: result.catalogues.length, online: result.online_sources, local: result.local_sources, private_required: formatBytes(result.required_bytes), expanded: formatBytes(result.expanded_html_bytes), private_available: formatBytes(result.available_bytes), library_available: formatBytes(result.available_data_bytes)});
     importPreview.append(details);
-    if (result.online_source_cards !== null || result.rss_cards !== null) {
-      const cardSummary = document.createElement('p'); cardSummary.className = 'subtle';
-      cardSummary.textContent = t('ui.0808', {sources: result.online_source_cards?.length || 0, feeds: result.rss_cards?.length || 0});
-      importPreview.append(cardSummary);
-    }
     const mappings = document.createElement('fieldset'); mappings.className = 'stack';
     const legend = document.createElement('legend'); legend.textContent = t('ui.0246'); mappings.append(legend);
     for (const subject of result.subjects) {
@@ -334,79 +385,27 @@ importForm.addEventListener('submit', async event => {
     const zimSelection = new Set((result.zim_options || []).filter(item => !item.duplicate).map(item => item.key));
     const documentSelection = new Set((result.document_options || []).filter(item => !item.duplicate).map(item => item.key));
     const onlinePdfSelection = new Set((result.online_pdf_options || []).filter(item => !item.duplicate).map(item => item.key));
-    if (result.document_options?.length) {
-      const documentGroup = document.createElement('fieldset'); documentGroup.className = 'stack';
-      const documentLegend = document.createElement('legend'); documentLegend.textContent = t('ui.0526'); documentGroup.append(documentLegend);
-      const documentHint = document.createElement('p'); documentHint.className = 'subtle';
-      documentHint.textContent = t('ui.0532'); documentGroup.append(documentHint);
-      for (const item of result.document_options) {
-        const label = document.createElement('label'); label.className = 'check';
-        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = !item.duplicate;
-        checkbox.dataset.documentKey = item.key;
-        const content = document.createElement('span');
-        const text = document.createElement('span'); text.textContent = `${item.title} · ${formatBytes(item.bytes)}`;
-        content.append(text);
-        if (item.duplicate) {
-          const error = document.createElement('span'); error.className = 'import-option-error';
-          error.textContent = t('ui.0533', {reason: item.reason}); content.append(error);
-        }
-        label.append(checkbox, content); documentGroup.append(label);
-        checkbox.addEventListener('change', () => {
-          if (checkbox.checked) documentSelection.add(item.key); else documentSelection.delete(item.key);
-          updateImportCapacity();
-        });
-      }
-      importPreview.append(documentGroup);
+    appendImportConfigGroup(result,'preferences');
+    appendImportItemGroup({title:'ui.0840',help:'ui.0531',items:result.zim_options,
+      selection:zimSelection,keyFor:'zimKey',duplicateMessage:'ui.0537',
+      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.kind==='download'?` · ${t('ui.0573')}`:''}`,
+      onChange:()=>updateImportCapacity()});
+    const onlineDocumentGroup=appendImportItemGroup({title:'ui.0842',help:'ui.0572',items:result.online_pdf_options,
+      selection:onlinePdfSelection,keyFor:'onlinePdfKey',
+      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}`,
+      onChange:()=>updateImportCapacity()});
+    const localDocumentGroup=appendImportItemGroup({title:'ui.0843',help:'ui.0532',items:result.document_options,
+      selection:documentSelection,keyFor:'documentKey',describe:item=>`${item.title} · ${formatBytes(item.bytes)}`,
+      onChange:()=>updateImportCapacity()});
+    if(onlineDocumentGroup||localDocumentGroup){
+      const documents=document.createElement('details');documents.className='export-category import-documents-category';
+      const summary=document.createElement('summary');summary.textContent=t('ui.0841');documents.append(summary);
+      if(onlineDocumentGroup)documents.append(onlineDocumentGroup);
+      if(localDocumentGroup)documents.append(localDocumentGroup);
+      importPreview.append(documents);
     }
-    if (result.online_pdf_options?.length) {
-      const onlinePdfGroup = document.createElement('fieldset'); onlinePdfGroup.className = 'stack';
-      const onlinePdfLegend = document.createElement('legend'); onlinePdfLegend.textContent = t('ui.0527'); onlinePdfGroup.append(onlinePdfLegend);
-      const onlinePdfHint = document.createElement('p'); onlinePdfHint.className = 'subtle';
-      onlinePdfHint.textContent = t('ui.0572'); onlinePdfGroup.append(onlinePdfHint);
-      for (const item of result.online_pdf_options) {
-        const label = document.createElement('label'); label.className = 'check';
-        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = !item.duplicate;
-        checkbox.dataset.onlinePdfKey = item.key;
-        const content = document.createElement('span');
-        const text = document.createElement('span'); text.textContent = `${item.title} · ${item.bytes ? formatBytes(item.bytes) : t('ui.0354')}`;
-        content.append(text);
-        if (item.duplicate) {
-          const error = document.createElement('span'); error.className = 'import-option-error';
-          error.textContent = t('ui.0533', {reason: item.reason}); content.append(error);
-        }
-        label.append(checkbox, content); onlinePdfGroup.append(label);
-        checkbox.addEventListener('change', () => {
-          if (checkbox.checked) onlinePdfSelection.add(item.key); else onlinePdfSelection.delete(item.key);
-          updateImportCapacity();
-        });
-      }
-      importPreview.append(onlinePdfGroup);
-    }
-    if (result.zim_options?.length) {
-      const zimGroup = document.createElement('fieldset'); zimGroup.className = 'stack';
-      const zimLegend = document.createElement('legend'); zimLegend.textContent = t('ui.0352'); zimGroup.append(zimLegend);
-      const zimHint = document.createElement('p'); zimHint.className = 'subtle';
-      zimHint.textContent = t('ui.0531'); zimGroup.append(zimHint);
-      for (const item of result.zim_options) {
-        const label = document.createElement('label'); label.className = 'check';
-        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = !item.duplicate;
-        checkbox.dataset.zimKey = item.key;
-        const content = document.createElement('span');
-        const text = document.createElement('span');
-        text.textContent = `${item.title} · ${item.bytes ? formatBytes(item.bytes) : t('ui.0354')}${item.kind === 'download' ? ` · ${t('ui.0573')}` : ''}`;
-        content.append(text);
-        if (item.duplicate) {
-          const error = document.createElement('span'); error.className = 'import-option-error';
-          error.textContent = t('ui.0537', {reason: item.reason}); content.append(error);
-        }
-        label.append(checkbox, content); zimGroup.append(label);
-        checkbox.addEventListener('change', () => {
-          if (checkbox.checked) zimSelection.add(item.key); else zimSelection.delete(item.key);
-          updateImportCapacity();
-        });
-      }
-      importPreview.append(zimGroup);
-    }
+    appendImportConfigGroup(result,'online');
+    appendImportConfigGroup(result,'rss');
     const capacity = document.createElement('p'); capacity.className = 'subtle'; importPreview.append(capacity);
     for (const warning of result.warnings) { const p = document.createElement('p'); p.className = 'subtle'; p.textContent = t(warning); importPreview.append(p); }
     const apply = document.createElement('button'); apply.type = 'button'; apply.className = 'button primary';
@@ -452,7 +451,7 @@ importForm.addEventListener('submit', async event => {
       const subject_mapping = Object.fromEntries([...mappings.querySelectorAll('select')].map(select => [select.dataset.subjectId, select.value]));
       try {
         const done = await requestJson('/api/admin/import/apply', {method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({token: result.token, subject_mapping, apply_settings: importForm.elements.apply_settings.checked,
+          body: JSON.stringify({token: result.token, subject_mapping, ...importConfigChoices(),
             selected_zims: [...zimSelection], selected_documents: [...documentSelection],
             selected_online_pdfs: [...onlinePdfSelection]})});
         importStatus.textContent = t('ui.0544', {filename: done.saved_config, catalogues: done.imported_catalogues, included: done.imported_zims + done.zim_downloads_started, deferred: done.zims_deferred, zim_downloads: done.zim_downloads_started, pdf_downloads: done.pdf_downloads_started || 0, skipped_pdfs: done.skipped_pdf_attachments, sources: done.pending_sources, online_cards: done.online_source_cards_imported || 0, rss_cards: done.rss_cards_imported || 0});
