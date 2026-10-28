@@ -24,25 +24,102 @@ async function refreshExportOptions() {
     const entries = await requestJson('/api/admin/export/options');
     const legend = document.createElement('legend');
     legend.textContent = t('ui.0070');
-    exportOptions.replaceChildren(legend);
-    for (const entry of entries) {
-      const label = document.createElement('label');
-      label.className = 'check';
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox'; checkbox.name = 'selected'; checkbox.value = entry.id;
-      checkbox.checked = entry.mode === 'online';
-      const text = document.createElement('span');
-      text.textContent = `${entry.title} · ${t(entry.subject || 'Unassigned')} · ${t(entry.mode === 'online' ? 'Online source (JSON)' : 'Local files (ZIP)')}`;
-      label.append(checkbox, text); exportOptions.append(label);
-    }
-    exportStatus.textContent = t(entries.length ? 'Online sources selected by default. Choose any local catalogues to include.' : 'No content is available to export.');
-    exportForm.querySelector('[type="submit"]').disabled = !entries.length;
+    const intro = document.createElement('p');
+    intro.className = 'subtle export-options-intro';
+    intro.textContent = t('ui.0836');
+    exportOptions.replaceChildren(legend, intro);
+
+    const makeCategory = (title, {name = '', checked = false, description = ''} = {}) => {
+      const details = document.createElement('details');
+      details.className = 'export-category';
+      const summary = document.createElement('summary');
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.setAttribute('aria-label', t(title));
+      if (name) toggle.name = name;
+      else toggle.dataset.exportGroup = 'true';
+      toggle.checked = checked;
+      const heading = document.createElement('span');
+      heading.textContent = t(title);
+      summary.append(toggle, heading);
+      details.append(summary);
+      if (description) {
+        const help = document.createElement('p');
+        help.className = 'subtle export-category-help';
+        help.textContent = t(description);
+        details.append(help);
+      }
+      return {details, toggle};
+    };
+    const makeItemGroup = (title, groupEntries) => {
+      const category = makeCategory(title);
+      const list = document.createElement('div');
+      list.className = 'export-category-items';
+      const checkboxes = [];
+      for (const entry of groupEntries) {
+        const label = document.createElement('label');
+        label.className = 'check';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox'; checkbox.name = 'selected'; checkbox.value = entry.id;
+        // Keep the established default: URL-based content is selected; local files are not.
+        checkbox.checked = entry.mode === 'online';
+        const text = document.createElement('span');
+        text.textContent = `${entry.title} · ${t(entry.subject || 'Unassigned')}`;
+        label.append(checkbox, text); list.append(label); checkboxes.push(checkbox);
+      }
+      if (!groupEntries.length) {
+        const empty = document.createElement('p');
+        empty.className = 'subtle'; empty.textContent = t('ui.0837'); list.append(empty);
+      }
+      category.details.append(list);
+      const updateMaster = () => {
+        const selectedCount = checkboxes.filter(input => input.checked).length;
+        category.toggle.checked = checkboxes.length > 0 && selectedCount === checkboxes.length;
+        category.toggle.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+      };
+      category.toggle.addEventListener('change', () => {
+        checkboxes.forEach(input => { input.checked = category.toggle.checked; });
+        category.toggle.indeterminate = false;
+      });
+      checkboxes.forEach(input => input.addEventListener('change', updateMaster));
+      updateMaster();
+      return category.details;
+    };
+
+    const savedPreferences = makeCategory('ui.0838', {
+      name: 'include_settings', checked: false, description: 'ui.0839',
+    });
+    exportOptions.append(savedPreferences.details);
+    exportOptions.append(makeItemGroup('ui.0840', entries.filter(entry => entry.category === 'zims')));
+
+    const documents = document.createElement('details');
+    documents.className = 'export-category';
+    const documentsSummary = document.createElement('summary');
+    documentsSummary.textContent = t('ui.0841');
+    documents.append(documentsSummary,
+      makeItemGroup('ui.0842', entries.filter(entry => entry.category === 'documents-online')),
+      makeItemGroup('ui.0843', entries.filter(entry => entry.category === 'documents-local')));
+    exportOptions.append(documents);
+
+    const onlineCards = makeCategory('ui.0844', {
+      name: 'include_online_source_cards', checked: true, description: 'ui.0846',
+    });
+    exportOptions.append(onlineCards.details);
+    const rssCards = makeCategory('ui.0845', {
+      name: 'include_rss_cards', checked: true, description: 'ui.0847',
+    });
+    exportOptions.append(rssCards.details);
+
+    exportStatus.textContent = t(entries.length ? 'ui.0848' : 'ui.0849');
+    exportForm.querySelector('[type="submit"]').disabled = false;
   } catch (error) { exportStatus.textContent = error.message; }
 }
 document.querySelector('#export-reload').onclick = refreshExportOptions;
 for (const [id, checked] of [['export-all', true], ['export-none', false]]) {
   document.getElementById(id).onclick = () => {
-    exportOptions.querySelectorAll('input').forEach(input => { input.checked = checked; });
+    exportOptions.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.checked = checked; input.indeterminate = false;
+    });
     clearExportDownloads();
   };
 }
@@ -52,9 +129,12 @@ exportForm.addEventListener('submit', async event => {
   const button = exportForm.querySelector('[type="submit"]');
   button.disabled = true; exportStatus.textContent = t('ui.0237');
   try {
-    const selected = [...exportOptions.querySelectorAll('input:checked')].map(input => input.value);
+    const selected = [...exportOptions.querySelectorAll('input[name="selected"]:checked')].map(input => input.value);
     const result = await requestJson('/api/admin/export', {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name: exportForm.elements.name.value, selected, include_settings: exportForm.elements.include_settings.checked})});
+      body: JSON.stringify({name: exportForm.elements.name.value, selected,
+        include_settings: exportForm.elements.include_settings.checked,
+        include_online_source_cards: exportForm.elements.include_online_source_cards.checked,
+        include_rss_cards: exportForm.elements.include_rss_cards.checked})});
     exportObjectUrl = URL.createObjectURL(new Blob([JSON.stringify(result.config, null, 2) + '\n'], {type: 'application/json'}));
     const link = document.createElement('a');
     link.className = 'button primary'; link.href = exportObjectUrl; link.download = result.filename;
@@ -71,7 +151,11 @@ exportForm.addEventListener('submit', async event => {
       form.append(download); exportDownloads.append(form);
     }
     const bundleForm=document.createElement('form');bundleForm.method='POST';bundleForm.action='/api/admin/export/bundle';bundleForm.target='_blank';bundleForm.rel='noopener';
-    const bundleFields=[['csrf_token',headers['X-CSRF-Token']],['name',exportForm.elements.name.value],['include_settings',String(exportForm.elements.include_settings.checked)],...selected.map(value=>['selected',value])];
+    const bundleFields=[['csrf_token',headers['X-CSRF-Token']],['name',exportForm.elements.name.value],
+      ['include_settings',String(exportForm.elements.include_settings.checked)],
+      ['include_online_source_cards',String(exportForm.elements.include_online_source_cards.checked)],
+      ['include_rss_cards',String(exportForm.elements.include_rss_cards.checked)],
+      ...selected.map(value=>['selected',value])];
     for(const[name,value]of bundleFields){const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;bundleForm.append(input)}
     const bundleButton=document.createElement('button');bundleButton.type='submit';bundleButton.className='button primary';bundleButton.textContent=t('ui.0240');bundleForm.append(bundleButton);exportDownloads.append(bundleForm);
     exportStatus.textContent = t('ui.0241', {online: result.config.assets.length, catalogues: result.catalogues.length});
@@ -1076,12 +1160,27 @@ document.querySelector('#preferences-form').addEventListener('submit',async even
   const form=new FormData(formElement);
   try{
     if(window.cyberdeckSaveAccent)await window.cyberdeckSaveAccent();
-    const result=await requestJson('/api/admin/settings',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({pdf_open_mode:form.get('pdf_open_mode'),accent_color:form.get('accent_color'),home_columns:form.get('home_columns'),subtitle:form.get('subtitle'),display_timezone:form.get('display_timezone'),hide_empty_cards:form.has('hide_empty_cards')})});
+    const result=await requestJson('/api/admin/settings',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({pdf_open_mode:form.get('pdf_open_mode'),accent_color:form.get('accent_color'),home_columns:form.get('home_columns'),subtitle:form.get('subtitle'),display_timezone:form.get('display_timezone')})});
     document.querySelector('#brand-subtitle').textContent=result.settings.subtitle;
     if(window.cyberdeckSetAccent)window.cyberdeckSetAccent(result.settings.accent_color);
     accentInput.value=result.settings.accent_color;
     accentStatus.textContent='Site preferences saved.';
   }catch(error){accentStatus.textContent=t('ui.0444',{error:error.message});alert(error.message)}
+});
+const adminPasswordForm=document.querySelector('#admin-password-form');
+adminPasswordForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const status=document.querySelector('#admin-password-status');
+  const submit=adminPasswordForm.querySelector('[type="submit"]');
+  const fields=new FormData(adminPasswordForm);
+  status.textContent='';submit.disabled=true;
+  try{
+    const result=await requestJson('/api/admin/password',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(fields))});
+    headers['X-CSRF-Token']=result.csrf;
+    document.querySelector('.admin-head').dataset.csrf=result.csrf;
+    adminPasswordForm.reset();status.textContent=t(result.message);
+  }catch(error){status.textContent=error.message}
+  finally{submit.disabled=false}
 });
 const hotspotModuleToggle=document.querySelector('#hotspot-module-enabled');
 if(hotspotModuleToggle){

@@ -596,7 +596,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0152": {
-    "default": "Subject, online source card, and RSS card definitions are included. Accounts, passwords, network settings, and logs are excluded. Uploaded documents (including older URL imports with no retained source URL) are exported as local files. HTML ZIPs retain their original archive.",
+    "default": "Document card definitions stay in the configuration. Accounts, passwords, network settings, and logs are excluded. Local documents are packaged separately; documents from online sources remain download links. HTML ZIPs retain their original archive.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0153": {
@@ -620,7 +620,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0158": {
-    "default": "Online source and RSS card definitions are included in the configuration JSON. Online content itself requires internet access and is not downloaded by export. Each local entry gets a human-readable catalogue name. After preparing downloads, choose separate files or one ZIP bundle with the JSON and local catalogues. Building the combined ZIP needs temporary space for a second copy of the selected local content. Download links expire after one hour.",
+    "default": "Online source and RSS card definitions are included when their categories are selected. Online content itself requires internet access and is not downloaded by export. Each local entry gets a human-readable catalogue name. After preparing downloads, choose separate files or one ZIP bundle with the JSON and local catalogues. Building the combined ZIP needs temporary space for a second copy of the selected local content. Download links expire after one hour.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0159": {
@@ -3026,5 +3026,105 @@
   "ui.0835": {
     "default": "Checks found no active known firewall manager or conflicting nftables input rules. Checked: {checked}. This cannot detect every custom or externally managed firewall. Review any additional firewall rules or central management before enabling.",
     "context": "Reports successful firewall preflight checks and their limits."
+  },
+  "ui.0836": {
+    "default": "Expand a category to choose individual items. URL-based files start selected; local files start unselected.",
+    "context": "Instructions above the expandable export categories."
+  },
+  "ui.0837": {
+    "default": "No items are available in this category.",
+    "context": "Empty state inside an export category."
+  },
+  "ui.0838": {
+    "default": "Saved display preferences",
+    "context": "Expandable export category containing saved site display preferences."
+  },
+  "ui.0839": {
+    "default": "Include saved appearance and display settings such as the accent color, column count, and timezone.",
+    "context": "Help text for exporting saved display preferences."
+  },
+  "ui.0840": {
+    "default": "ZIMs",
+    "context": "Expandable export category for ZIM archives."
+  },
+  "ui.0841": {
+    "default": "Documents",
+    "context": "Expandable parent category for documents in the export selector."
+  },
+  "ui.0842": {
+    "default": "Documents from online sources",
+    "context": "Expandable export subcategory for documents with an online source URL."
+  },
+  "ui.0843": {
+    "default": "Local documents",
+    "context": "Expandable export subcategory for uploaded or locally stored documents."
+  },
+  "ui.0844": {
+    "default": "Online sources (cards)",
+    "context": "Export category toggle for online source card definitions."
+  },
+  "ui.0845": {
+    "default": "RSS feeds (cards)",
+    "context": "Export category toggle for RSS card definitions."
+  },
+  "ui.0846": {
+    "default": "Include the definitions for all online source cards in the configuration.",
+    "context": "Help text for including online source card definitions in an export."
+  },
+  "ui.0847": {
+    "default": "Include the definitions for all RSS feed cards in the configuration.",
+    "context": "Help text for including RSS card definitions in an export."
+  },
+  "ui.0848": {
+    "default": "Review the selected items, then prepare the configuration and downloads.",
+    "context": "Export selector status when exportable content is present."
+  },
+  "ui.0849": {
+    "default": "No content files are available. Card definitions and saved display preferences can still be exported.",
+    "context": "Export selector status when no downloadable content files are available."
+  },
+  "ui.0850": {
+    "default": "Change admin password",
+    "context": "Heading for the administrator password change form."
+  },
+  "ui.0851": {
+    "default": "Current password",
+    "context": "Current administrator password field label."
+  },
+  "ui.0852": {
+    "default": "New password",
+    "context": "New administrator password field label."
+  },
+  "ui.0853": {
+    "default": "Confirm new password",
+    "context": "Confirmation field label for a new administrator password."
+  },
+  "ui.0854": {
+    "default": "Update password",
+    "context": "Button that saves a new administrator password."
+  },
+  "ui.0855": {
+    "default": "Admin password changed.",
+    "context": "Success status after changing the administrator password."
+  },
+  "ui.0856": {
+    "default": "Current password is incorrect.",
+    "context": "Error when the current administrator password does not match."
+  },
+  "ui.0857": {
+    "default": "New password must be 14 to 1024 characters.",
+    "context": "Validation error for the length of a new administrator password."
+  },
+  "ui.0858": {
+    "default": "The new passwords do not match.",
+    "context": "Validation error when new password and confirmation differ."
+  },
+  "ui.0860": {
+    "default": "Enter your current password and choose a new password of at least 14 characters.",
+    "context": "Help text for changing the administrator password."
+  },
+  "ui.0861": {
+    "default": "Password change request is invalid.",
+    "context": "Error when the password change request is malformed."
   }
 }

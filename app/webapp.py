@@ -1036,9 +1036,9 @@ def cyberchef_status():
 def site_preferences():
     settings = {row['key']: row['value'] for row in g.db.execute(
         'SELECT key,value FROM site_setting').fetchall()}
-    configured_mode = settings.get('pdf_open_mode', 'same_tab')
+    configured_mode = settings.get('pdf_open_mode', 'new_tab')
     if configured_mode not in {'same_tab', 'new_tab'}:
-        configured_mode = 'same_tab'
+        configured_mode = 'new_tab'
     configured_columns = settings.get('home_columns', '3')
     if configured_columns not in {'3', '4', '5'}:
         configured_columns = '3'
@@ -1053,8 +1053,7 @@ def site_preferences():
             'subtitle': settings.get('subtitle') or f'OFFLINE LIBRARY · {hostname}',
             'accent_color': accent_color,
             'home_columns': int(configured_columns),
-            'display_timezone': display_timezone,
-            'hide_empty_cards': settings.get('hide_empty_cards', settings.get('hide_empty_subjects')) == 'true'}
+            'display_timezone': display_timezone}
 
 
 def hotspot_module_enabled():
@@ -1496,7 +1495,7 @@ def home():
         count = len(items)
         installed_zim_count += sum(item['kind'] == 'zim' for item in items)
         subject_row = g.db.execute('SELECT show_when_empty FROM library_subject WHERE id=?', (slug,)).fetchone()
-        if preferences['hide_empty_cards'] and count == 0 and not subject_row['show_when_empty']:
+        if count == 0 and not subject_row['show_when_empty']:
             continue
         translations_row = g.db.execute('SELECT translations FROM library_subject WHERE id=?', (slug,)).fetchone()
         display = _localized_text(title, description,
@@ -1525,9 +1524,9 @@ def home():
     return render_template('index.html', subjects=subjects,
                            services=services,
                            online_source_cards=[_localized_card(card) for card in configured_online_source_cards()
-                                                if not preferences['hide_empty_cards'] or card['links'] or card['show_when_empty']],
+                                                if card['links'] or card['show_when_empty']],
                            rss_cards=[_localized_card(card) for card in configured_rss_cards()
-                                      if not preferences['hide_empty_cards'] or any(feed['enabled'] for feed in card['feeds']) or card['show_when_empty']],
+                                      if any(feed['enabled'] for feed in card['feeds']) or card['show_when_empty']],
                            home_columns=preferences['home_columns'])
 
 
@@ -1884,9 +1883,12 @@ def export_inventory():
         entries[path] = asset
     result = []
     for path, asset in sorted(entries.items()):
+        mode = 'online' if 'url' in asset else 'offline'
+        category = ('zims' if path.startswith('zim/') else
+                    'documents-online' if mode == 'online' else 'documents-local')
         result.append({'id': 'asset:' + path, 'title': asset.get('title', path),
                        'subject': asset.get('collection', ''),
-                       'mode': 'online' if 'url' in asset else 'offline', 'asset': asset})
+                       'mode': mode, 'category': category, 'asset': asset})
     for row in g.db.execute('SELECT * FROM item ORDER BY title,id'):
         item = dict(row)
         item['attachments'] = [dict(a) for a in g.db.execute(
@@ -1902,13 +1904,15 @@ def export_inventory():
                              search_terms=row['search_terms'])
                 library.validate_asset(asset)
                 result.append({'id': 'source:' + attachment['id'], 'title': asset['title'],
-                               'subject': row['subject'], 'mode': 'online', 'asset': asset})
+                               'subject': row['subject'], 'mode': 'online',
+                               'category': 'documents-online', 'asset': asset})
             else:
                 local_attachments.append(attachment)
         if local_attachments:
             item['attachments'] = local_attachments
             result.append({'id': 'item:' + row['id'], 'title': row['title'],
-                           'subject': row['subject'], 'mode': 'offline', 'item': item})
+                           'subject': row['subject'], 'mode': 'offline',
+                           'category': 'documents-local', 'item': item})
     return result
 
 
@@ -1957,13 +1961,15 @@ def catalogue_name(slug, entry):
     return f'{slug[:32]}-{subject[:32]}-{title[:64]}.zip'
 
 
-def build_export_config(name, selected, include_settings):
+def build_export_config(name, selected, include_settings,
+                        include_online_source_cards=True, include_rss_cards=True):
     """Build the versioned configuration and resolve every selected local payload."""
     if (not isinstance(name, str) or not 1 <= len(name.strip()) <= 80 or
             any(ord(c) < 32 for c in name) or not isinstance(selected, list) or
-            not 1 <= len(selected) <= 5000 or any(not isinstance(key, str) for key in selected) or
-            len(set(selected)) != len(selected) or type(include_settings) is not bool):
-        raise ValueError('Choose a name and at least one distinct content entry')
+            len(selected) > 5000 or any(not isinstance(key, str) for key in selected) or
+            len(set(selected)) != len(selected) or type(include_settings) is not bool or
+            type(include_online_source_cards) is not bool or type(include_rss_cards) is not bool):
+        raise ValueError('Choose an export name and distinct content entries')
     name = name.strip()
     slug = secure_filename(name).lower().strip('._-')[:80] or 'custom-config'
     inventory = {entry['id']: entry for entry in export_inventory()}
@@ -1972,8 +1978,10 @@ def build_export_config(name, selected, include_settings):
     config = {'format': 'cyberdeck-config', 'version': 1, 'name': name,
               'exported_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
               'reserve_bytes': 1_000_000_000, 'assets': [], 'offline_catalogues': []}
-    config['online_source_cards'] = configured_online_source_cards()
-    config['rss_cards'] = configured_rss_cards()
+    if include_online_source_cards:
+        config['online_source_cards'] = configured_online_source_cards()
+    if include_rss_cards:
+        config['rss_cards'] = configured_rss_cards()
     signer = URLSafeTimedSerializer(app.secret_key, salt='content-export-v1')
     downloads = []
     local_catalogues = []
@@ -2007,8 +2015,7 @@ def build_export_config(name, selected, include_settings):
         config['subjects'].append(subject)
     if include_settings:
         # Export only stored display preferences, never the hostname-derived default.
-        allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone',
-                   'hide_empty_cards'}
+        allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone'}
         config['site_settings'] = {row['key']: row['value'] for row in g.db.execute(
             'SELECT key,value FROM site_setting') if row['key'] in allowed}
     return name, slug, config, downloads, local_catalogues
@@ -2046,7 +2053,7 @@ def write_catalogue_archive(output, entry, files, total, expected_version=None, 
 @admin_required
 def export_options():
     try:
-        return jsonify([{key: entry[key] for key in ('id', 'title', 'subject', 'mode')}
+        return jsonify([{key: entry[key] for key in ('id', 'title', 'subject', 'mode', 'category')}
                         for entry in export_inventory()])
     except (OSError, ValueError, KeyError, TypeError):
         return jsonify(error='Cannot read content metadata for export; inspect acquisition records.'), 409
@@ -2063,10 +2070,11 @@ def export_prepare():
         return jsonify(error='Expected an export selection'), 400
     try:
         name, slug, config, downloads, local_catalogues = build_export_config(
-            body.get('name'), body.get('selected'), body.get('include_settings', True))
+            body.get('name'), body.get('selected'), body.get('include_settings', True),
+            body.get('include_online_source_cards', True), body.get('include_rss_cards', True))
         return jsonify(filename=slug + '.json', config=config, catalogues=downloads)
     except (OSError, ValueError, KeyError, TypeError) as error:
-        if isinstance(error, ValueError) and str(error).startswith(('Choose a name', 'Content selection changed')):
+        if isinstance(error, ValueError) and str(error).startswith(('Choose an export name', 'Content selection changed')):
             return jsonify(error=str(error)), 400
         return jsonify(error='Selected metadata or local files are missing, unsafe, or exceed export limits. Refresh the list and review the selection.'), 409
 
@@ -2079,9 +2087,12 @@ def export_bundle():
         return jsonify(error='Export selection is too large'), 400
     try:
         selected = request.form.getlist('selected')
-        include_settings = request.form.get('include_settings') == 'true'
+        include_settings = request.form.get('include_settings', 'true') == 'true'
+        include_online_source_cards = request.form.get('include_online_source_cards', 'true') == 'true'
+        include_rss_cards = request.form.get('include_rss_cards', 'true') == 'true'
         name, slug, config, _downloads, local_catalogues = build_export_config(
-            request.form.get('name'), selected, include_settings)
+            request.form.get('name'), selected, include_settings,
+            include_online_source_cards, include_rss_cards)
         payload_bytes = sum(item[3] for item in local_catalogues)
         if payload_bytes + 128 * 1024**2 > MAX_UPLOAD:
             raise ValueError('Combined bundle would exceed the 8 GiB import limit; use separate downloads instead')
@@ -4776,7 +4787,6 @@ def admin_settings_update():
     subtitle = body.get('subtitle', current['subtitle'])
     home_columns = body.get('home_columns', current['home_columns'])
     display_timezone = body.get('display_timezone', current['display_timezone'])
-    hide_empty_cards = body.get('hide_empty_cards', body.get('hide_empty_subjects', current['hide_empty_cards']))
     accent_color = body.get('accent_color', current['accent_color'])
     if not isinstance(pdf_open_mode, str) or pdf_open_mode not in {'same_tab', 'new_tab'}:
         return jsonify(error='Choose whether PDFs open in this tab or a new tab'), 400
@@ -4793,17 +4803,42 @@ def admin_settings_update():
     if str(home_columns) not in {'3', '4', '5'} or isinstance(home_columns, bool):
         return jsonify(error='Choose 3, 4, or 5 subject columns'), 400
     home_columns = str(home_columns)
-    if not isinstance(hide_empty_cards, bool):
-        return jsonify(error='Hide empty cards must be true or false'), 400
+    setting_values = [('pdf_open_mode', pdf_open_mode), ('subtitle', subtitle),
+                      ('accent_color', accent_color), ('home_columns', home_columns),
+                      ('display_timezone', display_timezone)]
     g.db.executemany('INSERT INTO site_setting(key,value) VALUES(?,?) '
                      'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                     [('pdf_open_mode', pdf_open_mode), ('subtitle', subtitle),
-                      ('accent_color', accent_color),
-                      ('home_columns', home_columns),
-                      ('display_timezone', display_timezone),
-                      ('hide_empty_cards', 'true' if hide_empty_cards else 'false')])
+                     setting_values)
     g.db.commit()
     return jsonify(settings=site_preferences())
+
+
+@app.put('/api/admin/password')
+@admin_required
+@csrf_required
+def admin_password_update():
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error='ui.0861'), 400
+    current_password = body.get('current_password')
+    new_password = body.get('new_password')
+    confirmation = body.get('confirmation')
+    if not isinstance(current_password, str) or not current_password or len(current_password) > 1024:
+        return jsonify(error='ui.0861'), 400
+    if not isinstance(new_password, str) or len(new_password) < 14 or len(new_password) > 1024:
+        return jsonify(error='ui.0857'), 400
+    if not isinstance(confirmation, str) or new_password != confirmation:
+        return jsonify(error='ui.0858'), 400
+    username = session.get('admin')
+    row = g.db.execute('SELECT password_hash FROM admin WHERE username=?', (username,)).fetchone()
+    if not row or not check_password_hash(row['password_hash'], current_password):
+        return jsonify(error='ui.0856'), 403
+    g.db.execute('UPDATE admin SET password_hash=? WHERE username=?',
+                 (generate_password_hash(new_password), username))
+    g.db.commit()
+    csrf_token = secrets.token_urlsafe(32)
+    session['csrf'] = csrf_token
+    return jsonify(message='ui.0855', csrf=csrf_token)
 
 
 def _save_card_definitions(key, kind):
