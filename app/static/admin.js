@@ -1106,8 +1106,17 @@ if(firewallToggle){
       firewallState=await requestJson('/api/admin/firewall',{cache:'no-store'});
       firewallToggle.checked=firewallState.enabled;
       firewallToggle.disabled=!firewallState.available;
-      firewallStatus.textContent=firewallState.reason||
-        cyberdeckTranslate(firewallState.active?'ui.0829':'ui.0828');
+      if(firewallState.conflicts?.length){
+        firewallStatus.textContent=cyberdeckTranslate('ui.0834',{conflicts:firewallState.conflicts.join(', ')});
+      }else if(firewallState.reason){
+        firewallStatus.textContent=firewallState.reason;
+      }else if(firewallState.active){
+        firewallStatus.textContent=cyberdeckTranslate('ui.0829');
+      }else{
+        firewallStatus.textContent=cyberdeckTranslate('ui.0835',{
+          checked:(firewallState.checked_managers||[]).join(', ')
+        });
+      }
     }catch(error){
       firewallToggle.disabled=true;
       firewallStatus.textContent=error.message;
@@ -1117,7 +1126,9 @@ if(firewallToggle){
     if(!firewallState){firewallToggle.checked=false;return}
     pendingFirewallState=firewallToggle.checked;
     firewallToggle.checked=firewallState.enabled;
-    confirmationText.textContent=cyberdeckTranslate(pendingFirewallState?'ui.0832':'ui.0833');
+    confirmationText.textContent=cyberdeckTranslate(pendingFirewallState?'ui.0832':'ui.0833',{
+      checked:(firewallState.checked_managers||[]).join(', ')
+    });
     confirmation.hidden=false;
   });
   cancelButton.addEventListener('click',()=>{pendingFirewallState=null;confirmation.hidden=true});

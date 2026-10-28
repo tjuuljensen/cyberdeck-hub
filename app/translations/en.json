@@ -2976,8 +2976,8 @@
     "context": "Name of the optional Cyberdeck-managed host firewall module in Admin."
   },
   "ui.0823": {
-    "default": "When enabled, this module blocks unsolicited inbound traffic while allowing established connections, SSH, Hub web access, and hotspot essentials. Other firewall managers must be stopped first.",
-    "context": "Explains the managed firewall policy and the competing-manager limitation."
+    "default": "Before enabling, Hub checks for active UFW, firewalld, nftables, netfilter-persistent, Shorewall, ferm, iptables, and ip6tables services and other nftables input rules. When enabled, it blocks unsolicited inbound traffic while allowing SSH, Hub, and hotspot essentials. It cannot detect every custom or externally managed firewall. Review any custom firewall rules and how they are managed before enabling.",
+    "context": "Explains the firewall's preflight checks, policy, detection limits, and advice for inexperienced users."
   },
   "ui.0824": {
     "default": "Checking firewall status...",
@@ -3012,11 +3012,19 @@
     "context": "Progress status while the administrator disables the firewall."
   },
   "ui.0832": {
-    "default": "Enabling the firewall blocks unsolicited inbound traffic. SSH, Hub web access, and hotspot essentials remain allowed. Confirm only if another firewall manager is not in use.",
-    "context": "Inline confirmation before enabling the Cyberdeck firewall."
+    "default": "The preflight found no active conflict among the known firewall managers ({checked}). Enabling adds Cyberdeck's default-deny inbound rules; SSH, Hub, and hotspot essentials remain allowed. If this host uses custom or centrally managed firewall rules, verify they are compatible before enabling.",
+    "context": "Inline confirmation before enabling the Cyberdeck firewall, including preflight result and guidance for users unsure about custom firewall rules."
   },
   "ui.0833": {
     "default": "Disabling the Cyberdeck firewall removes only its managed rules.",
     "context": "Inline confirmation before disabling the Cyberdeck firewall."
+  },
+  "ui.0834": {
+    "default": "Cyberdeck cannot enable its firewall because it detected: {conflicts}. Leave it off until you have verified how these rules or services are managed and whether they can coexist.",
+    "context": "Explains detected competing firewall managers or rules and tells users not to change them."
+  },
+  "ui.0835": {
+    "default": "Checks found no active known firewall manager or conflicting nftables input rules. Checked: {checked}. This cannot detect every custom or externally managed firewall. Review any additional firewall rules or central management before enabling.",
+    "context": "Reports successful firewall preflight checks and their limits."
   }
 }

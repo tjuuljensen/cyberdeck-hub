@@ -25,6 +25,16 @@ CYBERCHEF_ROOT = Path('/opt/cyberdeck/modules/cyberchef')
 CYBERCHEF_SERVICE = 'cyberdeck-cyberchef.service'
 FIREWALL_ENABLED = Path('/etc/cyberdeck/firewall-enabled')
 FIREWALL_SERVICE = 'cyberdeck-firewall.service'
+FIREWALL_MANAGERS = (
+    ('ufw.service', 'UFW'),
+    ('firewalld.service', 'firewalld'),
+    ('nftables.service', 'nftables'),
+    ('netfilter-persistent.service', 'netfilter-persistent'),
+    ('shorewall.service', 'Shorewall'),
+    ('ferm.service', 'ferm'),
+    ('iptables.service', 'iptables'),
+    ('ip6tables.service', 'ip6tables'),
+)
 NFT = '/usr/sbin/nft'
 
 
@@ -473,15 +483,21 @@ def cyberchef_set_enabled(enabled):
 def firewall_conflicts():
     """Find other host firewall managers that would compete with our base chain."""
     conflicts = []
-    for unit in ('ufw.service', 'firewalld.service', 'nftables.service'):
+    nftables_service_active = False
+    for unit, label in FIREWALL_MANAGERS:
         result = run(['systemctl', 'is-active', '--quiet', unit], check=False)
         if result.returncode == 0:
-            conflicts.append(unit)
+            conflicts.append(label)
+            if unit == 'nftables.service':
+                nftables_service_active = True
     if Path(NFT).is_file():
-        ruleset = run([NFT, 'list', 'ruleset'], check=False).stdout
-        other_rules = re.sub(r'(?ms)^table inet cyberdeck \{.*?^\}\s*', '', ruleset)
-        if 'hook input' in other_rules and 'nftables.service' not in conflicts:
-            conflicts.append('existing nftables input rules')
+        result = run([NFT, 'list', 'ruleset'], check=False)
+        if result.returncode:
+            conflicts.append('could not inspect the nftables ruleset')
+        else:
+            other_rules = re.sub(r'(?ms)^table inet cyberdeck \{.*?^\}\s*', '', result.stdout)
+            if 'hook input' in other_rules and not nftables_service_active:
+                conflicts.append('existing nftables input rules')
     return conflicts
 
 
@@ -501,7 +517,8 @@ def firewall_status():
     elif state_unsafe:
         reason = 'Cyberdeck firewall state path is a symlink'
     return {'available': available, 'enabled': enabled, 'active': active,
-            'conflicts': conflicts, 'reason': reason}
+            'conflicts': conflicts, 'checked_managers': [label for _unit, label in FIREWALL_MANAGERS] +
+            ['nftables input rules'], 'reason': reason}
 
 
 def firewall_ssh_ports():
@@ -541,6 +558,8 @@ def firewall_load():
         'add rule inet cyberdeck input meta l4proto { icmp, ipv6-icmp } accept',
         'add rule inet cyberdeck input tcp dport { ' + ', '.join(map(str, tcp_ports)) + ' } accept',
         'add rule inet cyberdeck input tcp dport 53 accept',
+        'add rule inet cyberdeck input udp dport 5353 ip daddr 224.0.0.251 accept',
+        'add rule inet cyberdeck input udp dport 5353 ip6 daddr ff02::fb accept',
         'add rule inet cyberdeck input udp dport { 53, 67, 68 } accept',
         ''))
     result = subprocess.run([NFT, '-f', '-'], input=rules, check=False,

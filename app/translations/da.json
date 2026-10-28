@@ -743,7 +743,7 @@
   "ui.0820": "Der er ingen cachede opdateringer til dette feed.",
   "ui.0821": "Viser cachede opdateringer fra",
   "ui.0822": "Firewall",
-  "ui.0823": "Når modulet er aktiveret, blokeres uopfordret indgående trafik. Etablerede forbindelser, SSH, Hub-adgang og nødvendige hotspot-tjenester tillades. Andre firewallprogrammer skal være stoppet først.",
+  "ui.0823": "Før aktivering kontrollerer Hub, om UFW, firewalld, nftables, netfilter-persistent, Shorewall, ferm, iptables eller ip6tables er aktive, og søger efter andre nftables-indgående regler. Når modulet er aktivt, blokeres uopfordret indgående trafik, mens SSH, Hub og nødvendige hotspot-tjenester tillades. Kontrollen kan ikke finde alle specialtilpassede eller eksternt styrede firewalls. Gennemgå eventuelle specialtilpassede firewallregler og deres administration, før du aktiverer modulet.",
   "ui.0824": "Kontrollerer firewallstatus…",
   "ui.0825": "Aktivér Cyberdeck-firewall",
   "ui.0826": "Bekræft ændring",
@@ -752,6 +752,8 @@
   "ui.0829": "Cyberdeck-firewall er aktiv.",
   "ui.0830": "Aktiverer firewall…",
   "ui.0831": "Deaktiverer firewall…",
-  "ui.0832": "Hvis firewall aktiveres, blokeres uopfordret indgående trafik. SSH, Hub-adgang og nødvendige hotspot-tjenester tillades. Bekræft kun, hvis ingen anden firewall er aktiv.",
-  "ui.0833": "Hvis Cyberdeck-firewall deaktiveres, fjernes kun dens egne regler."
+  "ui.0832": "Kontrollen fandt ingen konflikt blandt de kendte firewallprogrammer ({checked}). Aktivering tilføjer Cyberdecks indgående standardregler, som afviser uopfordret trafik. SSH, Hub og nødvendige hotspot-tjenester tillades. Hvis værten bruger specialtilpassede eller centralt styrede firewallregler, skal du kontrollere, at de fungerer sammen, før du aktiverer modulet.",
+  "ui.0833": "Hvis Cyberdeck-firewall deaktiveres, fjernes kun dens egne regler.",
+  "ui.0834": "Cyberdeck kan ikke aktivere firewallen, fordi disse konflikter blev fundet: {conflicts}. Lad den være slået fra, indtil du har kontrolleret, hvordan reglerne eller tjenesterne administreres, og om de kan fungere sammen.",
+  "ui.0835": "Kontrollen fandt ingen aktive kendte firewallprogrammer eller nftables-indgående regler, der er i konflikt. Kontrolleret: {checked}. Den kan ikke finde alle specialtilpassede eller centralt styrede firewalls. Gennemgå eventuelle yderligere firewallregler eller central administration, før du aktiverer firewallen."
 }

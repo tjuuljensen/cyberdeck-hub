@@ -57,11 +57,18 @@ on a matching Debian 13 architecture before transfer and use the installer's
 offline installation.
 
 The installer creates the Hub and Kiwix services and a local TLS certificate.
-It leaves the optional Cyberdeck firewall module disabled by default. Admin can
-enable it only when no competing host firewall manager or external nftables
-input policy is detected; it preserves the active SSH port and Hub, DNS, and
-hotspot essentials. Review the displayed rules before enabling it on a remote
-host. The installer does not rewrite NetworkManager connection profiles. The first visit to
+It leaves the optional Cyberdeck firewall module disabled by default. Admin's
+preflight checks for active UFW, firewalld, nftables, netfilter-persistent,
+Shorewall, ferm, iptables, and ip6tables services, plus other nftables input
+rules. If it finds a conflict, it disables the control and shows what it found.
+It cannot detect every custom or externally managed firewall; leave the module
+off and ask the person who manages the host if unsure. When enabled, it preserves
+the active SSH port and Hub, DNS, and hotspot essentials. The installer installs the exact sudoers actions required to read and
+change firewall state. On an older installation, a `password is required` or
+`/run/sudo/ts` status error means the installed allowlist is stale; rebuild and
+apply a current source kit using the steps above, then reload Admin. Do not
+change `/run` permissions to work around this error. The installer does not
+rewrite NetworkManager connection profiles. The first visit to
 `https://cyberdeck.local/` starts administrator setup; create and store the
 administrator credentials outside this repository. Install and trust the
 provided local CA on each client using the certificate help page.

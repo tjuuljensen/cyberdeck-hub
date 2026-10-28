@@ -5955,6 +5955,15 @@ def admin_module_status():
                    hotspot_enabled=hotspot_module_enabled())
 
 
+def _firewall_helper_error(error, action):
+    detail = str(error)
+    if ('password is required' in detail.lower() or
+            'unable to open /run/sudo/ts' in detail.lower()):
+        return ('The installed sudoers allowlist does not permit firewall ' + action +
+                '. Update this host with the current Cyberdeck Hub installer source kit.')
+    return detail or f'Could not {action} firewall state'
+
+
 @app.get('/api/admin/firewall')
 @admin_required
 def admin_firewall_status():
@@ -5965,7 +5974,7 @@ def admin_firewall_status():
         response.headers['Cache-Control'] = 'no-store'
         return response
     except (RuntimeError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
-        return jsonify(error=str(error) or 'Could not read firewall status'), 503
+        return jsonify(error=_firewall_helper_error(error, 'read')), 503
 
 
 @app.put('/api/admin/firewall')
@@ -5983,7 +5992,7 @@ def admin_firewall_update():
         response.headers['Cache-Control'] = 'no-store'
         return response
     except (RuntimeError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
-        return jsonify(error=str(error) or 'Could not change firewall state'), 503
+        return jsonify(error=_firewall_helper_error(error, 'change')), 503
 
 
 @app.put('/api/admin/modules')
