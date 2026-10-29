@@ -118,6 +118,8 @@ Settings and Customization checkboxes, and removes the import-mode selector.
 `0.2.0-beta.48` adds stable identities for online PDFs, refreshes an installed
 copy in place after validating its replacement, and collapses byte-identical
 online PDF downloads while retaining their source identities.
+`0.2.0-beta.49` removes the legacy omitted-subject deletion checkbox from the
+Admin import form.
 
 ## Included scope
 

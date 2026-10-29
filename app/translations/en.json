@@ -2219,10 +2219,6 @@
     "default": "Settings only",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
-  "ui.0578": {
-    "default": "Remove subjects omitted from these settings",
-    "context": "User interface text used in admin.html. Preserve placeholders and product names."
-  },
   "ui.0579": {
     "default": "Order",
     "context": "Field label for a subject's display order in a settings-only import preview."

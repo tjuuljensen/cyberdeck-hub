@@ -553,7 +553,6 @@
   "ui.0575": "Importtilstand",
   "ui.0576": "Fuldt indhold og indstillinger",
   "ui.0577": "Kun indstillinger",
-  "ui.0578": "Fjern emner, der ikke findes i disse indstillinger",
   "ui.0579": "Rækkefølge",
   "ui.0536": "Konfigurationen blev gemt privat som {filename}. Offlinekataloger importeret: {catalogues}. Medtagne ZIM-filer: {included}; udskudte: {deferred}. Startede downloads: {downloads}. PDF-vedhæftninger sprunget over: {skipped_pdfs}. Andre kilder, der stadig skal hentes: {sources}.",
   "ui.0580": "Emnernes rækkefølge efter import",

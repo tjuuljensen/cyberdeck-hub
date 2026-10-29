@@ -367,7 +367,7 @@ importForm.addEventListener('change', event => {
   } else if (event.target === importFiles && importFiles.files.length) {
     importProfile.value = '';
   }
-  if ([importProfile, importFiles, importForm.elements.remove_omitted_subjects].includes(event.target)) {
+  if ([importProfile, importFiles].includes(event.target)) {
     importPlan = null;
     importPreview.replaceChildren();
   }
