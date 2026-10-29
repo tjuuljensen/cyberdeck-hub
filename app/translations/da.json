@@ -789,6 +789,6 @@
   "ui.0867": "Slet alt indhold",
   "ui.0868": "Slet kort og alt indhold",
   "ui.0871": "Understøttede filer: JSON- og ZIP-eksporter, ZIM-biblioteker og PDF-dokumenter. Vælg en eksporteret JSON eller ZIP for at bevare onlinekilders URL'er og hentede PDF-kopier.",
-  "ui.0872": "Hentede kopier i pakken",
-  "ui.0873": "Disse lokale filer stammer fra online dokumentkilder i pakken. De er valgt som standard; fravælg en fil for at udelade dens hentede kopi. URL'en bevares i den importerede konfiguration."
+  "ui.0874": "Importér hentede kopier af valgte onlinekilde-PDF'er",
+  "ui.0875": "Tilgængelige lokale kopier er med i pakken. Hvis en PDF ikke er hentet, bevares dens adresse i konfigurationen, og den kræver internetadgang efter import."
 }

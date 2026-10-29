@@ -98,6 +98,10 @@ with the import category for context.
 shows the selected ZIM count in the import storage summary.
 `0.2.0-beta.41` classifies cached public document files under Documents during
 import, lets administrators choose those copies, and preserves their source URLs.
+`0.2.0-beta.42` puts ZIM choices at the top of import review, aligns online
+document imports with the export category, and adds one checkbox for cached
+PDF copies. A bundled cached copy and its matching online URL no longer produce
+a duplicate warning.
 
 ## Included scope
 

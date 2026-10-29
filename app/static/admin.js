@@ -237,15 +237,17 @@ function importConfigChoices(){
     apply_online_source_cards:onlineIds.length>0,apply_rss_cards:rssIds.length>0,
     online_source_card_ids:onlineIds,rss_card_ids:rssIds};
 }
-function appendImportItemGroup({title,help,items,selection,keyFor,describe,onChange=()=>{},duplicateMessage='ui.0533'}){
-  if(!items?.length)return null;
+function appendImportItemGroup({title,help,items,selection,keyFor,describe,onChange=()=>{},duplicateMessage='ui.0533',showWhenEmpty=false,beforeItems=null}){
+  if(!items?.length&&!showWhenEmpty)return null;
   const details=document.createElement('details');details.className='export-category import-item-category';
   details.open=true;
   const summary=document.createElement('summary');
   const master=document.createElement('input');master.type='checkbox';master.setAttribute('aria-label',t(title));
+  master.disabled=!items?.length;
   const heading=document.createElement('span');heading.textContent=`${t(title)} (${items.length})`;
   summary.append(master,heading);details.append(summary);
   if(help){const note=document.createElement('p');note.className='subtle export-category-help';note.textContent=t(help);details.append(note)}
+  if(beforeItems)details.append(beforeItems());
   const list=document.createElement('div');list.className='export-category-items';
   const checkboxes=[];
   const updateMaster=()=>{
@@ -266,6 +268,7 @@ function appendImportItemGroup({title,help,items,selection,keyFor,describe,onCha
       updateMaster();onChange();
     });
   }
+  if(!items?.length&&showWhenEmpty){const empty=document.createElement('p');empty.className='subtle';empty.textContent=t('ui.0837');list.append(empty)}
   master.addEventListener('change',()=>{
     checkboxes.forEach((checkbox,index)=>{
       checkbox.checked=master.checked;
@@ -403,6 +406,15 @@ importForm.addEventListener('submit', async event => {
     const details = document.createElement('p');
     details.textContent = t('ui.0356', {count: result.catalogues.length, online: result.online_sources, local: result.local_sources, private_required: formatBytes(result.required_bytes), expanded: formatBytes(result.expanded_html_bytes), private_available: formatBytes(result.available_bytes), library_available: formatBytes(result.available_data_bytes)});
     importPreview.append(details);
+    const zimSelection = new Set((result.zim_options || []).filter(item => !item.duplicate).map(item => item.key));
+    const documentSelection = new Set((result.document_options || []).filter(item => !item.duplicate).map(item => item.key));
+    const onlinePdfSelection = new Set((result.online_pdf_options || []).filter(item => !item.duplicate).map(item => item.key));
+    const zimGroup=appendImportItemGroup({title:'ui.0840',help:'ui.0531',items:result.zim_options||[],showWhenEmpty:true,
+      selection:zimSelection,keyFor:'zimKey',duplicateMessage:'ui.0537',
+      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.kind==='download'?` · ${t('ui.0573')}`:''}`,
+      onChange:()=>updateImportCapacity()});
+    if(zimGroup)importPreview.append(zimGroup);
+    appendImportConfigGroup(result,'preferences');
     const mappings = document.createElement('fieldset'); mappings.className = 'stack';
     const legend = document.createElement('legend'); legend.textContent = t('ui.0246'); mappings.append(legend);
     for (const subject of result.subjects) {
@@ -417,35 +429,40 @@ importForm.addEventListener('submit', async event => {
       label.append(select); mappings.append(label);
     }
     importPreview.append(mappings);
-    const zimSelection = new Set((result.zim_options || []).filter(item => !item.duplicate).map(item => item.key));
-    const documentSelection = new Set((result.document_options || []).filter(item => !item.duplicate).map(item => item.key));
-    const onlinePdfSelection = new Set((result.online_pdf_options || []).filter(item => !item.duplicate).map(item => item.key));
-    appendImportConfigGroup(result,'preferences');
-    appendImportItemGroup({title:'ui.0840',help:'ui.0531',items:result.zim_options,
-      selection:zimSelection,keyFor:'zimKey',duplicateMessage:'ui.0537',
-      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.kind==='download'?` · ${t('ui.0573')}`:''}`,
-      onChange:()=>updateImportCapacity()});
-    const onlineDocumentGroup=appendImportItemGroup({title:'ui.0842',help:'ui.0572',items:result.online_pdf_options,
+    const cachedOnlineOptions=(result.document_options||[]).filter(item=>item.location==='cached_online');
+    let importCachedCopies=cachedOnlineOptions.some(item=>!item.duplicate);
+    const syncCachedCopies=()=>{
+      for(const item of cachedOnlineOptions){
+        if(importCachedCopies&&!item.duplicate&&onlinePdfSelection.has(`online-pdf:${item.path}`))documentSelection.add(item.key);
+        else documentSelection.delete(item.key);
+      }
+    };
+    const cachedCopyToggle=()=>{
+      const label=document.createElement('label');label.className='check';
+      const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=importCachedCopies;
+      checkbox.disabled=!cachedOnlineOptions.some(item=>!item.duplicate);
+      checkbox.addEventListener('change',()=>{importCachedCopies=checkbox.checked;syncCachedCopies();updateImportCapacity()});
+      const text=document.createElement('span');text.textContent=t('ui.0874');label.append(checkbox,text);
+      const wrapper=document.createElement('div');wrapper.className='export-category-items';wrapper.append(label);
+      return wrapper;
+    };
+    const onlineDocumentGroup=appendImportItemGroup({title:'ui.0842',help:'ui.0875',items:result.online_pdf_options,
       selection:onlinePdfSelection,keyFor:'onlinePdfKey',
       describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}`,
-      onChange:()=>updateImportCapacity()});
-    const cachedDocumentGroup=appendImportItemGroup({title:'ui.0872',help:'ui.0873',
-      items:(result.document_options||[]).filter(item=>item.location==='library'),
-      selection:documentSelection,keyFor:'documentKey',describe:item=>`${item.title} · ${formatBytes(item.bytes)}`,
-      onChange:()=>updateImportCapacity()});
+      onChange:()=>{syncCachedCopies();updateImportCapacity()},beforeItems:cachedCopyToggle});
     const localDocumentGroup=appendImportItemGroup({title:'ui.0843',help:'ui.0532',
-      items:(result.document_options||[]).filter(item=>item.location!=='library'),
+      items:(result.document_options||[]).filter(item=>item.location!=='cached_online'),
       selection:documentSelection,keyFor:'documentKey',describe:item=>`${item.title} · ${formatBytes(item.bytes)}`,
       onChange:()=>updateImportCapacity()});
-    if(onlineDocumentGroup||cachedDocumentGroup||localDocumentGroup){
+    if(onlineDocumentGroup||localDocumentGroup){
       const documents=document.createElement('details');documents.className='export-category import-documents-category';
       documents.open=true;
       const summary=document.createElement('summary');summary.textContent=t('ui.0841');documents.append(summary);
       if(onlineDocumentGroup)documents.append(onlineDocumentGroup);
-      if(cachedDocumentGroup)documents.append(cachedDocumentGroup);
       if(localDocumentGroup)documents.append(localDocumentGroup);
       importPreview.append(documents);
     }
+    syncCachedCopies();
     appendImportConfigGroup(result,'online');
     appendImportConfigGroup(result,'rss');
     const capacity = document.createElement('p'); capacity.className = 'subtle'; importPreview.append(capacity);
@@ -457,19 +474,22 @@ importForm.addEventListener('submit', async event => {
     const updateImportCapacity = () => {
       const chosen = (result.zim_options || []).filter(item => zimSelection.has(item.key));
       const omittedDocumentBytes = (result.document_options || []).filter(item =>
-        item.location !== 'library' && !documentSelection.has(item.key)).reduce((sum, item) => sum + item.bytes, 0);
+        item.location === 'private' && !documentSelection.has(item.key)).reduce((sum, item) => sum + item.bytes, 0);
       const documentRequired = Math.max(0, result.required_bytes - omittedDocumentBytes);
       const required = chosen.filter(item => item.kind === 'catalogue').reduce((sum, item) => sum + item.bytes, 0) +
         chosen.filter(item => item.kind === 'download').reduce((sum, item) => sum + item.bytes, 0) + result.reserve_bytes;
       const selectedOnlinePdfs = (result.online_pdf_options || []).filter(item => onlinePdfSelection.has(item.key));
-      const onlinePdfBytes = selectedOnlinePdfs.reduce((sum, item) => sum + item.bytes, 0);
+      const cachedOnlinePaths = new Set((result.document_options || []).filter(item =>
+        item.location === 'cached_online' && documentSelection.has(item.key)).map(item => item.path));
+      const onlinePdfBytes = selectedOnlinePdfs.filter(item => !cachedOnlinePaths.has(item.path))
+        .reduce((sum, item) => sum + item.bytes, 0);
       const cachedDocumentBytes = (result.document_options || []).filter(item =>
-        item.location === 'library' && documentSelection.has(item.key)).reduce((sum, item) => sum + item.bytes, 0);
+        item.location !== 'private' && documentSelection.has(item.key)).reduce((sum, item) => sum + item.bytes, 0);
       const libraryRequired = required + onlinePdfBytes + cachedDocumentBytes;
       const selectedConflicts = (result.zim_options || []).filter(item => zimSelection.has(item.key) && item.conflict);
       const selectedOnlinePdfConflicts = selectedOnlinePdfs.filter(item => item.conflict);
       const selectedDocumentConflicts = (result.document_options || []).filter(item =>
-        item.location === 'library' && documentSelection.has(item.key) &&
+        item.location !== 'private' && documentSelection.has(item.key) &&
         result.path_conflicts.includes(item.path));
       const coveredConflictPaths = new Set([
         ...(result.zim_options || []).map(item => item.path),

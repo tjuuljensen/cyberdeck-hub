@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.41'
+APP_VERSION = '0.2.0-beta.42'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -2663,7 +2663,9 @@ def _document_import_options(db, catalogues):
             candidates.append({'key': f'document-catalogue:{filename}',
                                'catalogue': filename, 'stored_path': None,
                                'title': asset.get('title') or Path(path).name,
-                               'path': path, 'location': 'library',
+                               'path': path,
+                               'location': ('cached_online' if asset.get('url') and
+                                            path.lower().endswith('.pdf') else 'library'),
                                'bytes': size, 'sha256': digest})
             continue
         if 'item' not in entry:
@@ -2786,13 +2788,11 @@ def _online_pdf_import_options(assets, catalogues=()):
         reason = ''
         if path in existing_paths or target.exists():
             reason = f'{path} is already installed or registered'
-        elif path in incoming_paths:
-            reason = 'included as a local copy in this ZIP'
-        elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in existing:
+        elif path not in incoming_paths and re.fullmatch(r'[0-9a-f]{64}', digest) and digest in existing:
             reason = f'matches installed {existing[digest]}'
-        elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in incoming:
+        elif path not in incoming_paths and re.fullmatch(r'[0-9a-f]{64}', digest) and digest in incoming:
             reason = 'matches a PDF included in this ZIP'
-        elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in seen:
+        elif path not in incoming_paths and re.fullmatch(r'[0-9a-f]{64}', digest) and digest in seen:
             reason = 'matches another PDF in this import'
         if re.fullmatch(r'[0-9a-f]{64}', digest):
             seen.add(digest)
@@ -3420,7 +3420,8 @@ def import_preview():
                              if 'item' in metadata['entry']
                              for file in metadata.get('files', []))
         cached_document_bytes = sum(option['bytes'] for option in document_options
-                                    if option['location'] == 'library' and not option['duplicate'])
+                                    if option['location'] in ('library', 'cached_online') and
+                                    not option['duplicate'])
         expanded_html_bytes = sum(item['expanded_html_bytes'] for item in catalogs)
         reserve_bytes = config.get('reserve_bytes', 0)
         disk_free = shutil.disk_usage(PRIVATE_ROOT).free
