@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.29'
+APP_VERSION = '0.2.0-beta.35'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -477,10 +477,14 @@ def _validate_card_list(cards, kind):
                 entry_description = entry.get('description', '')
                 if not isinstance(entry_description, str) or len(entry_description) > 300:
                     raise ValueError('Online source descriptions must be at most 300 characters')
+                enabled = entry.get('enabled', True)
+                if type(enabled) is not bool:
+                    raise ValueError('Online source enabled must be true or false')
                 normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
                                            'url': _valid_card_url(entry.get('url'), 'Online source URL'),
                                            'origin_source': _origin_source(entry.get('origin_source', '')),
                                            'description': entry_description.strip(),
+                                           'enabled': enabled,
                                            'source_language': entry_source_language,
                                            'translations': normalized_entry_translations})
             else:
@@ -528,11 +532,10 @@ def _configured_card_list(key, defaults, kind):
                 value = {'id': entry['id'], 'title': entry['title'], 'url': entry['url'],
                          'source_language': entry['source_language'],
                          'translations': json.loads(entry['translations'] or '{}'),
+                         'enabled': bool(entry['enabled']),
                          'origin_source': entry['origin_source'] or ''}
                 if card_type == 'online':
                     value['description'] = entry['description'] or ''
-                else:
-                    value['enabled'] = bool(entry['enabled'])
                 entries.append(value)
             cards.append({'id': row['id'], 'title': row['title'],
                           'description': row['description'],
@@ -1524,7 +1527,7 @@ def home():
     return render_template('index.html', subjects=subjects,
                            services=services,
                            online_source_cards=[_localized_card(card) for card in configured_online_source_cards()
-                                                if card['links'] or card['show_when_empty']],
+                                                if any(link['enabled'] for link in card['links']) or card['show_when_empty']],
                            rss_cards=[_localized_card(card) for card in configured_rss_cards()
                                       if any(feed['enabled'] for feed in card['feeds']) or card['show_when_empty']],
                            home_columns=preferences['home_columns'])
@@ -4468,12 +4471,14 @@ def admin_storage_action():
         return jsonify(error='Expected a storage action'), 400
     action = body.get('action')
     stable_id = body.get('stable_id')
-    if action in {'adopt', 'initialize', 'use-existing'} and (
+    if action in {'adopt', 'unmount', 'initialize', 'use-existing'} and (
             not isinstance(stable_id, str) or len(stable_id) > 180):
         return jsonify(error='Select a disk with a stable identity'), 400
     try:
         if action == 'adopt':
             result = storage_helper('adopt', {'stable_id': stable_id})
+        elif action == 'unmount':
+            result = storage_helper('unmount', {'stable_id': stable_id})
         elif action == 'initialize':
             result = storage_helper('initialize', {
                 'stable_id': stable_id, 'confirm': body.get('confirm')})
@@ -4784,8 +4789,7 @@ def admin_card_entry_create(card_id):
         entry.update({'id': body.get('id'), 'url': body.get('url')})
         if card['type'] == 'online':
             entry['description'] = body.get('description', '')
-        else:
-            entry['enabled'] = body.get('enabled', True)
+        entry['enabled'] = body.get('enabled', True)
         card['entries'] = [*card['entries'], entry]
         _persist_card_collections(cards)
         g.db.commit()
@@ -4833,7 +4837,7 @@ def admin_card_entry_update(card_id, entry_id):
             entry['url'] = body['url']
         if target['type'] == 'online' and 'description' in body:
             entry['description'] = body['description']
-        if target['type'] == 'rss' and 'enabled' in body:
+        if 'enabled' in body:
             entry['enabled'] = body['enabled']
         _persist_card_collections(cards)
         g.db.commit()

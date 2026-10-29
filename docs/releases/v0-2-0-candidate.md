@@ -71,6 +71,19 @@ checks.
 settings.
 `0.2.0-beta.29` applies the configured site accent color to the getting-started
 page.
+`0.2.0-beta.30` combines populated-card type and content count on one metadata
+line.
+`0.2.0-beta.31` adds a red, three-step confirmation before deleting a card
+with contents.
+`0.2.0-beta.32` gives delete buttons the same filled warning-red style across
+content management.
+`0.2.0-beta.33` resets an incomplete delete confirmation after eight seconds
+of inactivity at each confirmation step.
+`0.2.0-beta.34` aligns RSS and Online Source entry management, adds enabled
+controls for both types, groups the Show all views by card, and restores safe
+disk Adopt and Unmount actions to each disk card.
+`0.2.0-beta.35` adds spacing between Library folder configuration and the
+Refresh disks button.
 
 ## Included scope
 

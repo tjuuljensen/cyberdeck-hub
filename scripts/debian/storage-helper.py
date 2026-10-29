@@ -263,6 +263,37 @@ def adopt(payload):
                                            if item['stable_id'] == stable_id)}
 
 
+def unmount_adopted(payload):
+    stable_id = payload.get('stable_id')
+    disk = resolve_disk(stable_id)
+    adoptions = adopted_state()['disks']
+    require_current_adoption(stable_id, disk, adoptions)
+    adoption = adoptions[stable_id]
+    if disk['system_disk'] or disk['active_data_disk']:
+        raise ValueError('System and active library disks cannot be unmounted here')
+    migration_status = public_migration_status().get('status', 'idle')
+    if migration_status in {'queued', 'copying', 'quiescing', 'verifying', 'switching', 'pending-health'}:
+        raise ValueError('Wait for the library storage operation to finish before unmounting this disk')
+    initialization_status = read_json(INITIALIZE_STATUS, {}).get('status')
+    if initialization_status in {'queued', 'initializing'}:
+        raise ValueError('Wait for the disk operation to finish before unmounting this disk')
+    mount = adoption.get('mount')
+    managed_mounts = {str(MOUNT_ROOT / part['uuid']) for part in disk['partitions']
+                      if isinstance(part.get('uuid'), str) and re.fullmatch(r'[A-Fa-f0-9-]{16,64}', part['uuid'])}
+    if not isinstance(mount, str) or mount not in managed_mounts:
+        raise ValueError('This adopted disk has no Cyberdeck-managed mount to unmount')
+    if MOUNT_ROOT.is_symlink() or Path(mount).is_symlink() or not os.path.ismount(mount):
+        raise ValueError('The adopted disk is not mounted at its expected Cyberdeck path')
+    mounted_paths = set(disk['mounts'])
+    mounted_paths.update(path for part in disk['partitions'] for path in part['mounts'])
+    if mounted_paths != {mount}:
+        raise ValueError('Unmount other mounted partitions before safely disconnecting this disk')
+    run(['/usr/bin/umount', '--', mount], timeout=30)
+    if os.path.ismount(mount):
+        raise ValueError('The adopted disk is still mounted; close files using it and retry')
+    return {'unmounted': True, 'mount': mount}
+
+
 def root_disk_paths():
     source = run(['/usr/bin/findmnt', '--noheadings', '--output', 'SOURCE', '--target', '/']).stdout.strip()
     if not source.startswith('/dev/'):
@@ -998,7 +1029,7 @@ def main():
         raise ValueError('Storage helper must run as root')
     action = sys.argv[1] if len(sys.argv) == 2 else ''
     raw = sys.stdin.read(MAX_REQUEST + 1) if action in {
-        'adopt', 'initialize', 'use-existing', 'migration-preview', 'migrate'} else '{}'
+        'adopt', 'unmount', 'initialize', 'use-existing', 'migration-preview', 'migrate'} else '{}'
     if len(raw) > MAX_REQUEST:
         raise ValueError('Storage request is too large')
     payload = json.loads(raw)
@@ -1007,6 +1038,7 @@ def main():
     allowed = {
         'list': list_disks,
         'adopt': lambda: adopt(payload),
+        'unmount': lambda: unmount_adopted(payload),
         'initialize': lambda: start_initialization(payload),
         'initialize-worker': initialize_worker,
         'use-existing': lambda: start_existing_storage(payload),

@@ -540,7 +540,9 @@ async function refreshPdfImports(){
 function row(title, detail, buttonText, callback) { const el=document.createElement('div');el.className='item-row';const label=document.createElement('div');const strong=document.createElement('strong');strong.textContent=title;const small=document.createElement('span');small.textContent=` ${detail||''}`;label.append(strong,small);const button=document.createElement('button');button.className='button';button.type='button';button.textContent=t(buttonText);button.onclick=callback;el.append(label,button);return el; }
 function recordActions(){const actions=document.createElement('div');actions.className='record-actions';return actions}
 const armedRemovals=new Map();
-function armRemoval(button,remove,key,confirmLabel=t('ui.0698'),armedClass='danger'){
+function armRemoval(button,remove,key,confirmLabel=t('ui.0698'),armedClass='danger',finalConfirmLabel=null){
+  const confirmLabels=[confirmLabel,...(finalConfirmLabel?[finalConfirmLabel]:[])];
+  const armDuration=8000;
   const label=button.textContent;
   button.dataset.removalKey=key;button.dataset.removalLabel=label;
   const disarm=()=>{
@@ -549,16 +551,25 @@ function armRemoval(button,remove,key,confirmLabel=t('ui.0698'),armedClass='dang
       if(candidate.dataset.removalKey===key){delete candidate.dataset.armed;candidate.textContent=candidate.dataset.removalLabel;candidate.classList.remove(armedClass)}
     });
   };
-  const expires=armedRemovals.get(key);
-  if(expires>Date.now()){
-    button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add(armedClass);
-    setTimeout(()=>{if(armedRemovals.get(key)===expires&&Date.now()>=expires)disarm()},expires-Date.now());
-  }else if(expires)armedRemovals.delete(key);
+  const scheduleDisarm=state=>{
+    state.expires=Date.now()+armDuration;
+    const expectedExpiry=state.expires;
+    setTimeout(()=>{if(armedRemovals.get(key)===state&&state.expires===expectedExpiry&&Date.now()>=expectedExpiry)disarm()},armDuration);
+  };
+  const state=armedRemovals.get(key);
+  if(state?.expires>Date.now()){
+    button.dataset.armed='true';button.textContent=confirmLabels[state.step-1]||confirmLabel;button.classList.add(armedClass);
+    setTimeout(()=>{if(armedRemovals.get(key)===state&&Date.now()>=state.expires)disarm()},state.expires-Date.now());
+  }else if(state)armedRemovals.delete(key);
   button.onclick=async()=>{
-    if(!(armedRemovals.get(key)>Date.now())){
-      const nextExpiry=Date.now()+8000;armedRemovals.set(key,nextExpiry);
+    const current=armedRemovals.get(key);
+    if(!(current?.expires>Date.now())){
+      const nextState={step:1};armedRemovals.set(key,nextState);scheduleDisarm(nextState);
       button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add(armedClass);
-      setTimeout(()=>{if(armedRemovals.get(key)===nextExpiry&&Date.now()>=nextExpiry)disarm()},8000);return;
+      return;
+    }
+    if(current.step<confirmLabels.length){
+      current.step++;scheduleDisarm(current);button.textContent=confirmLabels[current.step-1];return;
     }
     disarm();button.disabled=true;
     try{await remove()}catch(error){alert(error.message)}finally{button.disabled=false}
@@ -949,6 +960,7 @@ function initializeStorage(disk,button){
   button.dataset.armTimer=String(setTimeout(()=>{if(button.dataset.armed==='true'){reset();storageStatus.textContent=t('ui.0646')}},8000));
 }
 async function adoptStorage(disk){beginStorageOperation(t('ui.0626'));try{await postStorage('adopt',disk);await refreshStorage();finishStorageOperation(t('ui.0602',{message:t('ui.0592')}))}catch(error){finishStorageOperation(error.message)}}
+async function unmountStorage(disk){beginStorageOperation('Unmounting adopted disk…');try{await postStorage('unmount',disk);await refreshStorage();finishStorageOperation('Disk safely unmounted. You can disconnect it or mount it again from this card.')}catch(error){finishStorageOperation(error.message)}}
 async function useExistingStorage(disk){beginStorageOperation(t('ui.0627'));try{await postStorage('use-existing',disk);await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
 async function moveLibraryStorage(targetMount){beginStorageOperation(t('ui.0662'));await new Promise(resolve=>setTimeout(resolve,0));try{const preview=await postStorage('migration-preview',targetMount);if(!preview.eligible){finishStorageOperation(t('ui.0610'));return}const existingNotice=preview.destination_empty===true?'':t('ui.0670');const summary=`${t('ui.0601',{bytes:formatBytes(preview.copy_bytes),source:preview.data_root,destination:preview.destination,free:formatBytes(preview.free_bytes),model:preview.model,id:preview.uuid,filesystem:preview.filesystem,mount:preview.mount})} ${existingNotice} ${t('ui.0604')} ${t('ui.0609')}`;finishStorageOperation(t('ui.0668'),false);showStorageConfirmation({title:t('ui.0643'),detail:summary,confirmationValue:preview.target_id,submitLabel:t('ui.0595'),onConfirm:async confirmValue=>{beginStorageOperation(t('ui.0608'));await new Promise(resolve=>setTimeout(resolve,0));try{await postStorage('move-library',{target_mount:preview.target_mount},{target_id:preview.target_id,confirm:confirmValue});await watchStorageOperation('migration',preview.target_id)}catch(error){finishStorageOperation(error.message)}}})}catch(error){finishStorageOperation(error.message)}}
 let storageInventorySignature=null;
@@ -957,8 +969,14 @@ function createStorageCard(disk){
   const card=document.createElement('article');
   card.className='storage-disk-card';
   card._storageDisk=disk;
+  const headerRow=document.createElement('div');
+  headerRow.className='storage-disk-header';
   const heading=document.createElement('h4');
   heading.textContent=t('ui.0587',{model:disk.model,capacity:formatBytes(disk.capacity_bytes)});
+  const primaryActions=document.createElement('div');
+  primaryActions.className='storage-disk-primary-actions';
+  const addPrimaryAction=button=>primaryActions.append(button);
+  headerRow.append(heading,primaryActions);
   const transport=document.createElement('p');
   transport.className='subtle';
   transport.textContent=t('ui.0616',{transport:disk.transport?disk.transport.toUpperCase():t('ui.0233')});
@@ -972,10 +990,10 @@ function createStorageCard(disk){
   }else{
     inventory.textContent=t('ui.0590');
   }
-  card.append(heading,transport,identity,inventory);
+  card.append(headerRow,transport,identity,inventory);
   const actionBox=document.createElement('div');
   actionBox.className='storage-disk-actions';
-  const addAction=button=>{if(!actionBox.childElementCount){const actionHeading=document.createElement('h4');actionHeading.textContent=heading.textContent;actionBox.append(actionHeading)}actionBox.append(button)};
+  const addAction=button=>actionBox.append(button);
   if(disk.system_disk){
     const protectedNote=document.createElement('p');
     protectedNote.className='storage-protected-note storage-system-disk-note';
@@ -1015,6 +1033,7 @@ function createStorageCard(disk){
       card.append(warning);
       if(disk.adoptable)addAction(storageButton('ui.0623',()=>adoptStorage(disk)));
     }else{
+      if(disk.mount?.startsWith('/mnt/cyberdeck-disks/'))addPrimaryAction(storageButton('Unmount',()=>unmountStorage(disk)));
       const actionRow=document.createElement('div');
       actionRow.className='button-row';
       if(!disk.mount){const initialize=storageButton('ui.0593',()=>initializeStorage(disk,initialize));actionRow.append(initialize)}
@@ -1022,10 +1041,11 @@ function createStorageCard(disk){
       if(actionRow.childElementCount)addAction(actionRow);
     }
   }else if(disk.adoptable){
-    addAction(storageButton('ui.0591',()=>adoptStorage(disk)));
+    addPrimaryAction(storageButton('ui.0591',()=>adoptStorage(disk)));
   }
+  if(actionBox.childElementCount)card.append(actionBox);
   renderStorageDiskUsage(card,disk);
-  return {card,actions:actionBox.childElementCount?actionBox:null};
+  return card;
 }
 async function refreshStorage(){
   if(!storageList)return null;
@@ -1041,9 +1061,8 @@ async function refreshStorage(){
       target_id:migration.target_id,target_mount:migration.target_mount,error:migration.error},initialization});
     if(signature!==storageInventorySignature){
       storageInventorySignature=signature;
-      const rendered=disks.map(createStorageCard);
-      const cards=rendered.map(item=>item.card);
-      const actionCards=rendered.map(item=>item.actions).filter(Boolean);
+      const cards=disks.map(createStorageCard);
+      const actionCards=[];
       if(!cards.length)cards.push(document.createTextNode(t('ui.0596')));
       if(migration.status&&migration.status!=='idle'){
         const state=document.createElement('p');
@@ -1474,14 +1493,14 @@ cardForm?.elements.translation_language.addEventListener('change',()=>{const car
 function renderCardRow(card){
   const hasContents=card.child_count>0;const row=document.createElement('div');row.className=`item-row document-row card-definition-row ${hasContents?'has-contents':'empty-card'}`;
   const details=document.createElement('div');const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=card.display_title||card.title;
-  const summary=document.createElement('span');summary.textContent=card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources';
+  const typeLabel=card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources';
+  const summary=document.createElement('span');summary.textContent=hasContents?`${typeLabel} · Card has contents (${card.child_count})`:typeLabel;
   details.append(title,summary);
-  if(hasContents){const note=document.createElement('small');note.className='card-content-note';note.textContent=`Card has contents (${card.child_count})`;details.append(note)}
   row.append(details);
   const actions=document.createElement('div');actions.className='record-actions';
   const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
   const remove=document.createElement('button');remove.type='button';remove.className='button remove-action';remove.textContent='Delete';remove.title=hasContents?`Delete ${card.child_count} connected contents with this card`:'Delete this empty card';
-  armRemoval(remove,async()=>{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()},`card:${card.id}`,'Confirm Delete','confirm-armed');
+  armRemoval(remove,async()=>{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()},`card:${card.id}`,'Confirm Delete','danger',hasContents?'Delete card & all contents':null);
   actions.append(remove);row.append(actions);return row;
 }
 function uniqueEntryId(card,title){const base=slugify(title)||'entry';let id=base;let suffix=2;while(card.entries.some(entry=>entry.id===id))id=`${base.slice(0,58)}-${suffix++}`;return id}
@@ -1504,7 +1523,7 @@ function beginEntryEdit(card,entry){
   const cardSelect=form.elements.card_id;cardSelect.dataset.userContent='true';cardSelect.replaceChildren(...adminCards.filter(item=>item.type===card.type).map(item=>new Option(item.display_title||item.title,item.id)));cardSelect.value=card.id;
   form.elements.title.value=entry.display_title||entry.title;form.elements.url.value=entry.url;form.elements.origin_source.value=entry.origin_source||'';form.elements.description.value=entry.display_description||entry.description||'';form.elements.enabled.checked=entry.enabled!==false;form.dataset.initialTitle=form.elements.title.value;form.dataset.initialDescription=form.elements.description.value;
   const translationSelect=form.elements.translation_language;translationSelect.value='';form.elements.translation_title.value='';form.elements.translation_description.value='';translationSelect.querySelectorAll('option').forEach(option=>{option.disabled=option.value===entry.source_language});
-  form.querySelectorAll('[data-entry-kind="online"]').forEach(element=>element.hidden=card.type!=='online');form.querySelector('[data-entry-kind="rss"]').hidden=card.type!=='rss';
+  form.querySelectorAll('[data-entry-kind="online"]').forEach(element=>element.hidden=card.type!=='online');
   document.querySelector('#source-entry-editor-kind').textContent=card.type==='rss'?'RSS FEED':'ONLINE SOURCE';document.querySelector('#source-entry-editor-heading').textContent=card.type==='rss'?'Edit RSS feed':'Edit online source';document.querySelector('#source-entry-editor-note').textContent='Changes apply to this entry. Choose a Card to move it within the same type.';document.querySelector('#source-entry-editor-error').hidden=true;sourceEntryDialog.showModal();
 }
 document.querySelector('#source-entry-editor-cancel')?.addEventListener('click',()=>sourceEntryDialog.close());
@@ -1514,12 +1533,11 @@ for(const form of [sourceEntryForm,document.querySelector('#online-source-entry-
   form.elements.translation_language.addEventListener('change',()=>{const cardId=form.elements.original_card_id?.value||form.elements.card?.value;const card=adminCards.find(item=>item.id===cardId);const entry=card?.entries.find(item=>item.id===form.elements.entry_id?.value);const locale=entry?.translations?.[form.elements.translation_language.value]||{};form.elements.translation_title.value=locale.title||'';form.elements.translation_description.value=locale.description||'';form.elements.translation_title.placeholder=locale.title?'':'Uses original-language title';form.elements.translation_description.placeholder=locale.description?'':'Uses original-language description'});
 }
 sourceEntryDialog?.addEventListener('click',event=>{if(event.target===sourceEntryDialog)sourceEntryDialog.close()});
-sourceEntryForm?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const card=adminCards.find(item=>item.id===form.elements.original_card_id.value);const entry=card?.entries.find(item=>item.id===form.elements.entry_id.value);if(!card||!entry)return;const title=form.elements.title.value.trim();const description=form.elements.description.value.trim();const fields=card.type==='online'?['title','description']:['title'];const body={card_id:form.elements.card_id.value,title,url:form.elements.url.value.trim(),origin_source:form.elements.origin_source.value.trim(),language:form.dataset.language,changed_fields:fields.filter(field=>form.elements[field].value.trim()!==(field==='title'?entry.display_title:entry.display_description))};if(card.type==='online')body.description=description;else body.enabled=form.elements.enabled.checked;Object.assign(body,selectedEntryTranslation(form));const button=form.querySelector('[type="submit"]');const error=document.querySelector('#source-entry-editor-error');button.disabled=true;error.hidden=true;try{await persistEntry(card,form.elements.entry_id.value,body,'PUT');sourceEntryDialog.close()}catch(failure){error.textContent=failure.message;error.hidden=false}finally{button.disabled=false}});
+sourceEntryForm?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const card=adminCards.find(item=>item.id===form.elements.original_card_id.value);const entry=card?.entries.find(item=>item.id===form.elements.entry_id.value);if(!card||!entry)return;const title=form.elements.title.value.trim();const description=form.elements.description.value.trim();const fields=card.type==='online'?['title','description']:['title'];const body={card_id:form.elements.card_id.value,title,url:form.elements.url.value.trim(),origin_source:form.elements.origin_source.value.trim(),language:form.dataset.language,changed_fields:fields.filter(field=>form.elements[field].value.trim()!==(field==='title'?entry.display_title:entry.display_description)),enabled:form.elements.enabled.checked};if(card.type==='online')body.description=description;Object.assign(body,selectedEntryTranslation(form));const button=form.querySelector('[type="submit"]');const error=document.querySelector('#source-entry-editor-error');button.disabled=true;error.hidden=true;try{await persistEntry(card,form.elements.entry_id.value,body,'PUT');sourceEntryDialog.close()}catch(failure){error.textContent=failure.message;error.hidden=false}finally{button.disabled=false}});
 function renderEntryRow(card,entry){
   const row=document.createElement('div');row.className='item-row source-entry-row';
-  if(card.type==='rss'){const label=document.createElement('label');label.className='check';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=entry.enabled!==false;checkbox.setAttribute('aria-label',`Enable ${entry.title}`);checkbox.onchange=async()=>{checkbox.disabled=true;try{await persistEntry(card,entry.id,{enabled:checkbox.checked},'PUT')}catch(error){checkbox.checked=!checkbox.checked;alert(error.message)}finally{checkbox.disabled=false}};label.append(checkbox,document.createTextNode(' Enabled'));row.append(label)}
-  const main=document.createElement('div');main.className='source-entry-details';const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=entry.display_title||entry.title;const url=document.createElement('span');url.className='subtle';url.textContent=entry.url;main.append(title,url);if(entry.display_description||entry.description){const desc=document.createElement('span');desc.dataset.userContent='true';desc.textContent=entry.display_description||entry.description;main.append(desc)}row.append(main);
-  const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginEntryEdit(card,entry);actions.append(edit);
+  const main=document.createElement('div');main.className='source-entry-details';const headline=document.createElement('div');headline.className='source-entry-headline';const label=document.createElement('label');label.className='check source-entry-enabled';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=entry.enabled!==false;checkbox.setAttribute('aria-label',`Enable ${entry.display_title||entry.title}`);checkbox.onchange=async()=>{checkbox.disabled=true;try{await persistEntry(card,entry.id,{enabled:checkbox.checked},'PUT')}catch(error){checkbox.checked=!checkbox.checked;alert(error.message)}finally{checkbox.disabled=false}};label.append(checkbox,document.createTextNode(' Enabled'));headline.append(label);const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=entry.display_title||entry.title;headline.append(title);main.append(headline);const url=document.createElement('span');url.className='subtle';url.textContent=entry.url;main.append(url);if(entry.display_description||entry.description){const desc=document.createElement('span');desc.dataset.userContent='true';desc.textContent=entry.display_description||entry.description;main.append(desc)}row.append(main);
+  const actions=document.createElement('div');actions.className='record-actions';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginEntryEdit(card,entry);actions.append(edit);
   const remove=document.createElement('button');remove.type='button';remove.className='button danger remove-action';remove.textContent='Delete';armRemoval(remove,async()=>{await persistEntry(card,entry.id,{},'DELETE')},`entry:${card.id}:${entry.id}`,'Confirm Delete');actions.append(remove);row.append(actions);return row;
 }
 function renderCards(){
@@ -1528,7 +1546,9 @@ function renderCards(){
     const list=document.querySelector(`#${listId}`);const filter=document.querySelector(`#${filterId}`);const previous=filter.value;filter.replaceChildren(new Option('Show all',''));
     for(const card of adminCards.filter(item=>item.type===kind)){const option=new Option(card.display_title||card.title,card.id);option.dataset.userContent='true';filter.add(option)}if([...filter.options].some(option=>option.value===previous))filter.value=previous;
     const cards=adminCards.filter(item=>item.type===kind&&(!filter.value||item.id===filter.value));const entries=cards.flatMap(card=>(card.entries||[]).map(entry=>({card,entry})));document.querySelector(`#${countId}`).textContent=entries.length;
-    list.replaceChildren(...entries.map(({card,entry})=>{const wrap=document.createElement('section');wrap.className='source-entry-card';if(!filter.value){const heading=document.createElement('h3');heading.dataset.userContent='true';heading.textContent=card.display_title||card.title;wrap.append(heading)}wrap.append(renderEntryRow(card,entry));return wrap}));
+    const expandedCards=new Set([...list.querySelectorAll('.source-card-group[open]')].map(group=>group.dataset.cardId));
+    if(filter.value){list.replaceChildren(...entries.map(({card,entry})=>renderEntryRow(card,entry)))}
+    else{list.replaceChildren(...cards.filter(card=>(card.entries||[]).length).map(card=>{const group=document.createElement('details');group.className='source-card-group';group.dataset.cardId=card.id;group.open=expandedCards.has(card.id);const heading=document.createElement('summary');heading.dataset.userContent='true';const title=document.createElement('span');title.textContent=card.display_title||card.title;const count=document.createElement('small');count.className='source-card-group-count';count.textContent=`${card.entries.length} ${card.entries.length===1?'entry':'entries'}`;heading.append(title,count);const rows=document.createElement('div');rows.className='source-entry-group-list';rows.append(...card.entries.map(entry=>renderEntryRow(card,entry)));group.append(heading,rows);return group}))}
     const select=document.querySelector(`#${formId} [name="card"]`);if(select){select.dataset.userContent='true';const selected=select.value;select.replaceChildren(...adminCards.filter(item=>item.type===kind).map(card=>new Option(card.display_title||card.title,card.id)));if([...select.options].some(option=>option.value===selected))select.value=selected}
   }
   fillCardFilter('document-card-filter','subject');fillCardFilter('zim-card-filter','subject');refreshSubjectSelects();applyContentCardFilters();
