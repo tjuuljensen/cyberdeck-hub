@@ -93,7 +93,7 @@
   "ui.0094": "Åbn i samme fane",
   "ui.0095": "Åbn i en ny fane",
   "ui.0096": "Denne indstilling gælder PDF-dokumenter og alle links, der åbner Kiwix.",
-  "ui.0097": "Webstedets accentfarve",
+  "ui.0097": "Accentfarve",
   "ui.0098": "Nulstil til standardgrøn",
   "ui.0099": "Vælg en farve. Den gemmes for alle besøgende, når du afslutter valget.",
   "ui.0100": "Emnekort pr. række",
@@ -242,7 +242,7 @@
   "ui.0243": "Forhåndsvisning: {name}",
   "ui.0244": "{count} lokale kataloger; {online} onlinekilder og {local} lokale kildefiler. Privat lagerplads krævet: {private_required} (inklusive {expanded} udpakket HTML); tilgængelig: {private_available}. Bibliotekslager krævet: {library_required} plus {reserve} i reserve; tilgængelig: {library_available}.",
   "ui.0245": "Eksisterende filer ville blive overskrevet: {paths}",
-  "ui.0246": "Korttilknytning",
+  "ui.0246": "Korttilknytning (opret: {create}, brug eksisterende: {existing})",
   "ui.0247": "Brug eksisterende: {title}",
   "ui.0248": "Opret: {title}",
   "ui.0249": "Tilknyt til: {title}",
@@ -758,8 +758,8 @@
   "ui.0835": "Kontrollen fandt ingen aktive kendte firewallprogrammer eller nftables-indgående regler, der er i konflikt. Kontrolleret: {checked}. Den kan ikke finde alle specialtilpassede eller centralt styrede firewalls. Gennemgå eventuelle yderligere firewallregler eller central administration, før du aktiverer firewallen.",
   "ui.0836": "Fold en kategori ud for at vælge enkelte elementer. URL-baserede filer er valgt som standard; lokale filer er ikke.",
   "ui.0837": "Der er ingen elementer i denne kategori.",
-  "ui.0838": "Gemte visningsindstillinger",
-  "ui.0839": "Medtag gemte indstillinger for udseende og visning, såsom accentfarve, antal kolonner og tidszone.",
+  "ui.0838": "Webstedsindstillinger",
+  "ui.0839": "Vælg, hvilke webstedsindstillinger der skal medtages i en eksport eller anvendes fra en import.",
   "ui.0840": "ZIM-filer",
   "ui.0841": "Dokumenter",
   "ui.0842": "Dokumenter fra onlinekilder",
@@ -790,5 +790,8 @@
   "ui.0868": "Slet kort og alt indhold",
   "ui.0871": "Understøttede filer: JSON- og ZIP-eksporter, ZIM-biblioteker og PDF-dokumenter. Vælg en eksporteret JSON eller ZIP for at bevare onlinekilders URL'er og hentede PDF-kopier.",
   "ui.0874": "Importér hentede kopier af valgte onlinekilde-PDF'er",
-  "ui.0875": "Tilgængelige lokale kopier er med i pakken. Hvis en PDF ikke er hentet, bevares dens adresse i konfigurationen, og den kræver internetadgang efter import."
+  "ui.0875": "Tilgængelige lokale kopier er med i pakken. Hvis en PDF ikke er hentet, bevares dens adresse i konfigurationen, og den kræver internetadgang efter import.",
+  "ui.0876": "Visningsindstillinger",
+  "ui.0877": "Tilpasning",
+  "ui.0878": "Vis startkortet på startsiden"
 }

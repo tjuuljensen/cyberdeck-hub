@@ -376,7 +376,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0097": {
-    "default": "Site accent color",
+    "default": "Accent colour",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0098": {
@@ -972,7 +972,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0246": {
-    "default": "Card mapping",
+    "default": "Card mapping (create: {create}, use existing: {existing})",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0247": {
@@ -3036,12 +3036,12 @@
     "context": "Empty state inside an export category."
   },
   "ui.0838": {
-    "default": "Saved display preferences",
-    "context": "Expandable export category containing saved site display preferences."
+    "default": "Site settings",
+    "context": "Top-level import category for selectable site settings."
   },
   "ui.0839": {
-    "default": "Include saved appearance and display settings such as the accent color, column count, and timezone.",
-    "context": "Help text for exporting saved display preferences."
+    "default": "Choose which site settings to include in an export or apply from an import.",
+    "context": "Help text for selecting site settings in import and export."
   },
   "ui.0840": {
     "default": "ZIMs",
@@ -3166,5 +3166,17 @@
   "ui.0875": {
     "default": "Available local copies are included in the bundle. If a PDF has not been downloaded, its URL stays in the configuration and requires internet access after import.",
     "context": "Help text for importing cached online source PDFs."
+  },
+  "ui.0876": {
+    "default": "Display Settings",
+    "context": "Nested import category for link behavior, accent color, and subject card columns."
+  },
+  "ui.0877": {
+    "default": "Customization",
+    "context": "Nested import category for the library subtitle, timezone, and Start card preference."
+  },
+  "ui.0878": {
+    "default": "Show the Start card on the home page",
+    "context": "Site setting shown in the import preview."
   }
 }

@@ -118,10 +118,8 @@ async function refreshExportOptions() {
       return category.details;
     };
 
-    const savedPreferences = makeCategory('ui.0838', {
-      name: 'include_settings', checked: false, description: 'ui.0839',
-    });
-    exportOptions.append(savedPreferences.details);
+    appendSiteSettingsGroup({site_settings:cardOptions.site_settings},exportOptions,
+      {masterName:'include_settings',leafName:'export_site_setting_keys'});
     exportOptions.append(makeItemGroup('ui.0840', entries.filter(entry => entry.category === 'zims')));
 
     const documents = document.createElement('details');
@@ -159,9 +157,10 @@ exportForm.addEventListener('submit', async event => {
     const selected = [...exportOptions.querySelectorAll('input[name="selected"]:checked')].map(input => input.value);
     const onlineSourceCardIds = [...exportOptions.querySelectorAll('input[name="online_source_card_ids"]:checked')].map(input => input.value);
     const rssCardIds = [...exportOptions.querySelectorAll('input[name="rss_card_ids"]:checked')].map(input => input.value);
+    const siteSettingKeys = [...exportOptions.querySelectorAll('input[name="export_site_setting_keys"]:checked')].map(input => input.value);
     const result = await requestJson('/api/admin/export', {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({name: exportForm.elements.name.value, selected,
-        include_settings: exportForm.elements.include_settings.checked,
+        include_settings: siteSettingKeys.length > 0,site_setting_keys:siteSettingKeys,
         include_online_source_cards: onlineSourceCardIds.length > 0,
         include_rss_cards: rssCardIds.length > 0,
         online_source_card_ids: onlineSourceCardIds, rss_card_ids: rssCardIds,
@@ -183,12 +182,13 @@ exportForm.addEventListener('submit', async event => {
     }
     const bundleForm=document.createElement('form');bundleForm.method='POST';bundleForm.action='/api/admin/export/bundle';bundleForm.target='_blank';bundleForm.rel='noopener';
     const bundleFields=[['csrf_token',headers['X-CSRF-Token']],['name',exportForm.elements.name.value],
-      ['include_settings',String(exportForm.elements.include_settings.checked)],
+      ['include_settings',String(siteSettingKeys.length > 0)],
       ['include_online_source_cards',String(onlineSourceCardIds.length > 0)],
       ['include_rss_cards',String(rssCardIds.length > 0)],
       ['include_online_source_pdfs',String(exportForm.elements.include_online_source_pdfs.checked)],
       ...onlineSourceCardIds.map(value=>['online_source_card_ids',value]),
       ...rssCardIds.map(value=>['rss_card_ids',value]),
+      ...siteSettingKeys.map(value=>['site_setting_keys',value]),
       ...selected.map(value=>['selected',value])];
     for(const[name,value]of bundleFields){const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;bundleForm.append(input)}
     const bundleButton=document.createElement('button');bundleButton.type='submit';bundleButton.className='button primary';bundleButton.textContent=t('ui.0240');bundleForm.append(bundleButton);exportDownloads.append(bundleForm);
@@ -202,9 +202,75 @@ const importStatus = document.querySelector('#import-status');
 const importProfile = document.querySelector('#import-profile');
 const importProfileLabel = document.querySelector('#import-profile-label');
 let importPlan = null;
+function appendSiteSettingsGroup(result,root=importPreview,{masterName='apply_display_preferences',leafName='site_setting_keys'}={}){
+  const settings=result.site_settings||{};
+  const groups=[
+    {title:'ui.0876',keys:['pdf_open_mode','accent_color','home_columns']},
+    {title:'ui.0877',keys:['subtitle','display_timezone','show_start_card']},
+  ];
+  const labels={pdf_open_mode:'ui.0093',accent_color:'ui.0097',home_columns:'ui.0100',
+    subtitle:'ui.0104',display_timezone:'ui.0815',show_start_card:'ui.0878'};
+  const rows=groups.map(group=>({...group,keys:group.keys.filter(key=>Object.prototype.hasOwnProperty.call(settings,key))}));
+  const known=new Set(rows.flatMap(group=>group.keys));
+  const extraKeys=Object.keys(settings).filter(key=>!known.has(key));
+  rows[1].keys.push(...extraKeys);
+  if(!rows.some(group=>group.keys.length))return null;
+
+  const details=document.createElement('details');details.className='export-category site-settings-category';
+  const summary=document.createElement('summary');
+  const master=document.createElement('input');master.type='checkbox';master.name=masterName;
+  master.setAttribute('aria-label',t('ui.0838'));
+  const heading=document.createElement('span');heading.textContent=t('ui.0838');
+  summary.append(master,heading);details.append(summary);
+  const help=document.createElement('p');help.className='subtle export-category-help';help.textContent=t('ui.0839');details.append(help);
+  const allLeaves=[];const groupControls=[];
+  const displayValue=(key,value)=>{
+    if(key==='pdf_open_mode')return t(value==='same_tab'?'ui.0094':'ui.0095');
+    if(key==='accent_color')return String(value);
+    if(key==='home_columns')return t(`ui.${({'3':'0101','4':'0102','5':'0103'})[String(value)]||'0101'}`);
+    if(key==='show_start_card')return t(value===true||value==='true'?'ui.0432':'ui.0433');
+    if(typeof value==='string')return value;
+    return JSON.stringify(value);
+  };
+  const syncParents=()=>{
+    for(const group of groupControls){
+      const count=group.leaves.filter(input=>input.checked).length;
+      group.checkbox.checked=group.leaves.length>0&&count===group.leaves.length;
+      group.checkbox.indeterminate=count>0&&count<group.leaves.length;
+    }
+    const count=allLeaves.filter(input=>input.checked).length;
+    master.checked=allLeaves.length>0&&count===allLeaves.length;
+    master.indeterminate=count>0&&count<allLeaves.length;
+  };
+  for(const group of rows){
+    if(!group.keys.length)continue;
+    const subsection=document.createElement('details');subsection.className='export-category import-settings-subcategory';
+    const subSummary=document.createElement('summary');
+    const subMaster=document.createElement('input');subMaster.type='checkbox';subMaster.setAttribute('aria-label',t(group.title));
+    const subHeading=document.createElement('span');subHeading.textContent=t(group.title);
+    subSummary.append(subMaster,subHeading);subsection.append(subSummary);
+    const list=document.createElement('div');list.className='export-category-items';const leaves=[];
+    for(const key of group.keys){
+      const label=document.createElement('label');label.className='check import-setting-choice';
+      const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.name=leafName;checkbox.value=key;
+      const content=document.createElement('span');
+      const title=document.createElement('span');title.textContent=t(labels[key]||key.replaceAll('_',' '));content.append(title);
+      const value=document.createElement('span');value.className='subtle import-setting-value';value.textContent=displayValue(key,settings[key]);content.append(value);
+      if(key==='accent_color'&&/^#[0-9a-f]{6}$/i.test(String(settings[key]))){
+        const swatch=document.createElement('span');swatch.className='import-setting-color';swatch.style.backgroundColor=settings[key];content.append(swatch);
+      }
+      label.append(checkbox,content);list.append(label);leaves.push(checkbox);allLeaves.push(checkbox);
+      checkbox.addEventListener('change',syncParents);
+    }
+    subsection.append(list);details.append(subsection);groupControls.push({checkbox:subMaster,leaves});
+    subMaster.addEventListener('change',()=>{leaves.forEach(input=>{input.checked=subMaster.checked});syncParents()});
+  }
+  master.addEventListener('change',()=>{allLeaves.forEach(input=>{input.checked=master.checked});syncParents()});
+  syncParents();root.append(details);return details;
+}
 function appendImportConfigGroup(result, kind, root=importPreview){
+  if(kind==='preferences')return appendSiteSettingsGroup(result,root);
   const group={
-    preferences:{available:result.site_settings_available,title:'ui.0838',help:'ui.0839',name:'apply_display_preferences'},
     online:{available:result.online_source_cards!==null,title:'ui.0844',help:'ui.0846',name:'apply_online_source_cards'},
     rss:{available:result.rss_cards!==null,title:'ui.0845',help:'ui.0847',name:'apply_rss_cards'},
   }[kind];
@@ -233,7 +299,8 @@ function appendImportConfigGroup(result, kind, root=importPreview){
 function importConfigChoices(){
   const onlineIds=[...importPreview.querySelectorAll('input[name="online_source_card_ids"]:checked')].map(input=>input.value);
   const rssIds=[...importPreview.querySelectorAll('input[name="rss_card_ids"]:checked')].map(input=>input.value);
-  return {apply_display_preferences:Boolean(importPreview.querySelector('input[name="apply_display_preferences"]')?.checked),
+  const siteSettingKeys=[...importPreview.querySelectorAll('input[name="site_setting_keys"]:checked')].map(input=>input.value);
+  return {apply_display_preferences:siteSettingKeys.length>0,site_setting_keys:siteSettingKeys,
     apply_online_source_cards:onlineIds.length>0,apply_rss_cards:rssIds.length>0,
     online_source_card_ids:onlineIds,rss_card_ids:rssIds};
 }
@@ -300,7 +367,7 @@ importForm.addEventListener('change', event => {
   } else if (event.target === importFiles && importFiles.files.length) {
     importProfile.value = '';
   }
-  if ([importProfile, importFiles, importForm.elements.mode, importForm.elements.remove_omitted_subjects].includes(event.target)) {
+  if ([importProfile, importFiles, importForm.elements.remove_omitted_subjects].includes(event.target)) {
     importPlan = null;
     importPreview.replaceChildren();
   }
@@ -412,22 +479,36 @@ importForm.addEventListener('submit', async event => {
     const bundledOnlinePaths=new Set(cachedOnlineOptions.map(item=>item.path));
     const onlinePdfSelection = new Set((result.online_pdf_options || [])
       .filter(item => !item.duplicate || bundledOnlinePaths.has(item.path)).map(item => item.key));
-    appendImportConfigGroup(result,'preferences');
     const mappingMenu=document.createElement('details');mappingMenu.className='export-category import-mapping-category';
-    const mappingSummary=document.createElement('summary');mappingSummary.textContent=t('ui.0246');
+    const mappingSummary=document.createElement('summary');
+    const mappingHeading=document.createElement('span');mappingSummary.append(mappingHeading);
     const mappings=document.createElement('div');mappings.className='stack';
     for (const subject of result.subjects) {
     const label = document.createElement('label'); label.textContent = `${t(subject.title)} (${subject.id})`;
       const select = document.createElement('select'); select.dataset.subjectId = subject.id;
       const incoming = document.createElement('option'); incoming.value = subject.exists ? subject.id : '__create__';
+      incoming.className=subject.exists?'mapping-existing-option':'mapping-create-option';
       incoming.textContent = subject.exists ? t('ui.0247', {title: t(subject.title)}) : t('ui.0248', {title: t(subject.title)}); select.append(incoming);
       for (const target of result.existing_subjects || []) {
         if (target.id === subject.id) continue;
-        const option = document.createElement('option'); option.value = target.id; option.textContent = t('ui.0249', {title: t(target.title)}); select.append(option);
+        const option = document.createElement('option'); option.value = target.id;option.className='mapping-existing-option'; option.textContent = t('ui.0249', {title: t(target.title)}); select.append(option);
       }
+      select.className='card-mapping-select';
       label.append(select); mappings.append(label);
     }
+    const updateMappingSummary=()=>{
+      const selects=[...mappings.querySelectorAll('select')];
+      const create=selects.filter(select=>select.value==='__create__').length;
+      selects.forEach(select=>{
+        const isCreate=select.value==='__create__';
+        select.classList.toggle('mapping-create',isCreate);
+        select.classList.toggle('mapping-existing',!isCreate);
+      });
+      mappingHeading.textContent=t('ui.0246',{create,existing:selects.length-create});
+    };
+    mappings.addEventListener('change',updateMappingSummary);updateMappingSummary();
     mappingMenu.append(mappingSummary,mappings);importPreview.append(mappingMenu);
+    appendImportConfigGroup(result,'preferences');
     const zimGroup=appendImportItemGroup({title:'ui.0840',help:'ui.0531',items:result.zim_options||[],showWhenEmpty:true,
       selection:zimSelection,keyFor:'zimKey',duplicateMessage:'ui.0537',
       describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.kind==='download'?` · ${t('ui.0573')}`:''}`,

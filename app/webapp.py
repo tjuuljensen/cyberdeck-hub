@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.46'
+APP_VERSION = '0.2.0-beta.47'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -1984,14 +1984,19 @@ def catalogue_name(slug, entry):
 def build_export_config(name, selected, include_settings,
                         include_online_source_cards=True, include_rss_cards=True,
                         include_online_source_pdfs=False,
-                        online_source_card_ids=None, rss_card_ids=None):
+                        online_source_card_ids=None, rss_card_ids=None,
+                        site_setting_keys=None):
     """Build the versioned configuration and resolve every selected local payload."""
     if (not isinstance(name, str) or not 1 <= len(name.strip()) <= 80 or
             any(ord(c) < 32 for c in name) or not isinstance(selected, list) or
             len(selected) > 5000 or any(not isinstance(key, str) for key in selected) or
             len(set(selected)) != len(selected) or type(include_settings) is not bool or
             type(include_online_source_cards) is not bool or type(include_rss_cards) is not bool or
-            type(include_online_source_pdfs) is not bool):
+            type(include_online_source_pdfs) is not bool or
+            (site_setting_keys is not None and
+             (not isinstance(site_setting_keys, list) or
+              any(not isinstance(key, str) for key in site_setting_keys) or
+              len(set(site_setting_keys)) != len(site_setting_keys)))):
         raise ValueError('Choose an export name and distinct content entries')
     name = name.strip()
     slug = secure_filename(name).lower().strip('._-')[:80] or 'custom-config'
@@ -2070,11 +2075,15 @@ def build_export_config(name, selected, include_settings,
         subject['translations'] = json.loads(subject.pop('translations') or '{}')
         subject['show_when_empty'] = bool(subject['show_when_empty'])
         config['subjects'].append(subject)
-    if include_settings:
-        # Export only stored display preferences, never the hostname-derived default.
-        allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone', 'show_start_card'}
+    # Export only stored site settings, never hostname-derived defaults.
+    allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone', 'show_start_card'}
+    settings_keys = set(allowed if site_setting_keys is None and include_settings else
+                        site_setting_keys or [])
+    if not settings_keys.issubset(allowed):
+        raise ValueError('Site setting selection is invalid')
+    if settings_keys:
         config['site_settings'] = {row['key']: row['value'] for row in g.db.execute(
-            'SELECT key,value FROM site_setting') if row['key'] in allowed}
+            'SELECT key,value FROM site_setting') if row['key'] in settings_keys}
     return name, slug, config, downloads, local_catalogues
 
 
@@ -2119,8 +2128,12 @@ def export_options():
 @app.get('/api/admin/export/cards')
 @admin_required
 def export_card_options():
+    allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns',
+               'display_timezone', 'show_start_card'}
+    site_settings = {row['key']: row['value'] for row in g.db.execute(
+        'SELECT key,value FROM site_setting') if row['key'] in allowed}
     return jsonify(online_source_cards=configured_online_source_cards(),
-                   rss_cards=configured_rss_cards())
+                   rss_cards=configured_rss_cards(),site_settings=site_settings)
 
 
 @app.post('/api/admin/export')
@@ -2137,7 +2150,8 @@ def export_prepare():
             body.get('name'), body.get('selected'), body.get('include_settings', True),
             body.get('include_online_source_cards', True), body.get('include_rss_cards', True),
             body.get('include_online_source_pdfs', False),
-            body.get('online_source_card_ids'), body.get('rss_card_ids'))
+            body.get('online_source_card_ids'), body.get('rss_card_ids'),
+            body.get('site_setting_keys'))
         return jsonify(filename=slug + '.json', config=config, catalogues=downloads)
     except (OSError, ValueError, KeyError, TypeError) as error:
         if isinstance(error, ValueError) and str(error).startswith(('Choose an export name', 'Content selection changed')):
@@ -2159,10 +2173,12 @@ def export_bundle():
         include_online_source_pdfs = request.form.get('include_online_source_pdfs', 'false') == 'true'
         online_source_card_ids = request.form.getlist('online_source_card_ids')
         rss_card_ids = request.form.getlist('rss_card_ids')
+        site_setting_keys = (request.form.getlist('site_setting_keys')
+                             if 'site_setting_keys' in request.form else None)
         name, slug, config, _downloads, local_catalogues = build_export_config(
             request.form.get('name'), selected, include_settings,
             include_online_source_cards, include_rss_cards, include_online_source_pdfs,
-            online_source_card_ids, rss_card_ids)
+            online_source_card_ids, rss_card_ids, site_setting_keys)
         payload_bytes = sum(item[3] for item in local_catalogues)
         if payload_bytes + 128 * 1024**2 > MAX_UPLOAD:
             raise ValueError('Combined bundle would exceed the 8 GiB import limit; use separate downloads instead')
@@ -3001,7 +3017,26 @@ def _import_configuration_choices(body, legacy_full_import=False):
                                   len(value) != len(set(value))):
             raise ValueError('Imported card selections are invalid')
         choices[key] = value
+    site_setting_keys = body.get('site_setting_keys')
+    if (site_setting_keys is not None and
+            (not isinstance(site_setting_keys, list) or
+             any(not isinstance(item, str) for item in site_setting_keys) or
+             len(site_setting_keys) != len(set(site_setting_keys)))):
+        raise ValueError('Imported site setting selections are invalid')
+    choices['site_setting_keys'] = site_setting_keys
+    if site_setting_keys is not None:
+        choices['apply_display_preferences'] = bool(site_setting_keys)
     return choices
+
+
+def _selected_site_settings(config, choices):
+    settings = config.get('site_settings', {})
+    selected = choices['site_setting_keys']
+    if selected is None:
+        return settings if choices['apply_display_preferences'] else {}
+    if not set(selected).issubset(settings):
+        raise ValueError('Imported site setting selection does not match the preview')
+    return {key: settings[key] for key in selected}
 
 
 def _merge_selected_card_import(current_cards, incoming_cards, selected_ids, kind):
@@ -3114,7 +3149,7 @@ def _apply_settings_only_import(stage_root, ticket, body):
         for old_id in removed_ids:
             g.db.execute('DELETE FROM library_subject WHERE id=?', (old_id,))
 
-        imported_settings = config.get('site_settings', {}) if choices['apply_display_preferences'] else {}
+        imported_settings = _selected_site_settings(config, choices)
         settings_to_save = dict(imported_settings)
         imported_online = config.get('online_source_cards') if choices['apply_online_source_cards'] else None
         imported_rss = config.get('rss_cards') if choices['apply_rss_cards'] else None
@@ -3361,6 +3396,7 @@ def import_preview():
                            ignored_content={'assets': ignored_assets,
                                             'catalogues': ignored_catalogues},
                            site_settings_available='site_settings' in config,
+                           site_settings=config.get('site_settings', {}),
                            online_source_cards=config.get('online_source_cards'),
                            rss_cards=config.get('rss_cards'),
                            can_remove=not any(item['assigned_count'] is None
@@ -3492,6 +3528,7 @@ def import_preview():
         return jsonify(token=token, name=config['name'],
                        online_sources=sum('url' in asset for asset in config.get('assets', [])),
                        site_settings_available='site_settings' in config,
+                       site_settings=config.get('site_settings', {}),
                        online_source_cards=config.get('online_source_cards'),
                        rss_cards=config.get('rss_cards'),
                        local_sources=sum('source_file' in asset or asset.get('local_payload') is True
@@ -3913,7 +3950,7 @@ def import_apply():
                                 raise ValueError('Imported cover changed after preview')
                             os.replace(temp, item_dir / cover)
                         g.db.execute('UPDATE item SET cover=? WHERE id=?', (cover, item_id))
-            settings = config.get('site_settings', {}) if choices['apply_display_preferences'] else {}
+            settings = _selected_site_settings(config, choices)
             import_settings = dict(settings)
             imported_online = config.get('online_source_cards') if choices['apply_online_source_cards'] else None
             imported_rss = config.get('rss_cards') if choices['apply_rss_cards'] else None
