@@ -78,7 +78,7 @@
 </section>
 {% endif %}
 <section class="management-danger-zone" aria-labelledby="management-danger-heading"><h3 id="management-danger-heading">{{ t('ui.0862') }}</h3><p class="subtle">{{ t('ui.0863') }}</p>
-<details class="management-fold"><summary id="content-reset-heading">Remove all contents</summary><section aria-labelledby="content-reset-heading"><p class="subtle">Permanently removes all cards, documents, ZIMs, RSS feeds, Online Sources, and acquired content. Administrator accounts and server settings are kept.</p><button class="button danger" id="content-reset" type="button">Remove all contents</button><p id="content-reset-status" class="subtle" role="status" aria-live="polite"></p></section></details>
+<details class="management-fold"><summary id="content-reset-heading">{{ t('ui.0867') }}</summary><section aria-labelledby="content-reset-heading"><p class="subtle">Permanently deletes all cards, documents, ZIMs, RSS feeds, Online Sources, and acquired content. Administrator accounts and server settings are kept.</p><button class="button danger" id="content-reset" type="button">{{ t('ui.0867') }}</button><p id="content-reset-status" class="subtle" role="status" aria-live="polite"></p></section></details>
 {% if capabilities.hostname %}<details class="management-fold"><summary>{{ t('ui.0174') }} (<span id="hostname-summary">{{ t('ui.0233') }}</span>)</summary>
 <section class="hostname-settings" aria-labelledby="hostname-heading"><h4 id="hostname-heading" class="visually-hidden">{{ t('ui.0173') }}</h4>
 <p>{{ t('ui.0258') }} <strong>knowledge-hub</strong>{{ t('ui.0259') }}</p>

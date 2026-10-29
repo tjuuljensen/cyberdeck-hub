@@ -158,7 +158,7 @@ def build_kit(repo_root: Path, output: Path) -> int:
         if candidate == source or (source.is_dir() and candidate.is_relative_to(source)):
             raise ValueError('The install-kit output cannot be inside its source files')
 
-    descriptor, temporary_name = tempfile.mkstemp(prefix='.cyberdeck-kit-', suffix='.tmp',
+    descriptor, temporary_name = tempfile.mkstemp(prefix='.cyberdeck-hub-debian-kit-', suffix='.tmp',
                                                     dir=output.parent)
     os.close(descriptor)
     temporary = Path(temporary_name)

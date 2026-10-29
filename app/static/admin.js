@@ -542,7 +542,7 @@ function recordActions(){const actions=document.createElement('div');actions.cla
 const armedRemovals=new Map();
 function armRemoval(button,remove,key,confirmLabel=t('ui.0698'),armedClass='danger',finalConfirmLabel=null){
   const confirmLabels=[confirmLabel,...(finalConfirmLabel?[finalConfirmLabel]:[])];
-  const armDuration=8000;
+  const armDuration=5000;
   const label=button.textContent;
   button.dataset.removalKey=key;button.dataset.removalLabel=label;
   const disarm=()=>{
@@ -577,7 +577,7 @@ function armRemoval(button,remove,key,confirmLabel=t('ui.0698'),armedClass='dang
 }
 function zimProgressText(item){const status=item.status.startsWith('pid:')?t('ui.0397'):item.status.startsWith('failed')?t('ui.0400'):t(item.status);if(item.status==='ready')return t('ui.0371',{size:formatBytes(item.bytes)});if(item.status.startsWith('failed'))return `${status} · ${item.failure_reason||item.status.replace(/^failed:\s*/, '')}`;if(item.pause_requested)return t('ui.0372');if(!item.expected_bytes)return status;const received=item.received_bytes||0;const progress=t('ui.0373',{received:formatBytes(received),total:formatBytes(item.expected_bytes),percent:Math.floor(received*100/item.expected_bytes)});if(item.phase==='verifying')return t('ui.0374',{status});if(item.phase==='stalled')return t('ui.0375',{status,elapsed:formatUptime(item.progress_age_seconds)});if(item.phase==='connecting')return t('ui.0376',{status});return t('ui.0377',{status,progress})}
 function createZimRow(item){
-  const el=row(item.title,'','Remove',()=>{});
+  const el=row(item.title,'','ui.0495',()=>{});
   el.classList.add('zim-row');el.dataset.zimId=item.id;el.dataset.subject=item.subject;el.zimItem=item;
   const remove=el.querySelector('button');remove.classList.add('remove-action');remove.dataset.zimAction='remove';remove.remove();
   const actions=recordActions();
@@ -586,7 +586,7 @@ function createZimRow(item){
     await requestJson(`/api/admin/zims/${current.id}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:current.filename})});
     await refreshZims();await refreshSubjects();
   },`zim:${item.id}`);
-  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(el.zimItem,true);
+  const edit=document.createElement('button');edit.type='button';edit.className='button record-edit-action';edit.textContent='Edit';edit.onclick=()=>openZimEditor(el.zimItem,true);
   actions.append(edit,remove);el.append(actions);
   const detail=document.createElement('small');detail.className='zim-file-detail';el.firstElementChild.append(detail);
   return el;
@@ -620,7 +620,7 @@ function updateZimRow(el,item){el.zimItem=item;el.querySelector('.zim-file-detai
 
 async function refreshZims(){const list=document.querySelector('#zim-list');let items;try{items=await requestJsonWithRetry('/api/admin/zims')}catch(error){document.querySelector('#zim-status').textContent=`Could not load ZIMs: ${error.message}`;throw error}zimLoaded=true;document.querySelector('#zim-status').textContent='';zimPolling=items.some(item=>item.status.startsWith('pid:')||item.status==='downloading');const previous=new Map(Array.from(list.children,el=>[el.dataset.zimId,el]));const ordered=[];for(const item of items){const el=previous.get(item.id)||createZimRow(item);previous.delete(item.id);updateZimRow(el,item);ordered.push(el)}for(const el of previous.values())el.remove();const current=Array.from(list.children);if(current.length!==ordered.length||current.some((el,index)=>el!==ordered[index]))for(const el of ordered)list.append(el);document.querySelector('#zim-count').textContent=ordered.length;applyContentCardFilters()}
 function createManagedDocumentRow(item,importStatus=null){
-  const el=row(item.title,'','Remove',()=>{});
+  const el=row(item.title,'','ui.0495',()=>{});
   el.dataset.subject=item.subject||'';
   const subject=subjectName(item.subject);
   const subjectLabel=document.createElement('span');subjectLabel.textContent=subject||'Unassigned';
@@ -632,7 +632,7 @@ function createManagedDocumentRow(item,importStatus=null){
     await requestJson(`/api/admin/archive/${encodeURIComponent(item.filename)}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:item.filename})});
     await refreshDocuments();await refreshSubjects();
   },`archive:${item.filename}`);
-  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'archive');
+  const edit=document.createElement('button');edit.type='button';edit.className='button record-edit-action';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'archive');
   const download=document.createElement(item.available?'a':'button');download.className='button compact-download';download.textContent=t('ui.0699',{size:formatBytes(item.bytes)});
   if(item.available){download.href=`/library/${encodeURIComponent(item.filename)}`;download.download=item.filename}
   else{download.disabled=true;download.title=t('ui.0302')}
@@ -648,14 +648,14 @@ function createUploadedDocumentRow(item){
   const totalBytes=item.attachments.every(attachment=>Number.isSafeInteger(attachment.bytes))?item.attachments.reduce((total,attachment)=>total+attachment.bytes,0):null;
   const attachmentCount=item.attachments.length;
   const detail=attachmentCount===1?t('ui.0381',{subject:subjectName(item.subject),count:attachmentCount,size:formatBytes(totalBytes)}):t('ui.0382',{subject:subjectName(item.subject),count:attachmentCount,size:formatBytes(totalBytes)});
-  const el=row(item.title,detail,'Remove',()=>{});
+  const el=row(item.title,detail,'ui.0495',()=>{});
   el.dataset.subject=item.subject||'';
   el.classList.add('document-row');
   if(item.cover_url){const image=document.createElement('img');image.className='cover-thumb';image.src=item.cover_url;image.alt='';el.prepend(image)}
   const remove=el.querySelector('button');remove.classList.add('remove-action');remove.remove();
   armRemoval(remove,async()=>{await requestJson(`/api/admin/items/${item.id}`,{method:'DELETE'});await refreshDocuments();await refreshSubjects()},`item:${item.id}`);
   const actions=recordActions();
-  const edit=document.createElement('button');edit.className='button';edit.type='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'document');actions.append(edit);
+  const edit=document.createElement('button');edit.className='button record-edit-action';edit.type='button';edit.textContent='Edit';edit.onclick=()=>openZimEditor(item,true,null,'document');actions.append(edit);
   for(const attachment of item.attachments){
     const size=formatBytes(attachment.bytes);
     if(attachment.kind==='html-zip'){
@@ -673,7 +673,7 @@ function createUploadedDocumentRow(item){
 function createPdfImportDocumentRow(job,file,fileIndex){
   const filename=file.path.startsWith('public/')?file.path.slice(7):file.path;
   const detail=[subjectName(file.subject),filename].filter(Boolean).join(' · ');
-  const el=row(file.title,detail,'Remove',()=>{});el.dataset.subject=file.subject||'';el.querySelector(':scope > button').remove();el.classList.add('document-row','pdf-import-document');
+  const el=row(file.title,detail,'ui.0495',()=>{});el.dataset.subject=file.subject||'';el.querySelector(':scope > button').remove();el.classList.add('document-row','pdf-import-document');
   const stateKey={queued:'ui.0690',downloading:'ui.0691',failed:'ui.0693',canceled:'ui.0697'}[file.status]||'ui.0690';
   const state=document.createElement('span');state.className=`document-status is-${file.status}`;state.textContent=t(stateKey);el.firstElementChild.append(state);
   if(file.status==='downloading'){
@@ -692,7 +692,7 @@ function createPdfImportDocumentRow(job,file,fileIndex){
     retry.onclick=async()=>{retry.disabled=true;try{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/retry`,{method:'POST'});await refreshPdfImports()}catch(error){retry.disabled=false;alert(error.message)}};
     actions.append(retry);
   }
-  const remove=document.createElement('button');remove.type='button';remove.className='button remove-action';remove.textContent=t('Remove');
+  const remove=document.createElement('button');remove.type='button';remove.className='button remove-action';remove.textContent=t('ui.0495');
   armRemoval(remove,async()=>{await requestJson(`/api/admin/import/pdf/${encodeURIComponent(job.id)}/files/${fileIndex}/remove`,{method:'POST'});await refreshPdfImports()},`pdf:${job.id}:${fileIndex}`);
   actions.append(remove);
   el.append(actions);return el;
@@ -913,7 +913,7 @@ function showStorageConfirmation({title,detail,confirmationValue,submitLabel,onC
   let armed=false;let armTimer=null;
   const reset=()=>{if(armTimer)clearTimeout(armTimer);armTimer=null;armed=false;confirmButton.textContent=submitLabel;confirmButton.removeAttribute('aria-pressed')};
   confirmButton.addEventListener('click',async()=>{
-    if(!armed){armed=true;confirmButton.textContent=t('ui.0645');confirmButton.setAttribute('aria-pressed','true');storageStatus.textContent=t('ui.0632');armTimer=setTimeout(()=>{reset();storageStatus.textContent=t('ui.0646')},8000);return}
+    if(!armed){armed=true;confirmButton.textContent=t('ui.0645');confirmButton.setAttribute('aria-pressed','true');storageStatus.textContent=t('ui.0632');armTimer=setTimeout(()=>{reset();storageStatus.textContent=t('ui.0646')},5000);return}
     reset();hideStorageConfirmation();
     try{await onConfirm(confirmationValue||'')}catch(error){finishStorageOperation(error.message)}
   });
@@ -957,7 +957,7 @@ function initializeStorage(disk,button){
   }
   button.dataset.armed='true';button.textContent=t('ui.0645');button.setAttribute('aria-pressed','true');
   storageStatus.textContent=`${t('ui.0615',{model:disk.model,capacity:formatBytes(disk.capacity_bytes),id:disk.stable_id})} ${t('ui.0632')}`;
-  button.dataset.armTimer=String(setTimeout(()=>{if(button.dataset.armed==='true'){reset();storageStatus.textContent=t('ui.0646')}},8000));
+  button.dataset.armTimer=String(setTimeout(()=>{if(button.dataset.armed==='true'){reset();storageStatus.textContent=t('ui.0646')}},5000));
 }
 async function adoptStorage(disk){beginStorageOperation(t('ui.0626'));try{await postStorage('adopt',disk);await refreshStorage();finishStorageOperation(t('ui.0602',{message:t('ui.0592')}))}catch(error){finishStorageOperation(error.message)}}
 async function unmountStorage(disk){beginStorageOperation('Unmounting adopted disk…');try{await postStorage('unmount',disk);await refreshStorage();finishStorageOperation('Disk safely unmounted. You can disconnect it or mount it again from this card.')}catch(error){finishStorageOperation(error.message)}}
@@ -1374,7 +1374,7 @@ if(powerPanel){
         if(armTimer)clearTimeout(armTimer);
         armedButton=button;button.dataset.originalLabel=label;button.textContent=action==='poweroff'?t('ui.0549'):t('ui.0548');
         powerStatus.textContent=t('ui.0547',{action:verb});
-        armTimer=setTimeout(()=>{if(armedButton===button){button.textContent=label;delete button.dataset.originalLabel;armedButton=null;powerStatus.textContent=t('ui.0553')}},8000);
+        armTimer=setTimeout(()=>{if(armedButton===button){button.textContent=label;delete button.dataset.originalLabel;armedButton=null;powerStatus.textContent=t('ui.0553')}},5000);
         return;
       }
       if(armTimer)clearTimeout(armTimer);armTimer=null;armedButton=null;delete button.dataset.originalLabel;
@@ -1451,7 +1451,7 @@ hostnameForm.addEventListener('submit',async event=>{
   const hostname=hostnameInput.value;
   if(hostname===currentHostname){hostnameMessage.textContent='Choose a different server name.';return}
   const url=`https://${hostname}.local/`;
-  if(!hostnameArmed){hostnameArmed=true;hostnameButton.textContent=t('ui.0645');hostnameButton.setAttribute('aria-pressed','true');hostnameMessage.textContent=`${t('ui.0414',{url})} ${t('ui.0632')}`;hostnameArmTimer=setTimeout(()=>{resetHostnameArm();hostnameMessage.textContent=t('ui.0646')},8000);return}
+  if(!hostnameArmed){hostnameArmed=true;hostnameButton.textContent=t('ui.0645');hostnameButton.setAttribute('aria-pressed','true');hostnameMessage.textContent=`${t('ui.0414',{url})} ${t('ui.0632')}`;hostnameArmTimer=setTimeout(()=>{resetHostnameArm();hostnameMessage.textContent=t('ui.0646')},5000);return}
   resetHostnameArm();
   hostnamePending=true;hostnameButton.disabled=true;hostnameInput.disabled=true;
   hostnameMessage.textContent='Checking the new name...';
@@ -1498,9 +1498,9 @@ function renderCardRow(card){
   details.append(title,summary);
   row.append(details);
   const actions=document.createElement('div');actions.className='record-actions';
-  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
+  const edit=document.createElement('button');edit.type='button';edit.className='button record-edit-action';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
   const remove=document.createElement('button');remove.type='button';remove.className='button remove-action';remove.textContent='Delete';remove.title=hasContents?`Delete ${card.child_count} connected contents with this card`:'Delete this empty card';
-  armRemoval(remove,async()=>{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()},`card:${card.id}`,'Confirm Delete','danger',hasContents?'Delete card & all contents':null);
+  armRemoval(remove,async()=>{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()},`card:${card.id}`,t('ui.0698'),'danger',hasContents?t('ui.0868'):null);
   actions.append(remove);row.append(actions);return row;
 }
 function uniqueEntryId(card,title){const base=slugify(title)||'entry';let id=base;let suffix=2;while(card.entries.some(entry=>entry.id===id))id=`${base.slice(0,58)}-${suffix++}`;return id}
@@ -1537,14 +1537,15 @@ sourceEntryForm?.addEventListener('submit',async event=>{event.preventDefault();
 function renderEntryRow(card,entry){
   const row=document.createElement('div');row.className='item-row source-entry-row';
   const main=document.createElement('div');main.className='source-entry-details';const headline=document.createElement('div');headline.className='source-entry-headline';const label=document.createElement('label');label.className='check source-entry-enabled';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=entry.enabled!==false;checkbox.setAttribute('aria-label',`Enable ${entry.display_title||entry.title}`);checkbox.onchange=async()=>{checkbox.disabled=true;try{await persistEntry(card,entry.id,{enabled:checkbox.checked},'PUT')}catch(error){checkbox.checked=!checkbox.checked;alert(error.message)}finally{checkbox.disabled=false}};label.append(checkbox,document.createTextNode(' Enabled'));headline.append(label);const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=entry.display_title||entry.title;headline.append(title);main.append(headline);const url=document.createElement('span');url.className='subtle';url.textContent=entry.url;main.append(url);if(entry.display_description||entry.description){const desc=document.createElement('span');desc.dataset.userContent='true';desc.textContent=entry.display_description||entry.description;main.append(desc)}row.append(main);
-  const actions=document.createElement('div');actions.className='record-actions';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginEntryEdit(card,entry);actions.append(edit);
-  const remove=document.createElement('button');remove.type='button';remove.className='button danger remove-action';remove.textContent='Delete';armRemoval(remove,async()=>{await persistEntry(card,entry.id,{},'DELETE')},`entry:${card.id}:${entry.id}`,'Confirm Delete');actions.append(remove);row.append(actions);return row;
+  const actions=document.createElement('div');actions.className='record-actions';const edit=document.createElement('button');edit.type='button';edit.className='button record-edit-action';edit.textContent='Edit';edit.onclick=()=>beginEntryEdit(card,entry);actions.append(edit);
+  const remove=document.createElement('button');remove.type='button';remove.className='button remove-action';remove.textContent=t('ui.0495');armRemoval(remove,async()=>{await persistEntry(card,entry.id,{},'DELETE')},`entry:${card.id}:${entry.id}`,t('ui.0698'));actions.append(remove);row.append(actions);return row;
 }
 function renderCards(){
   const all=document.querySelector('#card-list');all.replaceChildren(...adminCards.map(card=>renderCardRow(card)));document.querySelector('#cards-count').textContent=adminCards.length;
   for(const [kind,listId,filterId,formId,countId]of [['online','online-source-card-list','online-source-card-filter','online-source-entry-form','online-source-count'],['rss','rss-card-list','rss-card-filter','rss-entry-form','rss-entry-count']]){
     const list=document.querySelector(`#${listId}`);const filter=document.querySelector(`#${filterId}`);const previous=filter.value;filter.replaceChildren(new Option('Show all',''));
     for(const card of adminCards.filter(item=>item.type===kind)){const option=new Option(card.display_title||card.title,card.id);option.dataset.userContent='true';filter.add(option)}if([...filter.options].some(option=>option.value===previous))filter.value=previous;
+    list.classList.toggle('source-card-groups',!filter.value);
     const cards=adminCards.filter(item=>item.type===kind&&(!filter.value||item.id===filter.value));const entries=cards.flatMap(card=>(card.entries||[]).map(entry=>({card,entry})));document.querySelector(`#${countId}`).textContent=entries.length;
     const expandedCards=new Set([...list.querySelectorAll('.source-card-group[open]')].map(group=>group.dataset.cardId));
     if(filter.value){list.replaceChildren(...entries.map(({card,entry})=>renderEntryRow(card,entry)))}
@@ -1573,5 +1574,5 @@ refreshCards().catch(error=>{cardStatus.textContent=error.message});
 
 const contentResetStatus=document.querySelector('#content-reset-status');
 const contentResetButton=document.querySelector('#content-reset');
-if(contentResetButton)armRemoval(contentResetButton,async()=>{contentResetStatus.textContent='Removing all contents…';await requestJson('/api/admin/content/reset',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({confirm:'REMOVE ALL CONTENT'})});await refreshCards();await refreshDocuments();await refreshZims();contentResetStatus.textContent='All contents were removed.'},'all-content-reset','Confirm Remove');
+if(contentResetButton)armRemoval(contentResetButton,async()=>{contentResetStatus.textContent='Deleting all contents…';await requestJson('/api/admin/content/reset',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({confirm:'REMOVE ALL CONTENT'})});await refreshCards();await refreshDocuments();await refreshZims();contentResetStatus.textContent='All contents were deleted.'},'all-content-reset',t('ui.0698'));
 Promise.all([refreshZims(),refreshDocuments(),refreshExportOptions(),refreshPdfImports()]).catch(error=>alert(error.message));setInterval(()=>{if(zimPolling||!zimLoaded)refreshZims().catch(error=>{document.querySelector('#zim-status').textContent=`Could not load ZIMs: ${error.message}`})},10000);

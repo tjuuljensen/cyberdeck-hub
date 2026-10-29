@@ -1892,7 +1892,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0496": {
-    "default": "Remove",
+    "default": "Delete",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0497": {
@@ -2672,8 +2672,8 @@
     "context": "Status for an Internet PDF download canceled by an administrator."
   },
   "ui.0698": {
-    "default": "Confirm Remove",
-    "context": "Second-click confirmation for removing a document or stopping its import."
+    "default": "Confirm Delete",
+    "context": "Second-click confirmation for deleting content or confirming another armed action."
   },
   "ui.0699": {
     "default": "Download · {size}",
@@ -2888,12 +2888,12 @@
     "context": "Action to edit a resource card in Admin."
   },
   "ui.0799": {
-    "default": "Remove",
-    "context": "Action to remove a resource card in Admin."
+    "default": "Delete",
+    "context": "Action to delete a resource card in Admin."
   },
   "ui.0800": {
-    "default": "Remove the card '{title}'?",
-    "context": "Confirmation before removing an online source or RSS card. Preserve title placeholder."
+    "default": "Delete the card '{title}'?",
+    "context": "Confirmation before deleting an online source or RSS card. Preserve title placeholder."
   },
   "ui.0801": {
     "default": "Each entry needs a title and HTTPS URL, separated by | characters.",
@@ -2908,12 +2908,12 @@
     "context": "Index label on a service card. Preserve the id placeholder."
   },
   "ui.0804": {
-    "default": "Confirm remove",
-    "context": "Second action in the two-step removal of an online source or RSS card."
+    "default": "Confirm Delete",
+    "context": "Second action in the two-step deletion of an online source or RSS card."
   },
   "ui.0805": {
-    "default": "Removing card…",
-    "context": "Progress status while an administrator removes a card."
+    "default": "Deleting card…",
+    "context": "Progress status while an administrator deletes a card."
   },
   "ui.0806": {
     "default": "Saving card…",
@@ -3146,5 +3146,13 @@
   "ui.0866": {
     "default": "Library folder configuration",
     "context": "Heading for the Management control that configures the folder used for library data."
+  },
+  "ui.0867": {
+    "default": "Delete all contents",
+    "context": "Destructive action to delete all content in the Cyberdeck while keeping accounts and settings."
+  },
+  "ui.0868": {
+    "default": "Delete card and all contents",
+    "context": "Final confirmation label when deleting a populated card."
   }
 }

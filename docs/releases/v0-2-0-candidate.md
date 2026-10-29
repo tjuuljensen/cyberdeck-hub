@@ -84,6 +84,8 @@ controls for both types, groups the Show all views by card, and restores safe
 disk Adopt and Unmount actions to each disk card.
 `0.2.0-beta.35` adds spacing between Library folder configuration and the
 Refresh disks button.
+`0.2.0-beta.36` standardizes entry-list actions, five-second confirmations,
+select and menu chevrons, and connected card groups.
 
 ## Included scope
 
