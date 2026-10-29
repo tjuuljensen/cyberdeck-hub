@@ -1118,9 +1118,6 @@ def connect_db():
     zim_columns = {row['name'] for row in db.execute('PRAGMA table_info(zim)')}
     if 'origin_source' not in zim_columns:
         db.execute("ALTER TABLE zim ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
-    card_entry_columns = {row['name'] for row in db.execute('PRAGMA table_info(card_entry)')}
-    if 'origin_source' not in card_entry_columns:
-        db.execute("ALTER TABLE card_entry ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
     archive_columns = {row['name'] for row in db.execute('PRAGMA table_info(archive_metadata)')}
     if 'search_terms' not in archive_columns:
         db.execute("ALTER TABLE archive_metadata ADD COLUMN search_terms TEXT NOT NULL DEFAULT ''")
@@ -1146,6 +1143,9 @@ def connect_db():
     ''')
     _migrate_stored_card_locales(db)
     _migrate_card_storage(db)
+    card_entry_columns = {row['name'] for row in db.execute('PRAGMA table_info(card_entry)')}
+    if 'origin_source' not in card_entry_columns:
+        db.execute("ALTER TABLE card_entry ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
     db.commit()
     return db
 
