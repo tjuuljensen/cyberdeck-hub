@@ -49,6 +49,7 @@ async function refreshExportOptions() {
     };
     const makeItemGroup = (title, groupEntries, {includePdfToggle = false} = {}) => {
       const category = makeCategory(title);
+      category.details.open = true;
       const list = document.createElement('div');
       list.className = 'export-category-items';
       if (includePdfToggle) {
@@ -123,6 +124,7 @@ async function refreshExportOptions() {
 
     const documents = document.createElement('details');
     documents.className = 'export-category';
+    documents.open = true;
     const documentsSummary = document.createElement('summary');
     documentsSummary.textContent = t('ui.0841');
     documents.append(documentsSummary,
@@ -236,6 +238,7 @@ function importConfigChoices(){
 function appendImportItemGroup({title,help,items,selection,keyFor,describe,onChange=()=>{},duplicateMessage='ui.0533'}){
   if(!items?.length)return null;
   const details=document.createElement('details');details.className='export-category import-item-category';
+  details.open=true;
   const summary=document.createElement('summary');
   const master=document.createElement('input');master.type='checkbox';master.setAttribute('aria-label',t(title));
   const heading=document.createElement('span');heading.textContent=t(title);
@@ -429,6 +432,7 @@ importForm.addEventListener('submit', async event => {
       onChange:()=>updateImportCapacity()});
     if(onlineDocumentGroup||localDocumentGroup){
       const documents=document.createElement('details');documents.className='export-category import-documents-category';
+      documents.open=true;
       const summary=document.createElement('summary');summary.textContent=t('ui.0841');documents.append(summary);
       if(onlineDocumentGroup)documents.append(onlineDocumentGroup);
       if(localDocumentGroup)documents.append(localDocumentGroup);

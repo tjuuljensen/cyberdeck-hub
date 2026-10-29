@@ -86,6 +86,8 @@ disk Adopt and Unmount actions to each disk card.
 Refresh disks button.
 `0.2.0-beta.36` standardizes entry-list actions, five-second confirmations,
 select and menu chevrons, and connected card groups.
+`0.2.0-beta.37` opens ZIM and document selection groups in import previews and
+opens the document and content groups in export options for easier discovery.
 
 ## Included scope
 
