@@ -1,11 +1,7 @@
 const headers = {'X-CSRF-Token': document.querySelector('.admin-head').dataset.csrf};
 const t = window.cyberdeckTranslate;
 const nativeAlert = window.alert.bind(window);
-const nativeConfirm = window.confirm.bind(window);
-const nativePrompt = window.prompt.bind(window);
 window.alert = message => nativeAlert(t(String(message)));
-window.confirm = message => nativeConfirm(t(String(message)));
-window.prompt = (message, value) => nativePrompt(t(String(message)), value);
 const exportForm = document.querySelector('#export-form');
 const exportOptions = document.querySelector('#export-options');
 const exportStatus = document.querySelector('#export-status');
@@ -544,7 +540,7 @@ async function refreshPdfImports(){
 function row(title, detail, buttonText, callback) { const el=document.createElement('div');el.className='item-row';const label=document.createElement('div');const strong=document.createElement('strong');strong.textContent=title;const small=document.createElement('span');small.textContent=` ${detail||''}`;label.append(strong,small);const button=document.createElement('button');button.className='button';button.type='button';button.textContent=t(buttonText);button.onclick=callback;el.append(label,button);return el; }
 function recordActions(){const actions=document.createElement('div');actions.className='record-actions';return actions}
 const armedRemovals=new Map();
-function armRemoval(button,remove,key){
+function armRemoval(button,remove,key,confirmLabel=t('ui.0698')){
   const label=button.textContent;
   button.dataset.removalKey=key;button.dataset.removalLabel=label;
   const disarm=()=>{
@@ -555,13 +551,13 @@ function armRemoval(button,remove,key){
   };
   const expires=armedRemovals.get(key);
   if(expires>Date.now()){
-    button.dataset.armed='true';button.textContent=t('ui.0698');button.classList.add('danger');
+    button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add('danger');
     setTimeout(()=>{if(armedRemovals.get(key)===expires&&Date.now()>=expires)disarm()},expires-Date.now());
   }else if(expires)armedRemovals.delete(key);
   button.onclick=async()=>{
     if(!(armedRemovals.get(key)>Date.now())){
       const nextExpiry=Date.now()+8000;armedRemovals.set(key,nextExpiry);
-      button.dataset.armed='true';button.textContent=t('ui.0698');button.classList.add('danger');
+      button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add('danger');
       setTimeout(()=>{if(armedRemovals.get(key)===nextExpiry&&Date.now()>=nextExpiry)disarm()},8000);return;
     }
     disarm();button.disabled=true;
@@ -1481,8 +1477,8 @@ function renderCardRow(card){
   details.append(title,summary);row.append(details);
   const actions=document.createElement('div');actions.className='record-actions';
   const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
-  const remove=document.createElement('button');remove.type='button';remove.className='button danger remove-action';remove.textContent='Delete';remove.title=hasContents?'Delete this card and all connected contents':'Delete this empty card';
-  remove.onclick=async()=>{if(hasContents){const confirmation=prompt(`This will permanently delete “${card.title}” and its ${card.child_count} connected contents. Type ${card.id} to confirm.`);if(confirmation!==card.id)return}else if(!confirm(`Delete the empty card “${card.title}”?`))return;try{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()}catch(error){alert(error.message)}};
+  const remove=document.createElement('button');remove.type='button';remove.className='button danger remove-action';remove.textContent='Delete';remove.title=hasContents?`Delete ${card.child_count} connected contents with this card`:'Delete this empty card';
+  armRemoval(remove,async()=>{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()},`card:${card.id}`,'Confirm Delete');
   actions.append(remove);row.append(actions);return row;
 }
 function uniqueEntryId(card,title){const base=slugify(title)||'entry';let id=base;let suffix=2;while(card.entries.some(entry=>entry.id===id))id=`${base.slice(0,58)}-${suffix++}`;return id}
@@ -1521,7 +1517,7 @@ function renderEntryRow(card,entry){
   if(card.type==='rss'){const label=document.createElement('label');label.className='check';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=entry.enabled!==false;checkbox.setAttribute('aria-label',`Enable ${entry.title}`);checkbox.onchange=async()=>{checkbox.disabled=true;try{await persistEntry(card,entry.id,{enabled:checkbox.checked},'PUT')}catch(error){checkbox.checked=!checkbox.checked;alert(error.message)}finally{checkbox.disabled=false}};label.append(checkbox,document.createTextNode(' Enabled'));row.append(label)}
   const main=document.createElement('div');main.className='source-entry-details';const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=entry.display_title||entry.title;const url=document.createElement('span');url.className='subtle';url.textContent=entry.url;main.append(title,url);if(entry.display_description||entry.description){const desc=document.createElement('span');desc.dataset.userContent='true';desc.textContent=entry.display_description||entry.description;main.append(desc)}row.append(main);
   const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginEntryEdit(card,entry);actions.append(edit);
-  const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Delete';remove.onclick=async()=>{if(!confirm(`Delete “${entry.title}”?`))return;remove.disabled=true;try{await persistEntry(card,entry.id,{},'DELETE')}catch(error){alert(error.message);remove.disabled=false}};actions.append(remove);row.append(actions);return row;
+  const remove=document.createElement('button');remove.type='button';remove.className='button danger remove-action';remove.textContent='Delete';armRemoval(remove,async()=>{await persistEntry(card,entry.id,{},'DELETE')},`entry:${card.id}:${entry.id}`,'Confirm Delete');actions.append(remove);row.append(actions);return row;
 }
 function renderCards(){
   const all=document.querySelector('#card-list');all.replaceChildren(...adminCards.map(card=>renderCardRow(card)));document.querySelector('#cards-count').textContent=adminCards.length;
@@ -1552,11 +1548,7 @@ document.querySelector('#documents-list')&&new MutationObserver(applyContentCard
 document.querySelector('#zim-list')&&new MutationObserver(()=>{const rows=document.querySelectorAll('#zim-list>.item-row').length;document.querySelector('#zim-count').textContent=rows;applyContentCardFilters()}).observe(document.querySelector('#zim-list'),{childList:true});
 refreshCards().catch(error=>{cardStatus.textContent=error.message});
 
-document.querySelector('#content-reset')?.addEventListener('click',async event=>{
-  const status=document.querySelector('#content-reset-status');
-  if(!confirm('Remove every card, document, ZIM, feed, link, and acquired content file? Admin accounts and server settings will remain. This cannot be undone.'))return;
-  const button=event.currentTarget;button.disabled=true;status.textContent='Removing all contents…';
-  try{await requestJson('/api/admin/content/reset',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({confirm:'REMOVE ALL CONTENT'})});await refreshCards();await refreshDocuments();await refreshZims();status.textContent='All contents were removed.'}
-  catch(error){status.textContent=error.message}finally{button.disabled=false}
-});
+const contentResetStatus=document.querySelector('#content-reset-status');
+const contentResetButton=document.querySelector('#content-reset');
+if(contentResetButton)armRemoval(contentResetButton,async()=>{contentResetStatus.textContent='Removing all contents…';await requestJson('/api/admin/content/reset',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({confirm:'REMOVE ALL CONTENT'})});await refreshCards();await refreshDocuments();await refreshZims();contentResetStatus.textContent='All contents were removed.'},'all-content-reset','Confirm Remove');
 Promise.all([refreshZims(),refreshDocuments(),refreshExportOptions(),refreshPdfImports()]).catch(error=>alert(error.message));setInterval(()=>{if(zimPolling||!zimLoaded)refreshZims().catch(error=>{document.querySelector('#zim-status').textContent=`Could not load ZIMs: ${error.message}`})},10000);

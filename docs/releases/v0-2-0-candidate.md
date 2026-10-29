@@ -59,6 +59,9 @@ developer deployment helper.
 examples, adds per-card transfer and origin-source metadata, and adds card
 deletion and a content reset that preserves administrator access and server
 settings. It also adds a hideable Start card with a local getting-started guide.
+`0.2.0-beta.25` replaces card and content removal popups with inline
+two-click confirmation and clarifies when container runtime mode cannot manage
+the host firewall. It also advances the static asset cache version.
 
 ## Included scope
 

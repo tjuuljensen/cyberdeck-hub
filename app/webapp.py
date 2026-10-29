@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.24'
+APP_VERSION = '0.2.0-beta.25'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -926,6 +926,7 @@ def template_settings():
                    for message_id, default in ENGLISH_DEFAULTS.items()},
             },
             'cyberdeck_host': os.environ.get('CYBERDECK_HOSTNAME', 'cyberdeck.local'),
+            'runtime_mode': os.environ.get('CYBERDECK_RUNTIME_MODE', 'debian').lower(),
             'capabilities': capabilities,
             'admin_configured': admin_account_exists(),
             'site_preferences': site_preferences()}
