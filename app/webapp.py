@@ -137,25 +137,8 @@ POLICE_RSS_CACHE_SECONDS = 120
 _police_rss_cache = {}
 _police_rss_locks = {}
 _police_rss_state_lock = threading.Lock()
-DEFAULT_ONLINE_SOURCE_CARDS = [{
-    'id': 'online-sources', 'title': 'Internet-required sources',
-    'description': 'Live information from external services. These links are hidden when the Hub cannot reach the internet.',
-    'source_language': 'en',
-    'translations': {'da': {'title': 'Kilder, der kræver internet',
-                            'description': 'Aktuel information fra eksterne tjenester. Gruppen skjules, når Cyberdeck Hub ikke har internetadgang.'}},
-    'links': ONLINE_CRISIS_LINKS,
-}]
-DEFAULT_RSS_CARDS = [{
-    'id': 'danish-police', 'title': 'Danish Police Update RSS',
-    'description': 'Load recent public operational updates from the Danish police. This reader does not send notifications and is not an emergency alert channel.',
-    'source_language': 'en',
-    'translations': {'da': {'title': 'Politi Update RSS',
-                            'description': 'Hent de seneste offentlige operative meddelelser fra politiet. Denne RSS-læser sender ikke notifikationer og er ikke en officiel varslingskanal.'}},
-    'feeds': [{'id': feed_id, 'title': label,
-               'url': POLICE_RSS_BASE + (('?' + urllib.parse.urlencode({'publisherId': publisher_id}))
-                                         if publisher_id else '')}
-              for feed_id, (label, publisher_id) in POLICE_RSS_FEEDS.items()],
-}]
+DEFAULT_ONLINE_SOURCE_CARDS = []
+DEFAULT_RSS_CARDS = []
 ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.zip'}
 IMAGE_MIMES = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}
 KIWIX_DOWNLOAD_HOSTS = {'download.kiwix.org', 'lb.download.kiwix.org'}
@@ -328,6 +311,12 @@ def _valid_card_url(value, label):
     return value
 
 
+def _origin_source(value):
+    if value in (None, ''):
+        return ''
+    return _valid_card_url(value, 'Metadata Origin Source')
+
+
 def _migrate_legacy_card_text(record, fields, default_language='en'):
     """Materialize known legacy locale text in a card or entry record."""
     migrated = dict(record)
@@ -490,6 +479,7 @@ def _validate_card_list(cards, kind):
                     raise ValueError('Online source descriptions must be at most 300 characters')
                 normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
                                            'url': _valid_card_url(entry.get('url'), 'Online source URL'),
+                                           'origin_source': _origin_source(entry.get('origin_source', '')),
                                            'description': entry_description.strip(),
                                            'source_language': entry_source_language,
                                            'translations': normalized_entry_translations})
@@ -499,6 +489,7 @@ def _validate_card_list(cards, kind):
                     raise ValueError('RSS feed enabled must be true or false')
                 normalized_entries.append({'id': entry_id, 'title': entry_title.strip(),
                                            'url': _valid_card_url(entry.get('url'), 'RSS feed URL'),
+                                           'origin_source': _origin_source(entry.get('origin_source', '')),
                                            'enabled': enabled,
                                            'source_language': entry_source_language,
                                            'translations': normalized_entry_translations})
@@ -532,11 +523,12 @@ def _configured_card_list(key, defaults, kind):
             field = 'links' if card_type == 'online' else 'feeds'
             entries = []
             for entry in g.db.execute(
-                    'SELECT id,title,description,url,enabled,source_language,translations '
+                    'SELECT id,title,description,url,enabled,source_language,translations,origin_source '
                     'FROM card_entry WHERE card_id=? ORDER BY display_order,id', (row['id'],)):
                 value = {'id': entry['id'], 'title': entry['title'], 'url': entry['url'],
                          'source_language': entry['source_language'],
-                         'translations': json.loads(entry['translations'] or '{}')}
+                         'translations': json.loads(entry['translations'] or '{}'),
+                         'origin_source': entry['origin_source'] or ''}
                 if card_type == 'online':
                     value['description'] = entry['description'] or ''
                 else:
@@ -599,33 +591,14 @@ def _replace_card_collections(online=None, rss=None):
                           int(card['show_when_empty']), card['offline_display']))
             for entry_position, entry in enumerate(card[field]):
                 g.db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
-                              enabled,source_language,translations) VALUES(?,?,?,?,?,?,?,?,?)''',
+                              enabled,source_language,translations,origin_source) VALUES(?,?,?,?,?,?,?,?,?,?)''',
                              (card['id'], entry['id'], entry_position, entry['title'],
                               entry.get('description', ''), entry['url'], int(entry.get('enabled', True)),
-                              entry['source_language'], json.dumps(entry['translations'], ensure_ascii=False)))
+                              entry['source_language'], json.dumps(entry['translations'], ensure_ascii=False),
+                              entry.get('origin_source', '')))
         if rss is not None:
             with _police_rss_state_lock:
                 _police_rss_cache.clear()
-
-
-def restore_empty_default_police_feeds(cards):
-    """Repair the original built-in Police card once if a prior edit erased its feeds."""
-    was_in_transaction = getattr(g.db, 'in_transaction', False)
-    marker = g.db.execute("SELECT value FROM site_setting WHERE key='police_rss_feeds_restored'").fetchone()
-    if marker:
-        return cards
-    default = next((card for card in DEFAULT_RSS_CARDS if card['id'] == 'danish-police'), None)
-    existing = next((card for card in cards if card['id'] == 'danish-police'), None)
-    if existing and not existing['feeds'] and default:
-        existing['feeds'] = json.loads(json.dumps(default['feeds']))
-        cards = _validate_card_list(cards, 'RSS')
-        _replace_card_collections(rss=cards)
-    g.db.execute('INSERT INTO site_setting(key,value) VALUES(?,?) '
-                 'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                 ('police_rss_feeds_restored', '1'))
-    if not was_in_transaction:
-        g.db.commit()
-    return cards
 
 
 def _migrate_card_storage(db):
@@ -640,6 +613,7 @@ def _migrate_card_storage(db):
         id TEXT NOT NULL, display_order INTEGER NOT NULL DEFAULT 0, title TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '', url TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
         source_language TEXT NOT NULL DEFAULT 'en', translations TEXT NOT NULL DEFAULT '{}',
+        origin_source TEXT NOT NULL DEFAULT '',
         PRIMARY KEY(card_id,id))''')
     marker = db.execute("SELECT value FROM site_setting WHERE key='card_storage_migration_v1'").fetchone()
     if marker and marker['value'] == 'complete':
@@ -1081,7 +1055,8 @@ def connect_db():
     db.execute('''CREATE TABLE IF NOT EXISTS item (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
         search_terms TEXT NOT NULL DEFAULT '',
-        subject TEXT NOT NULL, cover TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)''')
+        subject TEXT NOT NULL, cover TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        origin_source TEXT NOT NULL DEFAULT '')''')
     db.execute('''CREATE TABLE IF NOT EXISTS attachment (
         id TEXT PRIMARY KEY, item_id TEXT NOT NULL REFERENCES item(id) ON DELETE CASCADE,
         filename TEXT NOT NULL, stored_path TEXT NOT NULL, kind TEXT NOT NULL)''')
@@ -1091,7 +1066,8 @@ def connect_db():
     db.execute('''CREATE TABLE IF NOT EXISTS zim (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, subject TEXT NOT NULL,
         filename TEXT NOT NULL UNIQUE, source_url TEXT NOT NULL,
-        bytes INTEGER, sha256 TEXT, status TEXT NOT NULL DEFAULT 'queued')''')
+        bytes INTEGER, sha256 TEXT, status TEXT NOT NULL DEFAULT 'queued',
+        origin_source TEXT NOT NULL DEFAULT '')''')
     db.execute('''CREATE TABLE IF NOT EXISTS site_setting (
         key TEXT PRIMARY KEY, value TEXT NOT NULL)''')
     db.execute('''CREATE TABLE IF NOT EXISTS import_transaction (
@@ -1137,9 +1113,19 @@ def connect_db():
     item_columns = {row['name'] for row in db.execute('PRAGMA table_info(item)')}
     if 'search_terms' not in item_columns:
         db.execute("ALTER TABLE item ADD COLUMN search_terms TEXT NOT NULL DEFAULT ''")
+    if 'origin_source' not in item_columns:
+        db.execute("ALTER TABLE item ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
+    zim_columns = {row['name'] for row in db.execute('PRAGMA table_info(zim)')}
+    if 'origin_source' not in zim_columns:
+        db.execute("ALTER TABLE zim ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
+    card_entry_columns = {row['name'] for row in db.execute('PRAGMA table_info(card_entry)')}
+    if 'origin_source' not in card_entry_columns:
+        db.execute("ALTER TABLE card_entry ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
     archive_columns = {row['name'] for row in db.execute('PRAGMA table_info(archive_metadata)')}
     if 'search_terms' not in archive_columns:
         db.execute("ALTER TABLE archive_metadata ADD COLUMN search_terms TEXT NOT NULL DEFAULT ''")
+    if 'origin_source' not in archive_columns:
+        db.execute("ALTER TABLE archive_metadata ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
     db.executescript('''
         CREATE TRIGGER IF NOT EXISTS item_subject_insert
         BEFORE INSERT ON item
@@ -1570,7 +1556,7 @@ def online_source_page(card_id):
 
 @app.get('/rss/<card_id>')
 def rss_card_page(card_id):
-    cards = restore_empty_default_police_feeds(configured_rss_cards())
+    cards = configured_rss_cards()
     card = next((item for item in cards if item['id'] == card_id), None)
     if not card:
         abort(404)
@@ -1858,7 +1844,7 @@ def active_starter_paths():
 
 def archive_metadata():
     return {row['filename']: dict(row) for row in
-            g.db.execute('SELECT filename,title,subject,search_terms FROM archive_metadata')}
+            g.db.execute('SELECT filename,title,subject,search_terms,origin_source FROM archive_metadata')}
 
 
 def export_inventory():
@@ -1875,7 +1861,7 @@ def export_inventory():
         local = overrides.get(path.removeprefix('public/'), {}) if path.startswith('public/') else {}
         asset.update({key: local[value] for key, value in
                       [('title', 'title'), ('collection', 'subject'),
-                       ('search_terms', 'search_terms')] if value in local})
+                       ('search_terms', 'search_terms'), ('origin_source', 'origin_source')] if value in local})
         entries[path] = asset
     for row in g.db.execute('SELECT * FROM zim ORDER BY filename'):
         path = 'zim/' + row['filename']
@@ -1891,6 +1877,8 @@ def export_inventory():
                 asset = {'path': path, 'url': row['source_url'], 'max_bytes': row['bytes'],
                          'expected_bytes': row['bytes'], 'sha256': row['sha256']}
         asset.update(title=row['title'], collection=row['subject'])
+        if row['origin_source']:
+            asset['origin_source'] = row['origin_source']
         library.validate_asset(asset)
         entries[path] = asset
     result = []
@@ -1913,7 +1901,8 @@ def export_inventory():
                 asset = json.loads(source['asset'])
                 asset.update(title=row['title'] + ' - ' + attachment['filename'],
                              collection=row['subject'], description=row['description'],
-                             search_terms=row['search_terms'])
+                             search_terms=row['search_terms'],
+                             origin_source=row['origin_source'])
                 library.validate_asset(asset)
                 result.append({'id': 'source:' + attachment['id'], 'title': asset['title'],
                                'subject': row['subject'], 'mode': 'online',
@@ -2346,6 +2335,8 @@ def _validate_import_config(config):
     paths = set()
     for asset in config.get('assets', []):
         library.validate_asset(asset)
+        if 'origin_source' in asset:
+            asset['origin_source'] = _origin_source(asset['origin_source'])
         if asset['path'] in paths:
             raise ValueError('Configuration has duplicate destination paths')
         paths.add(asset['path'])
@@ -3870,6 +3861,10 @@ def archive_edit(filename):
         return jsonify(error='Expected a display title and subject'), 400
     title, subject = body.get('title'), body.get('subject')
     search_terms = body.get('search_terms', '')
+    try:
+        origin_source = _origin_source(body.get('origin_source', ''))
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
     if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
         return jsonify(error='Display title must contain 1 to 200 characters'), 400
     if not isinstance(subject, str) or subject not in {row[0] for row in get_subjects()}:
@@ -3884,13 +3879,13 @@ def archive_edit(filename):
     if 'public/' + filename not in records:
         abort(404)
     # Display overrides never rewrite acquisition identity or downloaded bytes.
-    g.db.execute('''INSERT INTO archive_metadata(filename,title,subject,search_terms) VALUES(?,?,?,?)
+    g.db.execute('''INSERT INTO archive_metadata(filename,title,subject,search_terms,origin_source) VALUES(?,?,?,?,?)
         ON CONFLICT(filename) DO UPDATE SET title=excluded.title,subject=excluded.subject,
-        search_terms=excluded.search_terms''',
-                 (filename, title.strip(), subject, search_terms.strip()))
+        search_terms=excluded.search_terms,origin_source=excluded.origin_source''',
+                 (filename, title.strip(), subject, search_terms.strip(), origin_source))
     g.db.commit()
     return jsonify(filename=filename, title=title.strip(), subject=subject,
-                   search_terms=search_terms.strip())
+                   search_terms=search_terms.strip(), origin_source=origin_source)
 
 
 @app.delete('/api/admin/archive/<filename>')
@@ -4591,19 +4586,39 @@ def _persist_card_collections(cards):
                           json.dumps(card['translations'], ensure_ascii=False), card['source_language'],
                           int(card['show_when_empty']), card['offline_display']))
             for entry_position, entry in enumerate(card[field]):
-                g.db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
-                               enabled,source_language,translations) VALUES(?,?,?,?,?,?,?,?,?)''',
+            g.db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
+                           enabled,source_language,translations,origin_source) VALUES(?,?,?,?,?,?,?,?,?,?)''',
                              (card['id'], entry['id'], entry_position, entry['title'],
                               entry.get('description', ''), entry['url'],
                               int(entry.get('enabled', True)), entry['source_language'],
-                              json.dumps(entry['translations'], ensure_ascii=False)))
+                              json.dumps(entry['translations'], ensure_ascii=False),entry.get('origin_source','')))
 
 
 @app.get('/api/admin/cards')
 @admin_required
 def admin_cards_list():
-    restore_empty_default_police_feeds(configured_rss_cards())
     return jsonify(cards=_admin_card_records(), languages=SUPPORTED_LANGUAGES)
+
+
+@app.post('/api/admin/cards/transfer')
+@admin_required
+@csrf_required
+def admin_card_transfer_import():
+    body = request.get_json(silent=True)
+    if (not isinstance(body, dict) or body.get('format') != 'cyberdeck-card-transfer' or
+            body.get('version') != 1 or body.get('type') not in {'rss', 'online'} or
+            not isinstance(body.get('cards'), list) or len(body['cards']) != 1):
+        return jsonify(error='Choose a valid single-card transfer file'), 400
+    kind = body['type']
+    try:
+        incoming = _validate_card_list(body['cards'], 'RSS' if kind == 'rss' else 'online source')[0]
+        existing = configured_rss_cards() if kind == 'rss' else configured_online_source_cards()
+        existing = [card for card in existing if card['id'] != incoming['id']] + [incoming]
+        _replace_card_collections(rss=existing if kind == 'rss' else None,
+                                  online=existing if kind == 'online' else None)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    return jsonify(message='Card and entries imported', id=incoming['id'])
 
 
 @app.post('/api/admin/cards')
@@ -4801,11 +4816,32 @@ def admin_card_remove(card_id):
     if not card:
         g.db.rollback()
         return jsonify(error='Card not found'), 404
-    if card['child_count']:
-        g.db.rollback()
-        return jsonify(error='Remove the connected child data before deleting this card'), 409
     try:
         if card['type'] == 'subject':
+            if any(row['status'].startswith('pid:') and zim_worker_alive(row['status'][4:], row['id'])
+                   for row in g.db.execute('SELECT id,status FROM zim WHERE subject=?', (card_id,))):
+                g.db.rollback()
+                return jsonify(error='Wait for this card’s active ZIM downloads to finish before deleting it'), 409
+            item_ids = [row['id'] for row in g.db.execute('SELECT id FROM item WHERE subject=?', (card_id,))]
+            for item_id in item_ids:
+                shutil.rmtree(PRIVATE_ROOT / 'files' / item_id, ignore_errors=True)
+            zim_rows = [dict(row) for row in g.db.execute('SELECT * FROM zim WHERE subject=?', (card_id,))]
+            for zim in zim_rows:
+                library.safe_path(DATA_ROOT, 'zim/' + zim['filename']).unlink(missing_ok=True)
+            acquired = DATA_ROOT / 'acquired.json'
+            if acquired.is_file():
+                records = acquired_records()
+                for path, record in list(records.items()):
+                    asset = record.get('asset', {}) if isinstance(record, dict) else {}
+                    if asset.get('collection') == card_id:
+                        target = library.safe_path(DATA_ROOT, path)
+                        if target.is_dir(): shutil.rmtree(target)
+                        else: target.unlink(missing_ok=True)
+                        records.pop(path, None)
+                acquired.write_text(json.dumps(records, indent=2) + '\n', encoding='utf-8')
+            g.db.execute('DELETE FROM item WHERE subject=?', (card_id,))
+            g.db.execute('DELETE FROM zim WHERE subject=?', (card_id,))
+            g.db.execute('DELETE FROM archive_metadata WHERE subject=?', (card_id,))
             g.db.execute('DELETE FROM library_subject WHERE id=?', (card_id,))
         _persist_card_collections([item for item in cards if item['id'] != card_id])
         g.db.commit()
@@ -4813,6 +4849,46 @@ def admin_card_remove(card_id):
         g.db.rollback()
         return jsonify(error=str(error) or 'Could not delete card'), 400
     return '', 204
+
+
+@app.post('/api/admin/content/reset')
+@admin_required
+@csrf_required
+def admin_content_reset():
+    body = request.get_json(silent=True) or {}
+    if body.get('confirm') != 'REMOVE ALL CONTENT':
+        return jsonify(error='Confirm by sending REMOVE ALL CONTENT'), 400
+    try:
+        if any(row['status'].startswith('pid:') and zim_worker_alive(row['status'][4:], row['id'])
+               for row in g.db.execute('SELECT id,status FROM zim')):
+            return jsonify(error='Wait for active ZIM downloads to finish before removing all contents'), 409
+        records = acquired_records()
+        for path in records:
+            target = library.safe_path(DATA_ROOT, path)
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink(missing_ok=True)
+        acquired = DATA_ROOT / 'acquired.json'
+        if acquired.exists():
+            acquired.write_text('{}\n', encoding='utf-8')
+        for row in g.db.execute('SELECT filename FROM zim').fetchall():
+            library.safe_path(DATA_ROOT, 'zim/' + row['filename']).unlink(missing_ok=True)
+        for row in g.db.execute('SELECT id FROM item').fetchall():
+            shutil.rmtree(PRIVATE_ROOT / 'files' / row['id'], ignore_errors=True)
+        g.db.execute('DELETE FROM item')
+        g.db.execute('DELETE FROM zim')
+        g.db.execute('DELETE FROM archive_metadata')
+        g.db.execute('DELETE FROM card_entry')
+        g.db.execute('DELETE FROM card')
+        g.db.execute("DELETE FROM card WHERE type='subject'")
+        g.db.commit()
+        sync_kiwix_index()
+        restart_kiwix()
+    except (OSError, ValueError, sqlite3.Error) as error:
+        g.db.rollback()
+        return jsonify(error='Could not reset all content: ' + str(error)), 503
+    return jsonify(message='All content was removed. Administrator access and server settings were preserved.')
 
 
 @app.get('/api/admin/subjects')
@@ -5319,12 +5395,13 @@ def zim_catalog():
                        error_params={'error': str(error)}), 502
 
 
-def acquire_zim(title, subject, source_url, db=None):
+def acquire_zim(title, subject, source_url, db=None, origin_source=''):
     db = db or g.db
     title = title.strip()[:200]
     if not title or not db.execute('SELECT 1 FROM library_subject WHERE id=?', (subject,)).fetchone():
         raise ValueError('Title and a known subject are required')
     clean_url, expected_bytes, checksum, checksum_url = inspect_kiwix_asset(source_url)
+    origin_source = _origin_source(origin_source)
     filename = secure_filename(Path(urllib.parse.urlsplit(clean_url).path).name)
     if not filename.lower().endswith('.zim'):
         raise ValueError('Source must name a .zim file')
@@ -5336,6 +5413,8 @@ def acquire_zim(title, subject, source_url, db=None):
              'url': clean_url, 'max_bytes': expected_bytes, 'expected_bytes': expected_bytes,
              'sha256': checksum, 'checksum_url': checksum_url,
              'hash_provenance': 'Kiwix HTTPS SHA-256 sidecar inspected at acquisition time.'}
+    if origin_source:
+        asset['origin_source'] = origin_source
     db.execute('BEGIN IMMEDIATE')
     proc = None
     try:
@@ -5345,8 +5424,8 @@ def acquire_zim(title, subject, source_url, db=None):
         ensure_zim_capacity(db, expected_bytes)
         manifest_path.write_text(json.dumps({'id': zid, 'reserve_bytes': ZIM_DOWNLOAD_RESERVE_BYTES,
                                              'assets': [asset]}, indent=2), encoding='utf-8')
-        db.execute('INSERT INTO zim(id,title,subject,filename,source_url,status) VALUES(?,?,?,?,?,?)',
-                     (zid, title, subject, filename, clean_url, 'downloading'))
+        db.execute('INSERT INTO zim(id,title,subject,filename,source_url,status,origin_source) VALUES(?,?,?,?,?,?,?)',
+                     (zid, title, subject, filename, clean_url, 'downloading', origin_source))
         # Start while the write lock is held. The child waits for this transaction
         # before reading the request, so no committed reservation can be orphaned
         # in a crash window between marking it downloading and starting the worker.
@@ -5387,7 +5466,8 @@ def start_import_zim_downloads(assets, db, skip_registered=False):
                 continue
             if target.exists() or registered:
                 raise ValueError(f'{asset["path"]} already exists or is already registered')
-            acquire_zim(title, asset['collection'], asset['url'], db=db)
+            acquire_zim(title, asset['collection'], asset['url'], db=db,
+                        origin_source=asset.get('origin_source', ''))
             started += 1
         except (OSError, ValueError, sqlite3.Error, subprocess.SubprocessError) as error:
             errors.append(f'{title}: {str(error)[:300]}')
@@ -5597,7 +5677,7 @@ def zims_add():
     body = request.get_json(silent=True) or {}
     try:
         zid = acquire_zim(str(body.get('title', '')), str(body.get('subject', 'general-reference')),
-                          str(body.get('url', '')))
+                          str(body.get('url', '')), origin_source=body.get('origin_source', ''))
     except (ValueError, sqlite3.IntegrityError) as error:
         return jsonify(error=str(error)), 400
     return jsonify(id=zid, status='downloading'), 202
@@ -5635,15 +5715,18 @@ def zim_edit(zid):
             # Adopt display metadata in the app DB; immutable acquisition and
             # resume records remain unchanged, as do the archive's own metadata.
             zid = str(uuid.uuid4())
-            g.db.execute('INSERT INTO zim(id,title,subject,filename,source_url,bytes,sha256,status) '
-                         'VALUES(?,?,?,?,?,?,?,?)',
+            g.db.execute('INSERT INTO zim(id,title,subject,filename,source_url,bytes,sha256,status,origin_source) '
+                         'VALUES(?,?,?,?,?,?,?,?,?)',
                          (zid, title.strip(), subject, filename, record['asset'].get('url', ''),
-                          record.get('bytes'), record.get('sha256'), 'ready'))
+                          record.get('bytes'), record.get('sha256'), 'ready',
+                          record['asset'].get('origin_source', '')))
     elif row is None:
         abort(404)
     if row is not None:
         zid = row['id']
-        g.db.execute('UPDATE zim SET title=?,subject=? WHERE id=?', (title.strip(), subject, zid))
+        origin_source = _origin_source(body.get('origin_source', row['origin_source'] if row else ''))
+        g.db.execute('UPDATE zim SET title=?,subject=?,origin_source=? WHERE id=?',
+                     (title.strip(), subject, origin_source, zid))
     g.db.commit()
     return jsonify(id=zid, title=title.strip(), subject=subject)
 
@@ -5832,8 +5915,12 @@ def item_create():
     base = PRIVATE_ROOT / 'files' / item_id
     base.mkdir(parents=True, mode=0o700)
     cover = None
-    g.db.execute('INSERT INTO item(id,title,description,subject,cover,search_terms) VALUES(?,?,?,?,NULL,?)',
-                 (item_id, title, description, subject, search_terms))
+    try:
+        origin_source = _origin_source(request.form.get('origin_source', ''))
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    g.db.execute('INSERT INTO item(id,title,description,subject,cover,search_terms,origin_source) VALUES(?,?,?,?,NULL,?,?)',
+                 (item_id, title, description, subject, search_terms, origin_source))
     try:
         def save_attachment(filename, stream, content_length=None, source_url=None):
             filename = secure_filename(filename or '')
@@ -5922,7 +6009,7 @@ def item_list():
             attachments.append(item)
         result.append({'id': row['id'], 'title': row['title'],
                        'description': row['description'], 'search_terms': row['search_terms'],
-                       'subject': row['subject'],
+                       'subject': row['subject'], 'origin_source': row['origin_source'],
                        'cover_url': f"/private/{row['id']}/cover" if row['cover'] else None,
                        'attachments': attachments})
     return jsonify(result)
@@ -5954,8 +6041,9 @@ def item_update(item_id):
     if (not isinstance(search_terms, str) or len(search_terms) > 1000 or
             any(ord(char) < 32 and char not in '\t\r\n' for char in search_terms)):
         return jsonify(error='Search terms must be at most 1000 characters of text'), 400
-    cursor = g.db.execute('UPDATE item SET title=?,description=?,search_terms=?,subject=? WHERE id=?',
-                          (title, description, search_terms.strip(), subject, item_id))
+    origin_source = _origin_source(body.get('origin_source', ''))
+    cursor = g.db.execute('UPDATE item SET title=?,description=?,search_terms=?,subject=?,origin_source=? WHERE id=?',
+                          (title, description, search_terms.strip(), subject, origin_source, item_id))
     if not cursor.rowcount:
         abort(404)
     g.db.commit()
