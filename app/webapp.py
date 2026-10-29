@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.44'
+APP_VERSION = '0.2.0-beta.45'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -2786,6 +2786,18 @@ def _catalogue_pdf_identities(catalogues):
     return paths, digests
 
 
+def _installed_asset_matches(path, digest):
+    """Return whether an installed public asset has the exact incoming bytes."""
+    if not re.fullmatch(r'[0-9a-f]{64}', str(digest).lower()):
+        return False
+    try:
+        target = library.safe_path(DATA_ROOT, path)
+        return (not target.is_symlink() and target.is_file() and
+                library.sha256(target).lower() == str(digest).lower())
+    except (OSError, ValueError):
+        return False
+
+
 def _online_pdf_import_options(assets, catalogues=()):
     """Describe internet PDF acquisitions and mark matching content or paths."""
     options = []
@@ -2803,6 +2815,18 @@ def _online_pdf_import_options(assets, catalogues=()):
             existing.setdefault(digest, asset_path)
 
     incoming_paths, incoming = _catalogue_pdf_identities(catalogues)
+    incoming_path_digests = {}
+    for _filename, metadata in catalogues:
+        entry = metadata.get('entry', {})
+        asset = entry.get('asset') if isinstance(entry, dict) else None
+        if not isinstance(asset, dict):
+            continue
+        path = asset.get('path')
+        files = {item.get('path'): item for item in metadata.get('files', [])
+                 if isinstance(item, dict)}
+        digest = str(files.get(path, {}).get('sha256', '')).lower()
+        if path in incoming_paths and re.fullmatch(r'[0-9a-f]{64}', digest):
+            incoming_path_digests[path] = digest
     seen = set(incoming)
     for asset in assets:
         path = asset['path']
@@ -2810,12 +2834,12 @@ def _online_pdf_import_options(assets, catalogues=()):
         digest = str(asset.get('sha256', '')).lower()
         reason = ''
         bundled_copy = path in incoming_paths
-        if bundled_copy:
-            # A catalogue copy is the payload for this online source, not a
-            # second download to warn about.
-            pass
-        elif path in existing_paths or target.exists():
+        if path in existing_paths or target.exists():
             reason = f'{path} is already installed or registered'
+        elif bundled_copy:
+            # The paired cache is expected; only an installed copy above is a
+            # duplicate worth showing in this source list.
+            reason = ''
         elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in existing:
             reason = f'matches installed {existing[digest]}'
         elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in incoming:
@@ -2828,7 +2852,8 @@ def _online_pdf_import_options(assets, catalogues=()):
                         'title': str(asset.get('title') or Path(path).name),
                         'path': path,
                         'bytes': asset.get('expected_bytes', asset.get('max_bytes', 0)),
-                        'conflict': path in existing_paths or target.exists(),
+                        'conflict': target.exists() and not _installed_asset_matches(
+                            path, incoming_path_digests.get(path, digest)),
                         'duplicate': bool(reason), 'reason': reason})
     return options
 
@@ -3373,9 +3398,15 @@ def import_preview():
             asset_path = entry.get('asset', {}).get('path')
             if 'asset' in entry:
                 target_path = library.safe_path(DATA_ROOT, asset_path)
+                asset_file = next((item for item in metadata.get('files', [])
+                                   if item.get('path') == asset_path), {})
+                same_installed_document = (
+                    isinstance(asset_path, str) and asset_path.startswith('public/') and
+                    _installed_asset_matches(asset_path, asset_file.get('sha256', '')))
                 registered_zim = (asset_path.startswith('zim/') and g.db.execute(
                     'SELECT 1 FROM zim WHERE filename=?', (Path(asset_path).name,)).fetchone())
-                if target_path.exists() or registered_zim: path_conflicts.append(asset_path)
+                if (target_path.exists() and not same_installed_document) or registered_zim:
+                    path_conflicts.append(asset_path)
             catalogs.append({'filename': filename, 'name': metadata.get('name', filename), 'bytes': size,
                              'expanded_html_bytes': expanded_html_bytes,
                              'asset_path': asset_path,
@@ -3671,6 +3702,7 @@ def import_apply():
                            if ('asset' not in plan[1]['entry'] or
                                not plan[1]['entry']['asset'].get('path', '').startswith('zim/') or
                                'catalog:' + plan[1]['_catalogue_filename'] in selected_zim_keys)]
+        reusable_asset_paths = set()
         conflicts = []
         bundled_pdf_paths, _bundled_pdf_digests = _catalogue_pdf_identities(
             [(metadata['_catalogue_filename'], metadata)
@@ -3681,10 +3713,18 @@ def import_apply():
         for _path, metadata, _size, _html_bytes in catalogue_plans:
             entry = metadata['entry']
             if 'asset' in entry:
-                dest = library.safe_path(DATA_ROOT, entry['asset']['path'])
-                registered_zim = (entry['asset']['path'].startswith('zim/') and g.db.execute(
-                    'SELECT 1 FROM zim WHERE filename=?', (Path(entry['asset']['path']).name,)).fetchone())
-                if dest.exists() or registered_zim: conflicts.append(entry['asset']['path'])
+                asset_path = entry['asset']['path']
+                dest = library.safe_path(DATA_ROOT, asset_path)
+                info = next(item for item in metadata['files'] if item['path'] == asset_path)
+                same_installed_document = (
+                    asset_path.startswith('public/') and
+                    _installed_asset_matches(asset_path, info.get('sha256', '')))
+                registered_zim = (asset_path.startswith('zim/') and g.db.execute(
+                    'SELECT 1 FROM zim WHERE filename=?', (Path(asset_path).name,)).fetchone())
+                if same_installed_document:
+                    reusable_asset_paths.add(asset_path)
+                elif dest.exists() or registered_zim:
+                    conflicts.append(asset_path)
         if conflicts:
             return jsonify(error='Import would overwrite existing files: {files}',
                            error_params={'files': ', '.join(conflicts[:8])}), 409
@@ -3723,6 +3763,8 @@ def import_apply():
             entry = metadata['entry']
             if 'asset' in entry:
                 source_path = entry['asset']['path']
+                if source_path in reusable_asset_paths:
+                    continue
                 info = next(item for item in metadata['files'] if item['path'] == source_path)
                 targets.append({'root': 'data', 'path': source_path, 'kind': 'file',
                                 'sha256': info['sha256']})
@@ -3771,6 +3813,25 @@ def import_apply():
                     current[target_id] = source
             for path, metadata, _size, _html_bytes in catalogue_plans:
                 entry = metadata['entry']
+                if ('asset' in entry and
+                        entry['asset']['path'] in reusable_asset_paths):
+                    asset = dict(entry['asset'])
+                    source_path = asset['path']
+                    destination = library.safe_path(DATA_ROOT, source_path)
+                    info = next(item for item in metadata['files'] if item['path'] == source_path)
+                    digest = library.sha256(destination).lower()
+                    if digest != str(info['sha256']).lower():
+                        raise ValueError('Installed document changed after preview')
+                    asset['collection'] = resolved.get(asset.get('collection'), asset.get('collection'))
+                    asset.pop('source_file', None)
+                    acquired[source_path] = {'asset': asset, 'bytes': info['bytes'], 'sha256': digest}
+                    g.db.execute(
+                        'INSERT INTO archive_metadata(filename,title,subject,search_terms) '
+                        'VALUES(?,?,?,?) ON CONFLICT(filename) DO UPDATE SET '
+                        'title=excluded.title,subject=excluded.subject,search_terms=excluded.search_terms',
+                        (Path(source_path).name, asset.get('title', Path(source_path).name),
+                         asset.get('collection', 'general-reference'), asset.get('search_terms', '')))
+                    continue
                 with zipfile.ZipFile(path) as archive:
                     if 'asset' in entry:
                         asset = dict(entry['asset'])

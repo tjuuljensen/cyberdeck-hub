@@ -107,6 +107,9 @@ subject mappings, so it remains visible near the top of the import review.
 `0.2.0-beta.44` discovers cached online PDFs from their bundled catalogue
 metadata as well as top-level config assets, and suppresses duplicate-content
 notices for those paired cache/source entries.
+`0.2.0-beta.45` keeps cached-copy selection available when files are already
+installed, labels those entries as duplicates, and reuses identical installed
+files instead of blocking the import with destination conflicts.
 
 ## Included scope
 

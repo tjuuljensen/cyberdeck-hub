@@ -408,7 +408,10 @@ importForm.addEventListener('submit', async event => {
     importPreview.append(details);
     const zimSelection = new Set((result.zim_options || []).filter(item => !item.duplicate).map(item => item.key));
     const documentSelection = new Set((result.document_options || []).filter(item => !item.duplicate).map(item => item.key));
-    const onlinePdfSelection = new Set((result.online_pdf_options || []).filter(item => !item.duplicate).map(item => item.key));
+    const cachedOnlineOptions=(result.document_options||[]).filter(item=>item.location==='cached_online');
+    const bundledOnlinePaths=new Set(cachedOnlineOptions.map(item=>item.path));
+    const onlinePdfSelection = new Set((result.online_pdf_options || [])
+      .filter(item => !item.duplicate || bundledOnlinePaths.has(item.path)).map(item => item.key));
     const zimGroup=appendImportItemGroup({title:'ui.0840',help:'ui.0531',items:result.zim_options||[],showWhenEmpty:true,
       selection:zimSelection,keyFor:'zimKey',duplicateMessage:'ui.0537',
       describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.kind==='download'?` · ${t('ui.0573')}`:''}`,
@@ -428,18 +431,17 @@ importForm.addEventListener('submit', async event => {
       }
       label.append(select); mappings.append(label);
     }
-    const cachedOnlineOptions=(result.document_options||[]).filter(item=>item.location==='cached_online');
-    let importCachedCopies=cachedOnlineOptions.some(item=>!item.duplicate);
+    let importCachedCopies=cachedOnlineOptions.length>0;
     const syncCachedCopies=()=>{
       for(const item of cachedOnlineOptions){
-        if(importCachedCopies&&!item.duplicate&&onlinePdfSelection.has(`online-pdf:${item.path}`))documentSelection.add(item.key);
+        if(importCachedCopies&&onlinePdfSelection.has(`online-pdf:${item.path}`))documentSelection.add(item.key);
         else documentSelection.delete(item.key);
       }
     };
     const cachedCopyToggle=()=>{
       const label=document.createElement('label');label.className='check';
       const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=importCachedCopies;
-      checkbox.disabled=!cachedOnlineOptions.some(item=>!item.duplicate);
+      checkbox.disabled=!cachedOnlineOptions.length;
       checkbox.addEventListener('change',()=>{importCachedCopies=checkbox.checked;syncCachedCopies();updateImportCapacity()});
       const text=document.createElement('span');text.textContent=t('ui.0874');label.append(checkbox,text);
       const wrapper=document.createElement('div');wrapper.className='export-category-items';wrapper.append(label);
