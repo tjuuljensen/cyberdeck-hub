@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.43'
+APP_VERSION = '0.2.0-beta.44'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -2545,13 +2545,14 @@ def _inspect_catalogue(stream, expected_entry=None):
     return metadata, total, expanded_html_bytes
 
 
-def _duplicate_import_warnings(db, catalogues):
+def _duplicate_import_warnings(db, catalogues, paired_online_pdf_paths=()):
     """Warn about duplicate non-PDF payloads handled outside the PDF selector."""
     incoming = {}
     duplicate_warnings = []
     incoming_sizes = set()
     selected_pdf_paths = set()
     selected_zim_paths = set()
+    paired_online_pdf_paths = set(paired_online_pdf_paths)
     for _filename, metadata in catalogues:
         entry = metadata.get('entry', {})
         if 'item' in entry:
@@ -2569,6 +2570,9 @@ def _duplicate_import_warnings(db, catalogues):
             size = item.get('bytes')
             entry = metadata.get('entry', {})
             asset = entry.get('asset', {}) if isinstance(entry, dict) else {}
+            if (isinstance(asset, dict) and asset.get('path') in paired_online_pdf_paths and
+                    asset.get('path', '').lower().endswith('.pdf')):
+                continue
             if isinstance(entry, dict) and 'item' in entry:
                 context = 'local document'
                 label = (f"{filename}: {entry['item'].get('title', item.get('path', 'unknown path'))} · "
@@ -2641,10 +2645,29 @@ def _duplicate_import_warnings(db, catalogues):
     return duplicate_warnings
 
 
-def _document_import_options(db, catalogues):
+def _online_pdf_import_assets(assets, catalogues):
+    """Collect online PDF links from both config assets and cached catalogues."""
+    result = {}
+    for asset in assets:
+        if (isinstance(asset, dict) and isinstance(asset.get('path'), str) and
+                asset['path'].startswith('public/') and asset['path'].lower().endswith('.pdf') and
+                asset.get('url')):
+            result.setdefault(asset['path'], asset)
+    for _filename, metadata in catalogues:
+        entry = metadata.get('entry', {})
+        asset = entry.get('asset') if isinstance(entry, dict) else None
+        if (isinstance(asset, dict) and isinstance(asset.get('path'), str) and
+                asset['path'].startswith('public/') and asset['path'].lower().endswith('.pdf') and
+                asset.get('url')):
+            result.setdefault(asset['path'], asset)
+    return list(result.values())
+
+
+def _document_import_options(db, catalogues, online_pdf_paths=()):
     """Describe local document copies and PDF attachments for import selection."""
     candidates = []
     sizes = set()
+    online_pdf_paths = set(online_pdf_paths)
     for filename, metadata in sorted(catalogues, key=lambda entry: entry[0].casefold()):
         entry = metadata.get('entry', {})
         if 'asset' in entry:
@@ -2664,7 +2687,7 @@ def _document_import_options(db, catalogues):
                                'catalogue': filename, 'stored_path': None,
                                'title': asset.get('title') or Path(path).name,
                                'path': path,
-                               'location': ('cached_online' if asset.get('url') and
+                               'location': ('cached_online' if (asset.get('url') or path in online_pdf_paths) and
                                             path.lower().endswith('.pdf') else 'library'),
                                'bytes': size, 'sha256': digest})
             continue
@@ -2786,13 +2809,18 @@ def _online_pdf_import_options(assets, catalogues=()):
         target = library.safe_path(DATA_ROOT, path)
         digest = str(asset.get('sha256', '')).lower()
         reason = ''
-        if path in existing_paths or target.exists():
+        bundled_copy = path in incoming_paths
+        if bundled_copy:
+            # A catalogue copy is the payload for this online source, not a
+            # second download to warn about.
+            pass
+        elif path in existing_paths or target.exists():
             reason = f'{path} is already installed or registered'
-        elif path not in incoming_paths and re.fullmatch(r'[0-9a-f]{64}', digest) and digest in existing:
+        elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in existing:
             reason = f'matches installed {existing[digest]}'
-        elif path not in incoming_paths and re.fullmatch(r'[0-9a-f]{64}', digest) and digest in incoming:
+        elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in incoming:
             reason = 'matches a PDF included in this ZIP'
-        elif path not in incoming_paths and re.fullmatch(r'[0-9a-f]{64}', digest) and digest in seen:
+        elif re.fullmatch(r'[0-9a-f]{64}', digest) and digest in seen:
             reason = 'matches another PDF in this import'
         if re.fullmatch(r'[0-9a-f]{64}', digest):
             seen.add(digest)
@@ -3388,6 +3416,7 @@ def import_preview():
         token = import_serializer().dumps({'id': token_id})
         zim_bytes = sum(item['bytes'] for item in catalogs if item['entry_type'] == 'zim')
         online_zim_bytes = sum(asset.get('expected_bytes', 0) for asset in online_zims)
+        online_pdfs = _online_pdf_import_assets(config.get('assets', []), catalogue_metadata)
         online_pdf_options = _online_pdf_import_options(online_pdfs, catalogue_metadata)
         zim_options = []
         for item in catalogs:
@@ -3415,7 +3444,8 @@ def import_preview():
         for option in zim_options:
             option.update(zim_duplicate_details.get(option['key'],
                                                     {'duplicate': False, 'reason': ''}))
-        document_options = _document_import_options(g.db, catalogue_metadata)
+        document_options = _document_import_options(
+            g.db, catalogue_metadata, (asset['path'] for asset in online_pdfs))
         document_bytes = sum(file['bytes'] for filename, metadata in catalogue_metadata
                              if 'item' in metadata['entry']
                              for file in metadata.get('files', []))
@@ -3451,7 +3481,9 @@ def import_preview():
                        warnings=['ZIM and internet PDF downloads start after you apply the import. Other online sources are saved for later acquisition.'] +
                        (['One or more online ZIM sources have no expected size; free-space preview may be low.']
                         if any('expected_bytes' not in asset for asset in online_zims) else []) +
-                       _duplicate_import_warnings(g.db, catalogue_metadata))
+                       _duplicate_import_warnings(
+                           g.db, catalogue_metadata,
+                           (asset['path'] for asset in online_pdfs)))
     except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile, json.JSONDecodeError) as error:
         shutil.rmtree(stage, ignore_errors=True)
         return jsonify(error=str(error) or 'Import package could not be read safely'), 400
@@ -3501,9 +3533,6 @@ def import_apply():
                 not set(selected_zims).issubset(all_zim_keys)):
             return jsonify(error='The selected ZIM list does not match the import preview'), 400
         selected_zim_keys = set(selected_zims)
-        all_online_pdf_assets = [asset for asset in config.get('assets', [])
-                                 if asset.get('path', '').startswith('public/') and
-                                 asset['path'].lower().endswith('.pdf') and 'url' in asset]
         mapping = body.get('subject_mapping')
         if not isinstance(mapping, dict):
             raise ValueError('Choose how every imported subject should be handled')
@@ -3537,6 +3566,8 @@ def import_apply():
             stream.close()
         online_pdf_catalogues = [(metadata['_catalogue_filename'], metadata)
                                  for _path, metadata, _size, _html in catalogue_plans]
+        all_online_pdf_assets = _online_pdf_import_assets(
+            config.get('assets', []), online_pdf_catalogues)
         online_pdf_options = _online_pdf_import_options(all_online_pdf_assets, online_pdf_catalogues)
         all_online_pdf_keys = {option['key'] for option in online_pdf_options}
         selected_online_pdfs = body.get('selected_online_pdfs')
@@ -3556,7 +3587,8 @@ def import_apply():
                            error_params={'files': ', '.join(selected_pdf_conflicts[:8])}), 409
         document_options = _document_import_options(
             g.db, [(metadata['_catalogue_filename'], metadata)
-                   for _path, metadata, _size, _html in catalogue_plans])
+                   for _path, metadata, _size, _html in catalogue_plans],
+            (asset['path'] for asset in all_online_pdf_assets))
         all_document_keys = {option['key'] for option in document_options}
         selected_documents = body.get('selected_documents')
         if selected_documents is None:
