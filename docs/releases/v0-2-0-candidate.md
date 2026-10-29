@@ -62,6 +62,15 @@ settings. It also adds a hideable Start card with a local getting-started guide.
 `0.2.0-beta.25` replaces card and content removal popups with inline
 two-click confirmation and clarifies when container runtime mode cannot manage
 the host firewall. It also advances the static asset cache version.
+`0.2.0-beta.26` keeps card deletion controls visually neutral while armed and
+labels populated cards with their connected content count.
+`0.2.0-beta.27` hides unidentified, unmounted, partitionless devices from the
+storage overview while retaining the full disk inventory for backend safety
+checks.
+`0.2.0-beta.28` removes the redundant success popup after saving Hotspot
+settings.
+`0.2.0-beta.29` applies the configured site accent color to the getting-started
+page.
 
 ## Included scope
 

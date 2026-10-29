@@ -540,24 +540,24 @@ async function refreshPdfImports(){
 function row(title, detail, buttonText, callback) { const el=document.createElement('div');el.className='item-row';const label=document.createElement('div');const strong=document.createElement('strong');strong.textContent=title;const small=document.createElement('span');small.textContent=` ${detail||''}`;label.append(strong,small);const button=document.createElement('button');button.className='button';button.type='button';button.textContent=t(buttonText);button.onclick=callback;el.append(label,button);return el; }
 function recordActions(){const actions=document.createElement('div');actions.className='record-actions';return actions}
 const armedRemovals=new Map();
-function armRemoval(button,remove,key,confirmLabel=t('ui.0698')){
+function armRemoval(button,remove,key,confirmLabel=t('ui.0698'),armedClass='danger'){
   const label=button.textContent;
   button.dataset.removalKey=key;button.dataset.removalLabel=label;
   const disarm=()=>{
     armedRemovals.delete(key);
     document.querySelectorAll('[data-removal-key]').forEach(candidate=>{
-      if(candidate.dataset.removalKey===key){delete candidate.dataset.armed;candidate.textContent=candidate.dataset.removalLabel;candidate.classList.remove('danger')}
+      if(candidate.dataset.removalKey===key){delete candidate.dataset.armed;candidate.textContent=candidate.dataset.removalLabel;candidate.classList.remove(armedClass)}
     });
   };
   const expires=armedRemovals.get(key);
   if(expires>Date.now()){
-    button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add('danger');
+    button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add(armedClass);
     setTimeout(()=>{if(armedRemovals.get(key)===expires&&Date.now()>=expires)disarm()},expires-Date.now());
   }else if(expires)armedRemovals.delete(key);
   button.onclick=async()=>{
     if(!(armedRemovals.get(key)>Date.now())){
       const nextExpiry=Date.now()+8000;armedRemovals.set(key,nextExpiry);
-      button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add('danger');
+      button.dataset.armed='true';button.textContent=confirmLabel;button.classList.add(armedClass);
       setTimeout(()=>{if(armedRemovals.get(key)===nextExpiry&&Date.now()>=nextExpiry)disarm()},8000);return;
     }
     disarm();button.disabled=true;
@@ -1033,7 +1033,8 @@ async function refreshStorage(){
     const result=await requestJson('/api/admin/storage');
     approvedLocationsStorageInfo=result;
     renderApprovedStorageLocations();
-    const disks=result.disks||[];
+    const disks=(result.disks||[]).filter(disk=>!(disk.model==='Unknown disk'&&!disk.transport&&!disk.stable_id&&
+      !disk.partitions?.length&&!disk.mounts?.length&&!disk.system_disk&&!disk.active_data_disk&&!disk.adopted));
     const migration=result.migration||{};
     const initialization=result.initialization||{};
     const signature=JSON.stringify({disks,migration:{status:migration.status,stable_id:migration.stable_id,
@@ -1293,7 +1294,7 @@ if(firewallToggle){
 }
 if(document.querySelector('#hotspot')){
 document.querySelectorAll('[data-hotspot]').forEach(button=>button.addEventListener('click',async()=>{try{await requestJson('/api/admin/hotspot',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:button.dataset.hotspot})});if(button.dataset.hotspot==='stop')hotspotConfigLoaded=false;await Promise.all([hotspotStatus(),refreshSystemOverview()])}catch(error){alert(error.message)}}));
-document.querySelector('#hotspot-form').addEventListener('submit',async event=>{event.preventDefault();const formElement=event.currentTarget;const form=new FormData(formElement);try{await requestJson('/api/admin/hotspot',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:'configure',device:form.get('device'),ssid:form.get('ssid'),password:form.get('password'),upstream_ssids:String(form.get('upstream_ssids')||'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean),redundancy_minutes:Number(form.get('redundancy_minutes')),autostart:form.has('autostart')})});formElement.elements.password.value='';hotspotConfigLoaded=false;hotspotPasswordLoaded=false;await hotspotStatus();alert('Hotspot profile saved.')}catch(error){alert(error.message)}});
+document.querySelector('#hotspot-form').addEventListener('submit',async event=>{event.preventDefault();const formElement=event.currentTarget;const form=new FormData(formElement);try{await requestJson('/api/admin/hotspot',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:'configure',device:form.get('device'),ssid:form.get('ssid'),password:form.get('password'),upstream_ssids:String(form.get('upstream_ssids')||'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean),redundancy_minutes:Number(form.get('redundancy_minutes')),autostart:form.has('autostart')})});formElement.elements.password.value='';hotspotConfigLoaded=false;hotspotPasswordLoaded=false;await hotspotStatus()}catch(error){alert(error.message)}});
 const passwordInput=document.querySelector('#hotspot-password');
 const passwordPeek=document.querySelector('#hotspot-password-peek');
 passwordPeek.addEventListener('click',async()=>{
@@ -1473,12 +1474,14 @@ cardForm?.elements.translation_language.addEventListener('change',()=>{const car
 function renderCardRow(card){
   const hasContents=card.child_count>0;const row=document.createElement('div');row.className=`item-row document-row card-definition-row ${hasContents?'has-contents':'empty-card'}`;
   const details=document.createElement('div');const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=card.display_title||card.title;
-  const summary=document.createElement('span');summary.textContent=`${card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources'} · ${card.child_count} connected`;
-  details.append(title,summary);row.append(details);
+  const summary=document.createElement('span');summary.textContent=card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources';
+  details.append(title,summary);
+  if(hasContents){const note=document.createElement('small');note.className='card-content-note';note.textContent=`Card has contents (${card.child_count})`;details.append(note)}
+  row.append(details);
   const actions=document.createElement('div');actions.className='record-actions';
   const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
-  const remove=document.createElement('button');remove.type='button';remove.className='button danger remove-action';remove.textContent='Delete';remove.title=hasContents?`Delete ${card.child_count} connected contents with this card`:'Delete this empty card';
-  armRemoval(remove,async()=>{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()},`card:${card.id}`,'Confirm Delete');
+  const remove=document.createElement('button');remove.type='button';remove.className='button remove-action';remove.textContent='Delete';remove.title=hasContents?`Delete ${card.child_count} connected contents with this card`:'Delete this empty card';
+  armRemoval(remove,async()=>{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()},`card:${card.id}`,'Confirm Delete','confirm-armed');
   actions.append(remove);row.append(actions);return row;
 }
 function uniqueEntryId(card,title){const base=slugify(title)||'entry';let id=base;let suffix=2;while(card.entries.some(entry=>entry.id===id))id=`${base.slice(0,58)}-${suffix++}`;return id}
