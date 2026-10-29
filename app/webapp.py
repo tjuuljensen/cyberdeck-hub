@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.47'
+APP_VERSION = '0.2.0-beta.48'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -1424,6 +1424,7 @@ def load_request_state():
     if not app.secret_key:
         abort(503, 'Session key is not configured. Run setup.sh to initialize the service.')
     g.db = connect_db()
+    recover_online_document_updates()
     recover_import_transactions(g.db)
     g.csrf = session.setdefault('csrf', secrets.token_urlsafe(32))
     if not admin_account_exists():
@@ -2382,8 +2383,33 @@ def _validate_import_config(config):
         config['rss_cards'] = _migrate_legacy_card_list(config['rss_cards'], 'RSS')
         config['rss_cards'] = _validate_card_list(config['rss_cards'], 'RSS')
     paths = set()
+    online_pdf_document_ids = set()
     for asset in config.get('assets', []):
         library.validate_asset(asset)
+        document_id = asset.get('document_id')
+        document_ids = asset.get('document_ids', [])
+        if document_id is not None:
+            if (not isinstance(document_id, str) or
+                    not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', document_id) or
+                    not (asset.get('path', '').startswith('public/') and
+                         asset.get('path', '').lower().endswith('.pdf') and asset.get('url'))):
+                raise ValueError('Online PDF document IDs must be stable lowercase identifiers')
+            if document_id in online_pdf_document_ids:
+                raise ValueError('Configuration has duplicate online PDF document IDs')
+            online_pdf_document_ids.add(document_id)
+        if (not isinstance(document_ids, list) or
+                any(not isinstance(value, str) or
+                    not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', value)
+                    for value in document_ids) or
+                len(set(document_ids)) != len(document_ids) or
+                (document_id and document_id in document_ids) or
+                (document_ids and not (asset.get('path', '').startswith('public/') and
+                                       asset.get('path', '').lower().endswith('.pdf') and
+                                       asset.get('url')))):
+            raise ValueError('Online PDF document aliases are invalid')
+        if any(value in online_pdf_document_ids for value in document_ids):
+            raise ValueError('Configuration has duplicate online PDF document IDs')
+        online_pdf_document_ids.update(document_ids)
         if 'origin_source' in asset:
             asset['origin_source'] = _origin_source(asset['origin_source'])
         if asset['path'] in paths:
@@ -2818,13 +2844,22 @@ def _online_pdf_import_options(assets, catalogues=()):
     """Describe internet PDF acquisitions and mark matching content or paths."""
     options = []
     existing = {}
-    existing_paths = set(acquired_records())
-    for path, record in acquired_records().items():
+    records = acquired_records()
+    existing_paths = set(records)
+    existing_documents = {}
+    for path, record in records.items():
         if not isinstance(record, dict):
             continue
         asset = record.get('asset')
         asset_path = asset.get('path') if isinstance(asset, dict) else path
         digest = str(record.get('sha256', '')).lower()
+        if isinstance(asset, dict):
+            saved_ids = asset.get('document_ids', [])
+            document_ids = set(saved_ids) if isinstance(saved_ids, list) else set()
+            if asset.get('document_id'):
+                document_ids.add(asset['document_id'])
+            for document_id in document_ids:
+                existing_documents.setdefault(document_id, []).append((path, record))
         if (isinstance(asset_path, str) and asset_path.startswith('public/') and
                 asset_path.lower().endswith('.pdf') and
                 re.fullmatch(r'[0-9a-f]{64}', digest)):
@@ -2849,8 +2884,33 @@ def _online_pdf_import_options(assets, catalogues=()):
         target = library.safe_path(DATA_ROOT, path)
         digest = str(asset.get('sha256', '')).lower()
         reason = ''
+        document_id = asset.get('document_id')
+        prior_records = existing_documents.get(document_id, []) if document_id else []
+        if not prior_records and document_id:
+            # Adopt previously installed versions that predate document_id using
+            # the configured destination or source URL as the migration key.
+            prior_records = [(old_path, record) for old_path, record in records.items()
+                             if old_path.startswith('public/') and old_path.lower().endswith('.pdf') and
+                             isinstance(record, dict) and isinstance(record.get('asset'), dict) and
+                             (old_path == path or record['asset'].get('url') == asset.get('url'))]
+        prior_records.sort(key=lambda pair: str(pair[1].get('acquired_utc', '')), reverse=True)
+        update_paths = [old_path for old_path, _record in prior_records]
+        update_path = update_paths[0] if update_paths else None
         bundled_copy = path in incoming_paths
-        if path in existing_paths or target.exists():
+        is_update = bool(update_path)
+        if is_update:
+            prior = prior_records[0][1]
+            prior_asset = prior.get('asset', {})
+            prior_digest = str(prior.get('sha256', '')).lower()
+            same_content = bool(re.fullmatch(r'[0-9a-f]{64}', digest) and digest == prior_digest)
+            # Stable source identity means this is a refresh of the installed
+            # document. It is selected by default and replaces the old copy only
+            # after the new PDF has passed validation.
+            if same_content:
+                reason = f'already contains this document at {update_path}'
+            else:
+                reason = ''
+        elif path in existing_paths or target.exists():
             reason = f'{path} is already installed or registered'
         elif bundled_copy:
             # The paired cache is expected; only an installed copy above is a
@@ -2864,12 +2924,17 @@ def _online_pdf_import_options(assets, catalogues=()):
             reason = 'matches another PDF in this import'
         if re.fullmatch(r'[0-9a-f]{64}', digest):
             seen.add(digest)
+        update_required = bool(is_update and not reason)
         options.append({'key': 'online-pdf:' + path,
                         'title': str(asset.get('title') or Path(path).name),
                         'path': path,
                         'bytes': asset.get('expected_bytes', asset.get('max_bytes', 0)),
-                        'conflict': target.exists() and not _installed_asset_matches(
-                            path, incoming_path_digests.get(path, digest)),
+                        'update': update_required,
+                        'update_path': update_path if update_required else None,
+                        'update_paths': update_paths if update_required else [],
+                        'conflict': (target.exists() and not is_update and
+                                     not _installed_asset_matches(
+                                         path, incoming_path_digests.get(path, digest))),
                         'duplicate': bool(reason), 'reason': reason})
     return options
 
@@ -4058,7 +4123,15 @@ def import_apply():
         # already-active ZIM workers before updating the shared acquisition index.
         pdf_assets = []
         pdf_worker_started = False
+        pdf_options_by_path = {option['path']: option for option in online_pdf_options}
         for asset in online_pdf_assets:
+            option = pdf_options_by_path.get(asset['path'], {})
+            if option.get('update'):
+                pdf_asset = dict(asset)
+                pdf_asset['collection'] = resolved.get(asset.get('collection'), asset.get('collection'))
+                pdf_asset['_replace_existing_paths'] = option['update_paths']
+                pdf_assets.append(pdf_asset)
+                continue
             if asset['path'] in acquired or library.safe_path(DATA_ROOT, asset['path']).exists():
                 result['pdf_download_errors'].append(
                     f"{asset.get('title') or asset['path']}: destination already exists")
@@ -6855,6 +6928,273 @@ def start_pdf_import_worker(request_id):
         raise
 
 
+def replace_online_pdf_asset(asset, existing_paths):
+    identity = asset.get('document_id') or ','.join(sorted(existing_paths))
+    lock_name = hashlib.sha256(str(identity).encode('utf-8')).hexdigest()
+    lock_path = library.safe_path(DATA_ROOT, '.online-pdf-update-' + lock_name + '.lock')
+    deadline = time.monotonic() + 600
+    while True:
+        if lock_path.is_symlink():
+            raise ValueError('Refusing an online PDF update lock symlink')
+        try:
+            with lock_path.open('x', encoding='ascii') as handle:
+                handle.write(str(os.getpid()) + '\n')
+            break
+        except FileExistsError:
+            try:
+                owner = int(lock_path.read_text(encoding='ascii').strip())
+                os.kill(owner, 0)
+            except PermissionError:
+                pass
+            except (OSError, ValueError):
+                if lock_path.is_symlink():
+                    raise ValueError('Refusing an online PDF update lock symlink')
+                lock_path.unlink(missing_ok=True)
+                continue
+            if time.monotonic() >= deadline:
+                raise ValueError('Another update of this online PDF did not finish in time')
+            time.sleep(0.25)
+    try:
+        return _replace_online_pdf_asset_locked(asset, existing_paths)
+    finally:
+        if lock_path.is_symlink():
+            raise ValueError('Refusing to remove an online PDF update lock symlink')
+        lock_path.unlink(missing_ok=True)
+
+
+def _replace_online_pdf_asset_locked(asset, existing_paths):
+    """Refresh a stable online PDF identity without exposing a second copy."""
+    existing_paths = list(dict.fromkeys(existing_paths))
+    if not existing_paths:
+        raise ValueError('Online PDF refresh has no installed destination')
+    target_path = existing_paths[0]
+    if not target_path.startswith('public/') or not target_path.lower().endswith('.pdf'):
+        raise ValueError('Online PDF refresh destination is invalid')
+    target = library.safe_path(DATA_ROOT, target_path)
+    records = acquired_records()
+    old_records = {path: records.get(path) for path in existing_paths}
+    if any(not isinstance(record, dict) or not isinstance(record.get('asset'), dict)
+           for record in old_records.values()):
+        raise ValueError('An installed copy for this online PDF is no longer indexed')
+    for path, record in old_records.items():
+        source = library.safe_path(DATA_ROOT, path)
+        if (source.is_symlink() or not source.is_file() or
+                library.sha256(source).lower() != str(record.get('sha256', '')).lower()):
+            raise ValueError(f'Installed PDF failed its integrity check: {path}')
+
+    transaction_id = uuid.uuid4().hex
+    stage_path = 'public/update-' + transaction_id + '.pdf'
+    staged = library.safe_path(DATA_ROOT, stage_path)
+    download_asset = {key: value for key, value in asset.items()
+                      if key != '_replace_existing_paths'}
+    download_asset['path'] = stage_path
+    new_asset = dict(download_asset)
+    new_asset['path'] = target_path
+    transaction_root = library.safe_path(PRIVATE_ROOT,
+                                         'document-update-staging/' + transaction_id)
+    backups = {}
+    for path in existing_paths:
+        old_target = library.safe_path(DATA_ROOT, path)
+        old_backup = old_target.with_name(
+            '.' + old_target.name + '.' + transaction_id + '.update-backup')
+        backups[path] = old_backup.relative_to(DATA_ROOT).as_posix()
+    journal = {'id': transaction_id, 'target_path': target_path,
+               'stage_path': stage_path, 'new_sha256': None,
+               'new_asset': new_asset, 'backups': backups,
+               'worker_pid': os.getpid()}
+    try:
+        transaction_root.mkdir(mode=0o700, parents=True, exist_ok=False)
+        old_index_path = transaction_root / 'acquired-before.json'
+        with old_index_path.open('xb') as handle:
+            handle.write((DATA_ROOT / 'acquired.json').read_bytes())
+            handle.flush()
+            os.fsync(handle.fileno())
+        library.write_json(transaction_root / 'journal.json', journal)
+    except Exception:
+        staged.unlink(missing_ok=True)
+        shutil.rmtree(transaction_root, ignore_errors=True)
+        raise
+    try:
+        library.stream_download(download_asset, staged)
+        new_digest = library.sha256(staged).lower()
+        current = acquired_records()
+        if any(current.get(path) != record for path, record in old_records.items()):
+            raise ValueError('Installed PDF changed during refresh; retry the update')
+        old_index = dict(current)
+        journal['new_sha256'] = new_digest
+        library.write_json(transaction_root / 'journal.json', journal)
+    except Exception:
+        staged.unlink(missing_ok=True)
+        shutil.rmtree(transaction_root, ignore_errors=True)
+        raise
+    try:
+        for path, backup_path in backups.items():
+            os.replace(library.safe_path(DATA_ROOT, path),
+                       library.safe_path(DATA_ROOT, backup_path))
+        os.replace(staged, target)
+        record = library.acquisition_record(new_asset, target, new_digest)
+        previous_asset = old_records[target_path].get('asset', {})
+        previous_ids = previous_asset.get('document_ids', [])
+        incoming_ids = new_asset.get('document_ids', [])
+        aliases = set(previous_ids) if isinstance(previous_ids, list) else set()
+        if isinstance(incoming_ids, list):
+            aliases.update(incoming_ids)
+        for old_record in old_records.values():
+            old_asset = old_record.get('asset', {})
+            if old_asset.get('document_id'):
+                aliases.add(old_asset['document_id'])
+            old_ids = old_asset.get('document_ids', [])
+            if isinstance(old_ids, list):
+                aliases.update(old_ids)
+        aliases.discard(new_asset.get('document_id'))
+        if aliases:
+            new_asset['document_ids'] = sorted(aliases)
+            record['asset'] = new_asset
+        current[target_path] = record
+        for path in existing_paths:
+            if path != target_path:
+                current.pop(path, None)
+        library.write_json(DATA_ROOT / 'acquired.json', current)
+    except Exception:
+        for path, backup_path in backups.items():
+            backup_file = library.safe_path(DATA_ROOT, backup_path)
+            if backup_file.is_file() and not backup_file.is_symlink():
+                library.safe_path(DATA_ROOT, path).unlink(missing_ok=True)
+                os.replace(backup_file, library.safe_path(DATA_ROOT, path))
+        library.write_json(DATA_ROOT / 'acquired.json', old_index)
+        staged.unlink(missing_ok=True)
+        shutil.rmtree(transaction_root, ignore_errors=True)
+        raise
+    for backup_path in backups.values():
+        library.safe_path(DATA_ROOT, backup_path).unlink(missing_ok=True)
+    shutil.rmtree(transaction_root, ignore_errors=True)
+    return new_digest
+
+
+def recover_online_document_updates():
+    """Finish or roll back a PDF replacement interrupted by process or power loss."""
+    staging = PRIVATE_ROOT / 'document-update-staging'
+    if staging.is_symlink():
+        raise RuntimeError('Refusing a symlink at the document update staging directory')
+    if not staging.is_dir():
+        return
+    for transaction_root in staging.iterdir():
+        if (not transaction_root.is_dir() or transaction_root.is_symlink() or
+                not re.fullmatch(r'[0-9a-f]{32}', transaction_root.name)):
+            raise RuntimeError('Refusing an invalid online document update transaction')
+        journal_path = transaction_root / 'journal.json'
+        if journal_path.is_symlink():
+            raise RuntimeError('Online document update journal is missing or unsafe')
+        if not journal_path.is_file():
+            # No destination files are moved until after the journal is durable.
+            orphan = library.safe_path(DATA_ROOT,
+                                       'public/update-' + transaction_root.name + '.pdf')
+            if ('public/update-' + transaction_root.name + '.pdf' not in
+                    acquired_records()):
+                orphan.unlink(missing_ok=True)
+            shutil.rmtree(transaction_root)
+            continue
+        journal = json.loads(journal_path.read_text(encoding='utf-8'))
+        if (not isinstance(journal, dict) or journal.get('id') != transaction_root.name or
+                not isinstance(journal.get('backups'), dict) or
+                not isinstance(journal.get('new_asset'), dict)):
+            raise RuntimeError('Online document update journal is invalid')
+        worker_pid = journal.get('worker_pid')
+        if type(worker_pid) is int and worker_pid > 0:
+            try:
+                os.kill(worker_pid, 0)
+                continue
+            except PermissionError:
+                continue
+            except OSError:
+                pass
+        target_path = journal.get('target_path')
+        stage_path = journal.get('stage_path')
+        if (not isinstance(target_path, str) or not target_path.startswith('public/') or
+                not target_path.lower().endswith('.pdf') or
+                not isinstance(stage_path, str) or not stage_path.startswith('public/')):
+            raise RuntimeError('Online document update journal contains an invalid path')
+        records = acquired_records()
+        current = records.get(target_path)
+        committed = (isinstance(current, dict) and
+                     current.get('sha256') == journal.get('new_sha256') and
+                     current.get('asset') == journal['new_asset'])
+        if not committed:
+            for path, backup_path in journal['backups'].items():
+                if (not isinstance(path, str) or not path.startswith('public/') or
+                        not isinstance(backup_path, str) or not backup_path.startswith('public/')):
+                    raise RuntimeError('Online document update journal contains an unsafe backup path')
+                backup_file = library.safe_path(DATA_ROOT, backup_path)
+                destination = library.safe_path(DATA_ROOT, path)
+                if backup_file.is_file() and not backup_file.is_symlink():
+                    destination.unlink(missing_ok=True)
+                    os.replace(backup_file, destination)
+            old_index = transaction_root / 'acquired-before.json'
+            if old_index.is_symlink() or not old_index.is_file():
+                raise RuntimeError('Online document update recovery index is missing')
+            restored = json.loads(old_index.read_text(encoding='utf-8'))
+            if not isinstance(restored, dict):
+                raise RuntimeError('Online document update recovery index is invalid')
+            library.write_json(DATA_ROOT / 'acquired.json', restored)
+        else:
+            for backup_path in journal['backups'].values():
+                if isinstance(backup_path, str):
+                    library.safe_path(DATA_ROOT, backup_path).unlink(missing_ok=True)
+        library.safe_path(DATA_ROOT, stage_path).unlink(missing_ok=True)
+        shutil.rmtree(transaction_root)
+
+
+def deduplicate_online_pdf_copy(path):
+    """Collapse byte-identical online PDFs and retain their stable source IDs."""
+    records = acquired_records()
+    record = records.get(path)
+    if (not isinstance(record, dict) or not isinstance(record.get('asset'), dict) or
+            not path.startswith('public/') or not path.lower().endswith('.pdf')):
+        return path
+    digest = str(record.get('sha256', '')).lower()
+    if not re.fullmatch(r'[0-9a-f]{64}', digest):
+        return path
+    winner_path = None
+    winner_record = None
+    for candidate_path, candidate in records.items():
+        if (candidate_path == path or not candidate_path.startswith('public/') or
+                not candidate_path.lower().endswith('.pdf') or
+                not isinstance(candidate, dict) or str(candidate.get('sha256', '')).lower() != digest):
+            continue
+        candidate_file = library.safe_path(DATA_ROOT, candidate_path)
+        if (candidate_file.is_file() and not candidate_file.is_symlink() and
+                library.sha256(candidate_file).lower() == digest):
+            winner_path, winner_record = candidate_path, candidate
+            break
+    if winner_path is None:
+        return path
+
+    winner = dict(winner_record)
+    winner_asset = dict(winner.get('asset', {}))
+    winner_ids = winner_asset.get('document_ids', [])
+    ids = set(winner_ids) if isinstance(winner_ids, list) else set()
+    if winner_asset.get('document_id'):
+        ids.add(winner_asset['document_id'])
+    duplicate_asset = record['asset']
+    if duplicate_asset.get('document_id'):
+        ids.add(duplicate_asset['document_id'])
+    duplicate_ids = duplicate_asset.get('document_ids', [])
+    if isinstance(duplicate_ids, list):
+        ids.update(value for value in duplicate_ids if isinstance(value, str))
+    ids.discard(winner_asset.get('document_id'))
+    if ids:
+        winner_asset['document_ids'] = sorted(ids)
+    winner['asset'] = winner_asset
+    updated = dict(records)
+    updated[winner_path] = winner
+    updated.pop(path, None)
+    library.write_json(DATA_ROOT / 'acquired.json', updated)
+    duplicate_file = library.safe_path(DATA_ROOT, path)
+    if duplicate_file.is_file() and not duplicate_file.is_symlink():
+        duplicate_file.unlink()
+    return winner_path
+
+
 @app.get('/api/admin/import/pdf')
 @admin_required
 def admin_pdf_imports():
@@ -7030,8 +7370,39 @@ def fetch_import_pdfs(request_id):
     # acquiring the other independently selected documents and leave failures
     # visible in this import's private log for a later retry.
     try:
-        library.fetch(DATA_ROOT, manifest, missing_only=True, continue_on_error=True,
-                      status_callback=report, cancel_check=is_canceled)
+        document = json.loads(manifest.read_text(encoding='utf-8'))
+        update_assets = [asset for asset in document.get('assets', [])
+                         if asset.get('_replace_existing_paths')]
+        regular_assets = [asset for asset in document.get('assets', [])
+                          if not asset.get('_replace_existing_paths')]
+        for asset in update_assets:
+            if is_canceled(asset['path']):
+                report(asset['path'], 'canceled', '')
+                continue
+            report(asset['path'], 'downloading', '')
+            try:
+                replace_online_pdf_asset(asset, asset['_replace_existing_paths'])
+                deduplicate_online_pdf_copy(
+                    asset['_replace_existing_paths'][0])
+                report(asset['path'], 'downloaded', '')
+            except (OSError, ValueError) as error:
+                report(asset['path'], 'failed', str(error))
+        if regular_assets:
+            regular_manifest = library.safe_path(
+                PRIVATE_ROOT, f'requests/import-pdfs-{request_id}-regular.json')
+            try:
+                library.write_json(regular_manifest, {
+                    'reserve_bytes': document.get('reserve_bytes', 1_000_000_000),
+                    'assets': regular_assets})
+                library.fetch(DATA_ROOT, regular_manifest, missing_only=True,
+                              continue_on_error=True, status_callback=report,
+                              cancel_check=is_canceled)
+                for asset in regular_assets:
+                    if (asset['path'] in acquired_records() and
+                            library.safe_path(DATA_ROOT, asset['path']).is_file()):
+                        deduplicate_online_pdf_copy(asset['path'])
+            finally:
+                regular_manifest.unlink(missing_ok=True)
     finally:
         document = json.loads(manifest.read_text(encoding='utf-8'))
         deferred_zims = document.get('deferred_zims', [])

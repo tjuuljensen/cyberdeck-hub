@@ -152,9 +152,11 @@ server IP for the initial HTTP setup; use the hostname printed by the installer
 for HTTPS after trusting the CA.
 
 In **Admin**, review the available configuration profiles before applying one.
-Use **settings only** to preview subject and site settings without starting
-content downloads. A full import can queue acquisitions from its listed
-sources. Review the import preview and available storage first.
+A full import can queue acquisitions from its listed sources. Review the import
+preview and available storage first. Online PDF profiles use a stable
+`document_id` for each logical document. Keep that ID when its URL, filename, or
+edition is updated; use a different ID for a genuinely different document or
+format. The Hub verifies a refreshed PDF before replacing its installed copy.
 
 To add material, use **Admin > Documents** for reference files and **Admin >
 Kiwix libraries** for ZIM archives. Keep source, edition, publication date, and

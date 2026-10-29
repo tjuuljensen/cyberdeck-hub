@@ -6,6 +6,7 @@
   "assets": [
     {
       "path": "public/st-john-adult-cpr-en-GB.pdf",
+      "document_id": "st-john-adult-cpr-en-gb",
       "title": "St John Ambulance: adult CPR (UK, English)",
       "description": "",
       "collection": "first-aid",
@@ -14,6 +15,7 @@
     },
     {
       "path": "public/st-john-defibrillator-en-GB.pdf",
+      "document_id": "st-john-defibrillator-en-gb",
       "title": "St John Ambulance: defibrillator (UK, English)",
       "description": "",
       "collection": "first-aid",
@@ -22,6 +24,7 @@
     },
     {
       "path": "public/st-john-primary-survey-en-GB.pdf",
+      "document_id": "st-john-primary-survey-en-gb",
       "title": "St John Ambulance: primary survey (UK, English)",
       "description": "",
       "collection": "first-aid",
@@ -30,6 +33,7 @@
     },
     {
       "path": "public/st-john-recovery-position-en-GB.pdf",
+      "document_id": "st-john-recovery-position-en-gb",
       "title": "St John Ambulance: recovery position (UK, English)",
       "description": "",
       "collection": "first-aid",
@@ -38,6 +42,7 @@
     },
     {
       "path": "public/scout-simple-knots-en.pdf",
+      "document_id": "scout-simple-knots-en",
       "title": "Scout Adventures: Simple Knots (UK, English)",
       "description": "",
       "collection": "practical-skills",

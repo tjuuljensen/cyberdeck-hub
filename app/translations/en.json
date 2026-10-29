@@ -3178,5 +3178,9 @@
   "ui.0878": {
     "default": "Show the Start card on the home page",
     "context": "Site setting shown in the import preview."
+  },
+  "ui.0879": {
+    "default": "Refreshes the installed copy after the new PDF is verified",
+    "context": "Import preview note for an online PDF with a stable document identity."
   }
 }

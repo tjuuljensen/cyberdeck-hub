@@ -6,6 +6,7 @@
   "assets": [
     {
       "path": "public/first-aid-teacher-guide-da.pdf",
+      "document_id": "first-aid-teacher-guide-da",
       "title": "Kan du hjælpe? Førstehjælp for 7. - 10. klasse Lærervejledning - Frstehjlp_-_kan_du_hjlpe_-_lrervejledning.pdf",
       "description": "",
       "collection": "foerstehjaelp",
@@ -14,6 +15,7 @@
     },
     {
       "path": "public/brs-crisis-checklist-da.pdf",
+      "document_id": "brs-crisis-checklist-da",
       "title": "Beredskabsstyrelsen: Forberedt på kriser - Tjekliste (Danish, one page)",
       "description": "",
       "collection": "myndigheder-og-varsling",
@@ -22,6 +24,7 @@
     },
     {
       "path": "public/folk-og-sikkerhed-hvad-nu-hvis-da.pdf",
+      "document_id": "folk-og-sikkerhed-hvad-nu-hvis-da",
       "title": "Folk & Sikkerhed: Hvad nu hvis? (Danish, revised 2024 download)",
       "description": "",
       "collection": "myndigheder-og-varsling",
@@ -30,6 +33,7 @@
     },
     {
       "path": "public/brs-prepared-for-crises-da.pdf",
+      "document_id": "brs-prepared-for-crises-da",
       "title": "Beredskabsstyrelsen: Forberedt på kriser (Danish, print-friendly)",
       "description": "",
       "collection": "myndigheder-og-varsling",
@@ -38,6 +42,7 @@
     },
     {
       "path": "public/tryg-aed-poster-da.pdf",
+      "document_id": "tryg-aed-poster-da",
       "title": "TrygFonden - Hjertestarter plakat - TrygFonden-hjertestarter-plakat-A3.pdf",
       "description": "Sådan starter du et hjerte igen",
       "collection": "foerstehjaelp",
@@ -46,6 +51,7 @@
     },
     {
       "path": "public/child-resuscitation-guidance-da.pdf",
+      "document_id": "child-resuscitation-guidance-da",
       "title": "Vejledning for lægmands genoplivning af børn (0 -18 år) - Dansk-Forstehjaelpsrads-anbefalinger-for-laegmands-genoplivning-af-born-0-18-ar.pdf",
       "description": "Dansk Førstehjælpsråds vejledning for lægmands genoplivning af børn (0 -18 år)",
       "collection": "foerstehjaelp",

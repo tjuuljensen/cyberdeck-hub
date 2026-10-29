@@ -115,6 +115,9 @@ into a collapsed accent-coloured submenu.
 `0.2.0-beta.47` puts Card mapping first with live create/existing counts, colors
 the mapping choices by action, splits Site settings into hierarchical Display
 Settings and Customization checkboxes, and removes the import-mode selector.
+`0.2.0-beta.48` adds stable identities for online PDFs, refreshes an installed
+copy in place after validating its replacement, and collapses byte-identical
+online PDF downloads while retaining their source identities.
 
 ## Included scope
 

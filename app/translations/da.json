@@ -793,5 +793,6 @@
   "ui.0875": "Tilgængelige lokale kopier er med i pakken. Hvis en PDF ikke er hentet, bevares dens adresse i konfigurationen, og den kræver internetadgang efter import.",
   "ui.0876": "Visningsindstillinger",
   "ui.0877": "Tilpasning",
-  "ui.0878": "Vis startkortet på startsiden"
+  "ui.0878": "Vis startkortet på startsiden",
+  "ui.0879": "Opdaterer den installerede kopi, når den nye PDF er verificeret"
 }

@@ -532,7 +532,7 @@ importForm.addEventListener('submit', async event => {
     };
     const onlineDocumentGroup=appendImportItemGroup({title:'ui.0842',help:'ui.0875',items:result.online_pdf_options,
       selection:onlinePdfSelection,keyFor:'onlinePdfKey',
-      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}`,
+      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.update?` · ${t('ui.0879')}`:''}`,
       onChange:()=>{syncCachedCopies();updateImportCapacity()},beforeItems:cachedCopyToggle});
     const localDocumentGroup=appendImportItemGroup({title:'ui.0843',help:'ui.0532',
       items:(result.document_options||[]).filter(item=>item.location!=='cached_online'),
