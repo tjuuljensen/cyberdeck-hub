@@ -102,6 +102,8 @@ import, lets administrators choose those copies, and preserves their source URLs
 document imports with the export category, and adds one checkbox for cached
 PDF copies. A bundled cached copy and its matching online URL no longer produce
 a duplicate warning.
+`0.2.0-beta.43` places the Documents section alongside ZIM choices, before
+subject mappings, so it remains visible near the top of the import review.
 
 ## Included scope
 

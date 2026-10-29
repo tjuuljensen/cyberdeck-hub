@@ -428,7 +428,6 @@ importForm.addEventListener('submit', async event => {
       }
       label.append(select); mappings.append(label);
     }
-    importPreview.append(mappings);
     const cachedOnlineOptions=(result.document_options||[]).filter(item=>item.location==='cached_online');
     let importCachedCopies=cachedOnlineOptions.some(item=>!item.duplicate);
     const syncCachedCopies=()=>{
@@ -462,6 +461,7 @@ importForm.addEventListener('submit', async event => {
       if(localDocumentGroup)documents.append(localDocumentGroup);
       importPreview.append(documents);
     }
+    importPreview.append(mappings);
     syncCachedCopies();
     appendImportConfigGroup(result,'online');
     appendImportConfigGroup(result,'rss');
