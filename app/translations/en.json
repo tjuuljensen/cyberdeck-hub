@@ -972,7 +972,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0246": {
-    "default": "Subject mapping",
+    "default": "Card mapping",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0247": {
@@ -3060,7 +3060,7 @@
     "context": "Expandable export subcategory for uploaded or locally stored documents."
   },
   "ui.0844": {
-    "default": "Online sources (cards)",
+    "default": "Online resources (cards)",
     "context": "Export category toggle for online source card definitions."
   },
   "ui.0845": {

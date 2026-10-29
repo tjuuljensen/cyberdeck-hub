@@ -110,6 +110,8 @@ notices for those paired cache/source entries.
 `0.2.0-beta.45` keeps cached-copy selection available when files are already
 installed, labels those entries as duplicates, and reuses identical installed
 files instead of blocking the import with destination conflicts.
+`0.2.0-beta.46` orders import categories to match export, and folds Card mapping
+into a collapsed accent-coloured submenu.
 
 ## Included scope
 

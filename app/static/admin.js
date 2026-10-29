@@ -412,14 +412,10 @@ importForm.addEventListener('submit', async event => {
     const bundledOnlinePaths=new Set(cachedOnlineOptions.map(item=>item.path));
     const onlinePdfSelection = new Set((result.online_pdf_options || [])
       .filter(item => !item.duplicate || bundledOnlinePaths.has(item.path)).map(item => item.key));
-    const zimGroup=appendImportItemGroup({title:'ui.0840',help:'ui.0531',items:result.zim_options||[],showWhenEmpty:true,
-      selection:zimSelection,keyFor:'zimKey',duplicateMessage:'ui.0537',
-      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.kind==='download'?` · ${t('ui.0573')}`:''}`,
-      onChange:()=>updateImportCapacity()});
-    if(zimGroup)importPreview.append(zimGroup);
     appendImportConfigGroup(result,'preferences');
-    const mappings = document.createElement('fieldset'); mappings.className = 'stack';
-    const legend = document.createElement('legend'); legend.textContent = t('ui.0246'); mappings.append(legend);
+    const mappingMenu=document.createElement('details');mappingMenu.className='export-category import-mapping-category';
+    const mappingSummary=document.createElement('summary');mappingSummary.textContent=t('ui.0246');
+    const mappings=document.createElement('div');mappings.className='stack';
     for (const subject of result.subjects) {
     const label = document.createElement('label'); label.textContent = `${t(subject.title)} (${subject.id})`;
       const select = document.createElement('select'); select.dataset.subjectId = subject.id;
@@ -431,6 +427,12 @@ importForm.addEventListener('submit', async event => {
       }
       label.append(select); mappings.append(label);
     }
+    mappingMenu.append(mappingSummary,mappings);importPreview.append(mappingMenu);
+    const zimGroup=appendImportItemGroup({title:'ui.0840',help:'ui.0531',items:result.zim_options||[],showWhenEmpty:true,
+      selection:zimSelection,keyFor:'zimKey',duplicateMessage:'ui.0537',
+      describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}${item.kind==='download'?` · ${t('ui.0573')}`:''}`,
+      onChange:()=>updateImportCapacity()});
+    if(zimGroup)importPreview.append(zimGroup);
     let importCachedCopies=cachedOnlineOptions.length>0;
     const syncCachedCopies=()=>{
       for(const item of cachedOnlineOptions){
@@ -463,7 +465,6 @@ importForm.addEventListener('submit', async event => {
       if(localDocumentGroup)documents.append(localDocumentGroup);
       importPreview.append(documents);
     }
-    importPreview.append(mappings);
     syncCachedCopies();
     appendImportConfigGroup(result,'online');
     appendImportConfigGroup(result,'rss');
