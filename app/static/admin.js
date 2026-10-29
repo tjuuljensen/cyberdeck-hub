@@ -21,7 +21,9 @@ async function refreshExportOptions() {
   exportStatus.textContent = t('ui.0069');
   exportForm.querySelector('[type="submit"]').disabled = true;
   try {
-    const entries = await requestJson('/api/admin/export/options');
+    const [entries, cardOptions] = await Promise.all([
+      requestJson('/api/admin/export/options'), requestJson('/api/admin/export/cards')
+    ]);
     const intro = document.createElement('p');
     intro.className = 'subtle export-options-intro';
     intro.textContent = t('ui.0836');
@@ -97,6 +99,25 @@ async function refreshExportOptions() {
       updateMaster();
       return category.details;
     };
+    const makeCardGroup = (title, cards, name, description) => {
+      const category = makeCategory(title, {description});
+      const list = document.createElement('div'); list.className = 'export-category-items';
+      const checkboxes = [];
+      for (const card of cards) {
+        const label = document.createElement('label'); label.className = 'check';
+        const checkbox = document.createElement('input'); checkbox.type = 'checkbox';
+        checkbox.name = name; checkbox.value = card.id; checkbox.checked = true;
+        const text = document.createElement('span');
+        text.textContent = `${card.title} · ${(card.entries || card.feeds || card.links || []).length} entries`;
+        label.append(checkbox, text); list.append(label); checkboxes.push(checkbox);
+      }
+      if (!cards.length) { const empty = document.createElement('p'); empty.className = 'subtle'; empty.textContent = t('ui.0837'); list.append(empty); }
+      category.details.append(list);
+      const updateMaster = () => { const count = checkboxes.filter(input => input.checked).length; category.toggle.checked = checkboxes.length > 0 && count === checkboxes.length; category.toggle.indeterminate = count > 0 && count < checkboxes.length; };
+      category.toggle.addEventListener('change', () => { checkboxes.forEach(input => { input.checked = category.toggle.checked; }); category.toggle.indeterminate = false; });
+      checkboxes.forEach(input => input.addEventListener('change', updateMaster)); updateMaster();
+      return category.details;
+    };
 
     const savedPreferences = makeCategory('ui.0838', {
       name: 'include_settings', checked: false, description: 'ui.0839',
@@ -113,14 +134,8 @@ async function refreshExportOptions() {
       makeItemGroup('ui.0843', entries.filter(entry => entry.category === 'documents-local')));
     exportOptions.append(documents);
 
-    const onlineCards = makeCategory('ui.0844', {
-      name: 'include_online_source_cards', checked: true, description: 'ui.0846',
-    });
-    exportOptions.append(onlineCards.details);
-    const rssCards = makeCategory('ui.0845', {
-      name: 'include_rss_cards', checked: true, description: 'ui.0847',
-    });
-    exportOptions.append(rssCards.details);
+    exportOptions.append(makeCardGroup('ui.0844', cardOptions.online_source_cards, 'online_source_card_ids', 'ui.0846'));
+    exportOptions.append(makeCardGroup('ui.0845', cardOptions.rss_cards, 'rss_card_ids', 'ui.0847'));
 
     exportStatus.textContent = t(entries.length ? 'ui.0848' : 'ui.0849');
     exportForm.querySelector('[type="submit"]').disabled = false;
@@ -142,11 +157,14 @@ exportForm.addEventListener('submit', async event => {
   button.disabled = true; exportStatus.textContent = t('ui.0237');
   try {
     const selected = [...exportOptions.querySelectorAll('input[name="selected"]:checked')].map(input => input.value);
+    const onlineSourceCardIds = [...exportOptions.querySelectorAll('input[name="online_source_card_ids"]:checked')].map(input => input.value);
+    const rssCardIds = [...exportOptions.querySelectorAll('input[name="rss_card_ids"]:checked')].map(input => input.value);
     const result = await requestJson('/api/admin/export', {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({name: exportForm.elements.name.value, selected,
         include_settings: exportForm.elements.include_settings.checked,
-        include_online_source_cards: exportForm.elements.include_online_source_cards.checked,
-        include_rss_cards: exportForm.elements.include_rss_cards.checked,
+        include_online_source_cards: onlineSourceCardIds.length > 0,
+        include_rss_cards: rssCardIds.length > 0,
+        online_source_card_ids: onlineSourceCardIds, rss_card_ids: rssCardIds,
         include_online_source_pdfs: exportForm.elements.include_online_source_pdfs.checked})});
     exportObjectUrl = URL.createObjectURL(new Blob([JSON.stringify(result.config, null, 2) + '\n'], {type: 'application/json'}));
     const link = document.createElement('a');
@@ -166,9 +184,11 @@ exportForm.addEventListener('submit', async event => {
     const bundleForm=document.createElement('form');bundleForm.method='POST';bundleForm.action='/api/admin/export/bundle';bundleForm.target='_blank';bundleForm.rel='noopener';
     const bundleFields=[['csrf_token',headers['X-CSRF-Token']],['name',exportForm.elements.name.value],
       ['include_settings',String(exportForm.elements.include_settings.checked)],
-      ['include_online_source_cards',String(exportForm.elements.include_online_source_cards.checked)],
-      ['include_rss_cards',String(exportForm.elements.include_rss_cards.checked)],
+      ['include_online_source_cards',String(onlineSourceCardIds.length > 0)],
+      ['include_rss_cards',String(rssCardIds.length > 0)],
       ['include_online_source_pdfs',String(exportForm.elements.include_online_source_pdfs.checked)],
+      ...onlineSourceCardIds.map(value=>['online_source_card_ids',value]),
+      ...rssCardIds.map(value=>['rss_card_ids',value]),
       ...selected.map(value=>['selected',value])];
     for(const[name,value]of bundleFields){const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;bundleForm.append(input)}
     const bundleButton=document.createElement('button');bundleButton.type='submit';bundleButton.className='button primary';bundleButton.textContent=t('ui.0240');bundleForm.append(bundleButton);exportDownloads.append(bundleForm);
@@ -197,11 +217,25 @@ function appendImportConfigGroup(result, kind, root=importPreview){
   const heading=document.createElement('span');heading.textContent=t(group.title);
   summary.append(checkbox,heading);details.append(summary);
   const help=document.createElement('p');help.className='subtle export-category-help';help.textContent=t(group.help);
-  details.append(help);root.append(details);return details;
+  details.append(help);
+  if(kind==='online'||kind==='rss'){
+    const cards=kind==='online'?result.online_source_cards:result.rss_cards;
+    const idsName=kind==='online'?'online_source_card_ids':'rss_card_ids';
+    const list=document.createElement('div');list.className='export-category-items';const children=[];
+    for(const card of cards||[]){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.name=idsName;input.value=card.id;input.checked=checkbox.checked;const text=document.createElement('span');text.textContent=`${card.title} · ${(card.entries||card.feeds||card.links||[]).length} entries`;label.append(input,text);list.append(label);children.push(input)}
+    if(!(cards||[]).length){const empty=document.createElement('p');empty.className='subtle';empty.textContent=t('ui.0558');list.append(empty)}
+    details.append(list);
+    const syncMaster=()=>{const count=children.filter(input=>input.checked).length;checkbox.checked=children.length>0&&count===children.length;checkbox.indeterminate=count>0&&count<children.length};
+    checkbox.addEventListener('change',()=>{children.forEach(input=>{input.checked=checkbox.checked});checkbox.indeterminate=false});children.forEach(input=>input.addEventListener('change',syncMaster));
+  }
+  root.append(details);return details;
 }
 function importConfigChoices(){
-  return Object.fromEntries(['apply_display_preferences','apply_online_source_cards','apply_rss_cards'].map(name=>[
-    name,Boolean(importPreview.querySelector(`input[name="${name}"]`)?.checked)]));
+  const onlineIds=[...importPreview.querySelectorAll('input[name="online_source_card_ids"]:checked')].map(input=>input.value);
+  const rssIds=[...importPreview.querySelectorAll('input[name="rss_card_ids"]:checked')].map(input=>input.value);
+  return {apply_display_preferences:Boolean(importPreview.querySelector('input[name="apply_display_preferences"]')?.checked),
+    apply_online_source_cards:onlineIds.length>0,apply_rss_cards:rssIds.length>0,
+    online_source_card_ids:onlineIds,rss_card_ids:rssIds};
 }
 function appendImportItemGroup({title,help,items,selection,keyFor,describe,onChange=()=>{},duplicateMessage='ui.0533'}){
   if(!items?.length)return null;
@@ -1175,7 +1209,7 @@ document.querySelector('#preferences-form').addEventListener('submit',async even
   const form=new FormData(formElement);
   try{
     if(window.cyberdeckSaveAccent)await window.cyberdeckSaveAccent();
-    const result=await requestJson('/api/admin/settings',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({pdf_open_mode:form.get('pdf_open_mode'),accent_color:form.get('accent_color'),home_columns:form.get('home_columns'),subtitle:form.get('subtitle'),display_timezone:form.get('display_timezone')})});
+    const result=await requestJson('/api/admin/settings',{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({pdf_open_mode:form.get('pdf_open_mode'),accent_color:form.get('accent_color'),home_columns:form.get('home_columns'),subtitle:form.get('subtitle'),display_timezone:form.get('display_timezone'),show_start_card:form.get('show_start_card')==='on'})});
     document.querySelector('#brand-subtitle').textContent=result.settings.subtitle;
     if(window.cyberdeckSetAccent)window.cyberdeckSetAccent(result.settings.accent_color);
     accentInput.value=result.settings.accent_color;
@@ -1441,16 +1475,15 @@ function beginCardEdit(card){
 }
 cardForm?.elements.translation_language.addEventListener('change',()=>{const card=adminCards.find(item=>item.id===cardForm.elements.id.value);const language=cardForm.elements.translation_language.value;const translation=card?.translations?.[language]||{};cardForm.elements.translation_title.value=translation.title||'';cardForm.elements.translation_description.value=translation.description||'';cardForm.elements.translation_title.placeholder=translation.title?'':'Uses original-language title';cardForm.elements.translation_description.placeholder=translation.description?'':'Uses original-language description'});
 function renderCardRow(card){
-  const row=document.createElement('div');row.className='item-row card-definition-row';const label=document.createElement('span');const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=card.display_title||card.title;label.append(title,document.createTextNode(` · ${card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources'} · ${card.child_count} connected`));row.append(label);
-  const actions=document.createElement('div');actions.className='button-row';const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
-  if(card.type==='rss'||card.type==='online'){
-    const exportButton=document.createElement('button');exportButton.type='button';exportButton.className='button';exportButton.textContent='Export';
-    exportButton.onclick=()=>{const file={format:'cyberdeck-card-transfer',version:1,type:card.type,cards:[card]};const url=URL.createObjectURL(new Blob([JSON.stringify(file,null,2)+'\n'],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`${card.id}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};actions.append(exportButton);
-    const importLabel=document.createElement('label');importLabel.className='button';importLabel.textContent='Import';const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.hidden=true;
-    input.onchange=async()=>{if(!input.files?.length)return;try{const data=JSON.parse(await input.files[0].text());if(data.format!=='cyberdeck-card-transfer'||data.version!==1||data.type!==card.type||!Array.isArray(data.cards)||data.cards.length!==1)throw new Error('This is not a matching card export.');const incoming=data.cards[0];if(!confirm(`Preview: import “${incoming.title}” with ${(incoming.entries||incoming.feeds||incoming.links||[]).length} configured entries? A card with the same ID will be replaced.`))return;await requestJson('/api/admin/cards/transfer',{method:'POST',body:JSON.stringify(data)});await refreshCards()}catch(error){alert(error.message)}};importLabel.append(input);actions.append(importLabel);
-  }
-  const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Delete card and all contents';remove.onclick=async()=>{if(!confirm(`Delete “${card.title}” and all ${card.child_count} connected items and files? This cannot be undone.`))return;try{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()}catch(error){alert(error.message)}};actions.append(remove);
-  row.append(actions);return row;
+  const hasContents=card.child_count>0;const row=document.createElement('div');row.className=`item-row document-row card-definition-row ${hasContents?'has-contents':'empty-card'}`;
+  const details=document.createElement('div');const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=card.display_title||card.title;
+  const summary=document.createElement('span');summary.textContent=`${card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources'} · ${card.child_count} connected`;
+  details.append(title,summary);row.append(details);
+  const actions=document.createElement('div');actions.className='record-actions';
+  const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Edit';edit.onclick=()=>beginCardEdit(card);actions.append(edit);
+  const remove=document.createElement('button');remove.type='button';remove.className='button danger remove-action';remove.textContent='Delete';remove.title=hasContents?'Delete this card and all connected contents':'Delete this empty card';
+  remove.onclick=async()=>{if(hasContents){const confirmation=prompt(`This will permanently delete “${card.title}” and its ${card.child_count} connected contents. Type ${card.id} to confirm.`);if(confirmation!==card.id)return}else if(!confirm(`Delete the empty card “${card.title}”?`))return;try{await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}`,{method:'DELETE'});await refreshCards();await refreshDocuments();await refreshZims()}catch(error){alert(error.message)}};
+  actions.append(remove);row.append(actions);return row;
 }
 function uniqueEntryId(card,title){const base=slugify(title)||'entry';let id=base;let suffix=2;while(card.entries.some(entry=>entry.id===id))id=`${base.slice(0,58)}-${suffix++}`;return id}
 function appendEntryFormFields(form,card,entry=null){

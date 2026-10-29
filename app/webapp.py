@@ -1033,6 +1033,7 @@ def site_preferences():
             'subtitle': settings.get('subtitle') or f'OFFLINE LIBRARY · {hostname}',
             'accent_color': accent_color,
             'home_columns': int(configured_columns),
+            'show_start_card': settings.get('show_start_card', 'true') == 'true',
             'display_timezone': display_timezone}
 
 
@@ -1978,7 +1979,8 @@ def catalogue_name(slug, entry):
 
 def build_export_config(name, selected, include_settings,
                         include_online_source_cards=True, include_rss_cards=True,
-                        include_online_source_pdfs=False):
+                        include_online_source_pdfs=False,
+                        online_source_card_ids=None, rss_card_ids=None):
     """Build the versioned configuration and resolve every selected local payload."""
     if (not isinstance(name, str) or not 1 <= len(name.strip()) <= 80 or
             any(ord(c) < 32 for c in name) or not isinstance(selected, list) or
@@ -1996,9 +1998,25 @@ def build_export_config(name, selected, include_settings,
               'exported_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
               'reserve_bytes': 1_000_000_000, 'assets': [], 'offline_catalogues': []}
     if include_online_source_cards:
-        config['online_source_cards'] = configured_online_source_cards()
+        cards = configured_online_source_cards()
+        if online_source_card_ids is not None:
+            if (not isinstance(online_source_card_ids, list) or
+                    any(not isinstance(value, str) for value in online_source_card_ids) or
+                    len(set(online_source_card_ids)) != len(online_source_card_ids) or
+                    not set(online_source_card_ids).issubset({card['id'] for card in cards})):
+                raise ValueError('Online Source card selection is invalid')
+            cards = [card for card in cards if card['id'] in set(online_source_card_ids)]
+        config['online_source_cards'] = cards
     if include_rss_cards:
-        config['rss_cards'] = configured_rss_cards()
+        cards = configured_rss_cards()
+        if rss_card_ids is not None:
+            if (not isinstance(rss_card_ids, list) or
+                    any(not isinstance(value, str) for value in rss_card_ids) or
+                    len(set(rss_card_ids)) != len(rss_card_ids) or
+                    not set(rss_card_ids).issubset({card['id'] for card in cards})):
+                raise ValueError('RSS card selection is invalid')
+            cards = [card for card in cards if card['id'] in set(rss_card_ids)]
+        config['rss_cards'] = cards
     signer = URLSafeTimedSerializer(app.secret_key, salt='content-export-v1')
     downloads = []
     local_catalogues = []
@@ -2050,7 +2068,7 @@ def build_export_config(name, selected, include_settings,
         config['subjects'].append(subject)
     if include_settings:
         # Export only stored display preferences, never the hostname-derived default.
-        allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone'}
+        allowed = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone', 'show_start_card'}
         config['site_settings'] = {row['key']: row['value'] for row in g.db.execute(
             'SELECT key,value FROM site_setting') if row['key'] in allowed}
     return name, slug, config, downloads, local_catalogues
@@ -2094,6 +2112,13 @@ def export_options():
         return jsonify(error='Cannot read content metadata for export; inspect acquisition records.'), 409
 
 
+@app.get('/api/admin/export/cards')
+@admin_required
+def export_card_options():
+    return jsonify(online_source_cards=configured_online_source_cards(),
+                   rss_cards=configured_rss_cards())
+
+
 @app.post('/api/admin/export')
 @admin_required
 @csrf_required
@@ -2107,7 +2132,8 @@ def export_prepare():
         name, slug, config, downloads, local_catalogues = build_export_config(
             body.get('name'), body.get('selected'), body.get('include_settings', True),
             body.get('include_online_source_cards', True), body.get('include_rss_cards', True),
-            body.get('include_online_source_pdfs', False))
+            body.get('include_online_source_pdfs', False),
+            body.get('online_source_card_ids'), body.get('rss_card_ids'))
         return jsonify(filename=slug + '.json', config=config, catalogues=downloads)
     except (OSError, ValueError, KeyError, TypeError) as error:
         if isinstance(error, ValueError) and str(error).startswith(('Choose an export name', 'Content selection changed')):
@@ -2127,9 +2153,12 @@ def export_bundle():
         include_online_source_cards = request.form.get('include_online_source_cards', 'true') == 'true'
         include_rss_cards = request.form.get('include_rss_cards', 'true') == 'true'
         include_online_source_pdfs = request.form.get('include_online_source_pdfs', 'false') == 'true'
+        online_source_card_ids = request.form.getlist('online_source_card_ids')
+        rss_card_ids = request.form.getlist('rss_card_ids')
         name, slug, config, _downloads, local_catalogues = build_export_config(
             request.form.get('name'), selected, include_settings,
-            include_online_source_cards, include_rss_cards, include_online_source_pdfs)
+            include_online_source_cards, include_rss_cards, include_online_source_pdfs,
+            online_source_card_ids, rss_card_ids)
         payload_bytes = sum(item[3] for item in local_catalogues)
         if payload_bytes + 128 * 1024**2 > MAX_UPLOAD:
             raise ValueError('Combined bundle would exceed the 8 GiB import limit; use separate downloads instead')
@@ -2411,7 +2440,7 @@ def _validate_import_config(config):
                     not isinstance(item_search_terms, str) or len(item_search_terms) > 1000 or
                     any(ord(char) < 32 and char not in '\t\r\n' for char in item_search_terms)):
                 raise ValueError('Invalid local document metadata')
-    allowed_settings = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone',
+    allowed_settings = {'pdf_open_mode', 'subtitle', 'accent_color', 'home_columns', 'display_timezone', 'show_start_card',
                         'hide_empty_cards', 'hide_empty_subjects', 'always_show_subjects'}
     settings = config.get('site_settings', {})
     if not isinstance(settings, dict) or set(settings) - allowed_settings:
@@ -2421,6 +2450,7 @@ def _validate_import_config(config):
             'subtitle' in settings and (not isinstance(settings['subtitle'], str) or not settings['subtitle'].strip() or len(settings['subtitle']) > 80) or
             'home_columns' in settings and str(settings['home_columns']) not in {'3', '4', '5'} or
             'display_timezone' in settings and not valid_timezone_name(settings['display_timezone']) or
+            ('show_start_card' in settings and settings['show_start_card'] not in {'true', 'false', True, False}) or
             ('hide_empty_cards' in settings and settings['hide_empty_cards'] not in {'true', 'false', True, False}) or
             ('hide_empty_subjects' in settings and settings['hide_empty_subjects'] not in {'true', 'false', True, False})):
         raise ValueError('Configuration contains invalid site preferences')
@@ -2858,7 +2888,25 @@ def _import_configuration_choices(body, legacy_full_import=False):
         if type(value) is not bool:
             raise ValueError('Import configuration choices must be boolean')
         choices[key] = value
+    for key in ('online_source_card_ids', 'rss_card_ids'):
+        value = body.get(key)
+        if value is not None and (not isinstance(value, list) or
+                                  any(not isinstance(item, str) for item in value) or
+                                  len(value) != len(set(value))):
+            raise ValueError('Imported card selections are invalid')
+        choices[key] = value
     return choices
+
+
+def _merge_selected_card_import(current_cards, incoming_cards, selected_ids, kind):
+    """Merge only explicitly selected imported card definitions into the saved collection."""
+    valid_ids = {card['id'] for card in incoming_cards}
+    selected = valid_ids if selected_ids is None else set(selected_ids)
+    if not selected.issubset(valid_ids):
+        raise ValueError(f'Imported {kind} card selection does not match the preview')
+    untouched = [card for card in current_cards if card['id'] not in selected]
+    imported = [card for card in incoming_cards if card['id'] in selected]
+    return untouched + imported
 
 
 def _apply_settings_only_import(stage_root, ticket, body):
@@ -2964,6 +3012,13 @@ def _apply_settings_only_import(stage_root, ticket, body):
         settings_to_save = dict(imported_settings)
         imported_online = config.get('online_source_cards') if choices['apply_online_source_cards'] else None
         imported_rss = config.get('rss_cards') if choices['apply_rss_cards'] else None
+        if imported_online is not None and choices['online_source_card_ids'] is not None:
+            imported_online = _merge_selected_card_import(
+                configured_online_source_cards(), imported_online,
+                choices['online_source_card_ids'], 'Online Source')
+        if imported_rss is not None and choices['rss_card_ids'] is not None:
+            imported_rss = _merge_selected_card_import(
+                configured_rss_cards(), imported_rss, choices['rss_card_ids'], 'RSS')
         card_settings_applied = imported_online is not None or imported_rss is not None
         if card_settings_applied:
             _replace_card_collections(imported_online, imported_rss)
@@ -3616,6 +3671,13 @@ def import_apply():
             import_settings = dict(settings)
             imported_online = config.get('online_source_cards') if choices['apply_online_source_cards'] else None
             imported_rss = config.get('rss_cards') if choices['apply_rss_cards'] else None
+            if imported_online is not None and choices['online_source_card_ids'] is not None:
+                imported_online = _merge_selected_card_import(
+                    configured_online_source_cards(), imported_online,
+                    choices['online_source_card_ids'], 'Online Source')
+            if imported_rss is not None and choices['rss_card_ids'] is not None:
+                imported_rss = _merge_selected_card_import(
+                    configured_rss_cards(), imported_rss, choices['rss_card_ids'], 'RSS')
             if imported_online is not None or imported_rss is not None:
                 _replace_card_collections(imported_online, imported_rss)
             import_settings.pop('online_source_cards', None)
@@ -4961,6 +5023,7 @@ def admin_settings_update():
     home_columns = body.get('home_columns', current['home_columns'])
     display_timezone = body.get('display_timezone', current['display_timezone'])
     accent_color = body.get('accent_color', current['accent_color'])
+    show_start_card = body.get('show_start_card', current['show_start_card'])
     if not isinstance(pdf_open_mode, str) or pdf_open_mode not in {'same_tab', 'new_tab'}:
         return jsonify(error='Choose whether PDFs open in this tab or a new tab'), 400
     if not valid_timezone_name(display_timezone):
@@ -4972,13 +5035,16 @@ def admin_settings_update():
         return jsonify(error='Subtitle must be 1–80 printable characters'), 400
     if not isinstance(accent_color, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', accent_color):
         return jsonify(error='Choose a six-digit hexadecimal accent color'), 400
+    if type(show_start_card) is not bool:
+        return jsonify(error='Choose whether to show the Start card'), 400
     accent_color = accent_color.lower()
     if str(home_columns) not in {'3', '4', '5'} or isinstance(home_columns, bool):
         return jsonify(error='Choose 3, 4, or 5 subject columns'), 400
     home_columns = str(home_columns)
     setting_values = [('pdf_open_mode', pdf_open_mode), ('subtitle', subtitle),
                       ('accent_color', accent_color), ('home_columns', home_columns),
-                      ('display_timezone', display_timezone)]
+                      ('display_timezone', display_timezone),
+                      ('show_start_card', str(show_start_card).lower())]
     g.db.executemany('INSERT INTO site_setting(key,value) VALUES(?,?) '
                      'ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                      setting_values)
