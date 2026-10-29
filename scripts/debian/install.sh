@@ -447,7 +447,9 @@ else
     done
     case "$(uname -m)" in
         x86_64) validator_archive=zim-tools_linux-x86_64-3.8.0.tar.gz ;;
-        aarch64) validator_archive=zim-tools_linux-aarch64-3.8.0.tar.gz ;;
+        # The upstream 3.8.0 ARM64 archive does not match its published MD5.
+        # Keep ARM64 on the last verified release until upstream republishes it.
+        aarch64) validator_archive=zim-tools_linux-aarch64-3.7.0.tar.gz ;;
         *) die 'No pinned standalone zimcheck build is available for this CPU architecture.' ;;
     esac
     validator_work=$(mktemp -d /tmp/cyberdeck-zimcheck.XXXXXXXX)
@@ -667,6 +669,10 @@ if (( ! offline )); then
     fi
 else
     printf '%s\n' 'CyberChef installation skipped because --offline prevents downloading its pinned archive.'
+fi
+printf '%s\n' 'Post-install Wi-Fi readiness check (read-only):'
+if ! python3 "$repo_root/scripts/debian/wifi-diagnostics.py"; then
+    printf '%s\n' 'Wi-Fi diagnostics could not complete; rerun with: sudo cyberdeck-wifi-diagnostics' >&2
 fi
 printf '%s\n' 'Cyberdeck Hub installed in headless mode with hotspot and hostname controls.' \
     "Deployment recovery ID: $deployment_id (rollback preview: sudo python3 /usr/local/lib/cyberdeck/deploy-helper.py rollback $deployment_id $hostname_expected)" \

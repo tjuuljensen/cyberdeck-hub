@@ -114,17 +114,32 @@ proof of offline operation or recoverability.
 
 ## Wi-Fi adapter troubleshooting
 
-When an adapter is missing from Hotspot settings or is listed as unavailable,
-run the server-side diagnostic:
+The installer runs the read-only Wi-Fi diagnostic after starting Hub services.
+It reports NetworkManager's software and hardware radio states plus kernel
+rfkill blocks. It does not enable the radio or install firmware. Rerun it any
+time with:
 
 ```sh
 sudo cyberdeck-wifi-diagnostics
 ```
 
-The report separates kernel interface detection, NetworkManager visibility,
-access-point mode support, and firmware load errors. A Wi-Fi adapter can appear
-in NetworkManager even when its chipset firmware is missing. Check its specific
-reason and firmware status with:
+When an adapter is missing from Hotspot settings or is listed as unavailable,
+use the report to distinguish a disabled radio from a missing interface,
+unsupported AP mode, rfkill block, or missing chipset firmware.
+
+The report checks kernel interface detection, NetworkManager visibility,
+access-point mode support, NetworkManager's Wi-Fi radio switch, kernel rfkill
+blocks, and firmware load errors. AP-mode support only describes the adapter's
+capability; it does not mean the radio is enabled. If the report says the
+NetworkManager Wi-Fi radio is disabled, enable it explicitly with:
+
+```sh
+sudo nmcli radio wifi on
+```
+
+The diagnostic does not change radio state or install firmware automatically.
+A Wi-Fi adapter can appear in NetworkManager even when its chipset firmware is
+missing. Check its specific reason and firmware status with:
 
 ```sh
 nmcli -f GENERAL.STATE,GENERAL.REASON,GENERAL.NM-MANAGED,GENERAL.FIRMWARE-MISSING \
@@ -231,6 +246,9 @@ result. A source test or package inspection is not a target observation.
   establish support for a Raspberry Pi model without model-specific checks.
 - Cold-start the Hub without internet; verify local pages and acquired files
   from a second client on the LAN or device hotspot.
+- On each physical arm64 target, record the NetworkManager radio state, rfkill
+  status, detected Wi-Fi interfaces and drivers; when testing the hotspot,
+  connect a second client and verify local Hub access over Wi-Fi.
 - Import a profile containing successful and deliberately unavailable PDF
   sources; confirm per-file status, visible failure detail, and retry behavior.
 - Confirm the three optional starter profiles are present in the install kit;

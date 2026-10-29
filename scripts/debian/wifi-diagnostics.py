@@ -38,13 +38,82 @@ import sys
 FIRMWARE_PACKAGE_BY_PATH = {
     'zd1211/': 'firmware-zd1211',
 }
+RFKILL_ROOT = Path('/sys/class/rfkill')
 
 
 def run(args: list[str], *, timeout: int = 20) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(args, check=False, text=True, capture_output=True, timeout=timeout)
+        return subprocess.run(args, check=False, text=True, capture_output=True,
+                              timeout=timeout, env={**os.environ, 'LC_ALL': 'C'})
     except (OSError, subprocess.SubprocessError) as exc:
         return subprocess.CompletedProcess(args, 1, '', str(exc))
+
+
+def networkmanager_radio_status() -> dict[str, str] | None:
+    """Read hardware and software Wi-Fi radio state without changing it."""
+    nmcli = shutil.which('nmcli')
+    if not nmcli:
+        return None
+    result = run([nmcli, '-t', '-f', 'WIFI-HW,WIFI', 'radio'])
+    if result.returncode:
+        return None
+    fields = result.stdout.strip().split(':')
+    if len(fields) != 2 or any(value not in {'enabled', 'disabled', 'missing'}
+                               for value in fields):
+        return None
+    return {'hardware': fields[0], 'wifi': fields[1]}
+
+
+def rfkill_status(root: Path = RFKILL_ROOT) -> list[dict[str, str]]:
+    """Read kernel rfkill state directly so the optional rfkill CLI is not required."""
+    radios = []
+    try:
+        entries = sorted(root.glob('rfkill*'))
+    except OSError:
+        return radios
+    for entry in entries:
+        try:
+            name = (entry / 'name').read_text(encoding='utf-8').strip()
+            kind = (entry / 'type').read_text(encoding='utf-8').strip()
+            soft = (entry / 'soft').read_text(encoding='ascii').strip()
+            hard = (entry / 'hard').read_text(encoding='ascii').strip()
+        except OSError:
+            continue
+        if soft in {'0', '1'} and hard in {'0', '1'}:
+            radios.append({'name': name, 'type': kind,
+                           'soft_blocked': 'yes' if soft == '1' else 'no',
+                           'hard_blocked': 'yes' if hard == '1' else 'no'})
+    return radios
+
+
+def radio_guidance(status: dict[str, str] | None) -> list[str]:
+    if status is None:
+        return ['NetworkManager radio state is unavailable.']
+    messages = [f"NetworkManager Wi-Fi radio: {status['wifi']} "
+                f"(hardware: {status['hardware']})."]
+    if status['wifi'] == 'disabled':
+        messages.append('Wi-Fi is disabled in NetworkManager; enable it with: sudo nmcli radio wifi on')
+    if status['hardware'] == 'disabled':
+        messages.append('The Wi-Fi hardware radio is blocked; check the physical switch or rfkill state.')
+    return messages
+
+
+def print_radio_status() -> None:
+    print('\nWi-Fi radio state:')
+    for message in radio_guidance(networkmanager_radio_status()):
+        print(f'  {message}')
+    radios = rfkill_status()
+    if radios:
+        for radio in radios:
+            print(f"  rfkill {radio['name']} ({radio['type']}): "
+                  f"soft blocked: {radio['soft_blocked']}; "
+                  f"hard blocked: {radio['hard_blocked']}")
+        if any(radio['soft_blocked'] == 'yes' for radio in radios):
+            print('  A soft block is active; check NetworkManager radio state or run: sudo rfkill unblock wifi')
+        if any(radio['hard_blocked'] == 'yes' for radio in radios):
+            print('  A hardware block is active; use the device switch or firmware controls to unblock Wi-Fi.')
+    else:
+        print('  rfkill state is unavailable (no readable entries under /sys/class/rfkill).')
 
 
 def run_interactive(args: list[str], *, timeout: int) -> int:
@@ -175,6 +244,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print('Wireless adapter diagnostics')
     print(f'Host: {platform.system()} {platform.release()}')
+    print_radio_status()
     if not shutil.which('lspci'):
         print('PCI inventory: lspci is unavailable (install pciutils for PCI identification).')
     devices, wifi_interfaces, errors = inspect()

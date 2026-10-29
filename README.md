@@ -84,6 +84,22 @@ Kiwix libraries** for ZIM archives. Keep source, edition, publication date, and
 reuse terms with selected content. Hub stores acquired files locally; an
 internet source URL alone is not an offline copy.
 
+### Document uploads
+
+Administrators can add these attachment types under **Admin > Documents**:
+
+- **PDF** (`.pdf`)
+- **Microsoft Word** (`.docx`)
+- **HTML publication** (`.zip`), which must contain a top-level `index.html` or
+  `index.htm`. This is for a packaged website, not a general-purpose ZIP file.
+
+Each attachment can be up to 2 GiB. An HTML ZIP can contain up to 2,500 files
+and expand to at most 512 MiB. You can upload multiple attachments, download
+one attachment from a public HTTPS URL, or combine an upload with a URL. An
+optional cover image can be JPEG, PNG, or WebP. Other document formats such as
+legacy `.doc`, EPUB, and plain text are not accepted as attachments. Add ZIM
+archives separately under **Admin > Kiwix libraries**.
+
 **Online Source** cards open live websites and are unavailable when the client
 or Hub cannot reach the internet. **RSS** cards display recent feed entries
 when available; they do not save the linked articles, send push notifications,
