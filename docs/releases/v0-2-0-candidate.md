@@ -55,6 +55,10 @@ English curated profiles, an optional managed firewall module, and the
 relational Card storage migration. It removes the unsupported Docker preview
 and documents the split between Hub bootstrap and the parent's Windows
 developer deployment helper.
+`0.2.0-beta.24` starts new cyberdecks without preloaded RSS or Online Source
+examples, adds per-card transfer and origin-source metadata, and adds card
+deletion and a content reset that preserves administrator access and server
+settings. It also adds a hideable Start card with a local getting-started guide.
 
 ## Included scope
 

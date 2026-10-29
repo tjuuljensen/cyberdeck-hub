@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.23'
+APP_VERSION = '0.2.0-beta.24'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -4586,12 +4586,12 @@ def _persist_card_collections(cards):
                           json.dumps(card['translations'], ensure_ascii=False), card['source_language'],
                           int(card['show_when_empty']), card['offline_display']))
             for entry_position, entry in enumerate(card[field]):
-            g.db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
-                           enabled,source_language,translations,origin_source) VALUES(?,?,?,?,?,?,?,?,?,?)''',
+                g.db.execute('''INSERT INTO card_entry(card_id,id,display_order,title,description,url,
+                               enabled,source_language,translations,origin_source) VALUES(?,?,?,?,?,?,?,?,?,?)''',
                              (card['id'], entry['id'], entry_position, entry['title'],
                               entry.get('description', ''), entry['url'],
                               int(entry.get('enabled', True)), entry['source_language'],
-                              json.dumps(entry['translations'], ensure_ascii=False),entry.get('origin_source','')))
+                              json.dumps(entry['translations'], ensure_ascii=False), entry.get('origin_source', '')))
 
 
 @app.get('/api/admin/cards')
