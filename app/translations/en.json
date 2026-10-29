@@ -1036,7 +1036,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0262": {
-    "default": "Select a configuration JSON, catalogue ZIPs, or combined bundle",
+    "default": "Select a configuration JSON, catalogue ZIPs, ZIM files, PDFs, or combined bundle",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0263": {
@@ -1068,7 +1068,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0270": {
-    "default": "Import files must be JSON or ZIP",
+    "default": "Import files must be JSON, ZIP, ZIM, or PDF",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0271": {
@@ -1076,7 +1076,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0272": {
-    "default": "Select a configuration JSON or at least one offline catalogue ZIP",
+    "default": "Select a configuration JSON, offline catalogue ZIP, ZIM file, or PDF file",
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0273": {
@@ -2204,7 +2204,7 @@
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0574": {
-    "default": "Preview a versioned configuration or acquisition-profile JSON, its local catalogue ZIPs, or one combined ZIP. Preview checks file hashes, paths, subject mappings, conflicts, and storage. Choose which ZIMs, internet PDFs, and local PDF attachments to include. Other online sources are saved for later acquisition.",
+    "default": "Preview a versioned configuration or acquisition-profile JSON, local catalogue ZIPs, ZIM or PDF files, or one combined ZIP. A ZIM file is imported under General reference using its filename as the title; standalone PDFs are imported as local documents. To preserve online source URLs and their cached copies, import the exported JSON or combined ZIP. Preview checks hashes, paths, subject mappings, conflicts, and storage.",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0575": {

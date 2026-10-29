@@ -30,7 +30,7 @@
 <p>{{ t('ui.0574') }}</p>
 <form id="import-form" class="stack"><label id="import-profile-label">{{ t('ui.0160') }}<select id="import-profile" disabled><option value="">{{ t('ui.0161') }}</option></select></label>
 <label>{{ t('ui.0575') }}<select name="mode"><option value="full">{{ t('ui.0576') }}</option><option value="settings_only">{{ t('ui.0577') }}</option></select></label>
-<label>{{ t('ui.0167') }}<input name="files" type="file" accept=".json,.zip,application/json,application/zip" multiple></label>
+<label>{{ t('ui.0167') }}<input name="files" type="file" accept=".json,.zip,.zim,.pdf,application/json,application/zip,application/pdf" multiple></label>
 <label class="check"><input type="checkbox" name="remove_omitted_subjects" value="true"> {{ t('ui.0578') }}</label>
 <button class="button" type="submit">{{ t('ui.0169') }}</button></form>
 <div id="import-preview" class="stack" aria-live="polite"></div><p id="import-status" class="subtle" role="status" aria-live="polite"></p>

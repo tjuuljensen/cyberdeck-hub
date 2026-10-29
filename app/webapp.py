@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.37'
+APP_VERSION = '0.2.0-beta.38'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -3089,7 +3089,7 @@ def import_preview():
     remove_omitted = remove_omitted_value in {'true', '1', 'on'}
     uploads = [f for f in request.files.getlist('files') if f and f.filename]
     if not uploads:
-        return jsonify(error='Select a configuration JSON, catalogue ZIPs, or combined bundle'), 400
+        return jsonify(error='Select a configuration JSON, catalogue ZIPs, ZIM files, PDFs, or combined bundle'), 400
     if mode == 'settings_only' and (len(uploads) != 1 or
                                     not uploads[0].filename.lower().endswith('.json')):
         return jsonify(error='Settings-only import requires exactly one configuration JSON file'), 400
@@ -3102,6 +3102,7 @@ def import_preview():
         config = None
         config_name = None
         catalogue_streams = {}
+        uploaded_direct_refs = []
         total_in = 0
         for upload in uploads:
             name = secure_filename(upload.filename)
@@ -3115,7 +3116,78 @@ def import_preview():
                     if total_in > IMPORT_MAX_BYTES:
                         raise ValueError('Import upload exceeds the 8 GiB limit')
                     output.write(chunk)
-            if name.lower().endswith('.json'):
+            if name.lower().endswith('.zim'):
+                filename = Path(name).stem + '.zim'
+                asset_path = 'zim/' + filename
+                catalogue_name = filename + '.zip'
+                if catalogue_name in catalogue_streams:
+                    raise ValueError('Duplicate ZIM filename in import')
+                size = target.stat().st_size
+                if not size:
+                    raise ValueError('ZIM file is empty')
+                if shutil.disk_usage(PRIVATE_ROOT).free < size + 64 * 1024**2:
+                    raise ValueError('Insufficient temporary space to prepare this ZIM for import')
+                digest = library.sha256(target)
+                subject = {'id': 'general-reference', 'title': 'General reference',
+                           'description': '', 'display_order': 0}
+                asset = {'path': asset_path, 'title': Path(filename).stem[:200],
+                         'collection': subject['id'], 'max_bytes': size,
+                         'expected_bytes': size, 'sha256': digest, 'local_payload': True}
+                library.validate_payload(asset, target)
+                entry = {'asset': asset}
+                generated = stage / ('zim-catalogue-' + hashlib.sha256(
+                    catalogue_name.encode()).hexdigest() + '.zip')
+                with zipfile.ZipFile(generated, 'w', compression=zipfile.ZIP_STORED,
+                                     allowZip64=True) as archive:
+                    archive.write(target, asset_path)
+                    archive.writestr('catalogue.json', json.dumps({
+                        'format': 'cyberdeck-offline-catalogue', 'version': 1,
+                        'name': Path(filename).stem, 'entry': entry,
+                        'files': [{'path': asset_path, 'bytes': size, 'sha256': digest}],
+                        'subjects': [subject],
+                    }, ensure_ascii=False, indent=2) + '\n')
+                target.unlink()
+                catalogue_streams[catalogue_name] = generated
+                uploaded_direct_refs.append({'filename': catalogue_name, 'entry': entry})
+            elif name.lower().endswith('.pdf'):
+                filename = name
+                catalogue_name = filename + '.zip'
+                if catalogue_name in catalogue_streams:
+                    raise ValueError('Duplicate document filename in import')
+                size = target.stat().st_size
+                if not size:
+                    raise ValueError('PDF file is empty')
+                if shutil.disk_usage(PRIVATE_ROOT).free < size + 64 * 1024**2:
+                    raise ValueError('Insufficient temporary space to prepare this document for import')
+                with target.open('rb') as source:
+                    if source.read(5) != b'%PDF-':
+                        raise ValueError('Uploaded document is not a PDF file')
+                digest = library.sha256(target)
+                subject = {'id': 'general-reference', 'title': 'General reference',
+                           'description': '', 'display_order': 0}
+                item_id = str(uuid.uuid4())
+                item = {'id': item_id, 'title': Path(filename).stem[:200],
+                        'description': '', 'subject': subject['id'], 'cover': None,
+                        'search_terms': '',
+                        'attachments': [{'filename': filename, 'stored_path': filename,
+                                         'kind': 'pdf'}]}
+                entry = {'item': item}
+                payload_path = f'files/{item_id}/{filename}'
+                generated = stage / ('document-catalogue-' + hashlib.sha256(
+                    catalogue_name.encode()).hexdigest() + '.zip')
+                with zipfile.ZipFile(generated, 'w', compression=zipfile.ZIP_STORED,
+                                     allowZip64=True) as archive:
+                    archive.write(target, payload_path)
+                    archive.writestr('catalogue.json', json.dumps({
+                        'format': 'cyberdeck-offline-catalogue', 'version': 1,
+                        'name': Path(filename).stem, 'entry': entry,
+                        'files': [{'path': payload_path, 'bytes': size, 'sha256': digest}],
+                        'subjects': [subject],
+                    }, ensure_ascii=False, indent=2) + '\n')
+                target.unlink()
+                catalogue_streams[catalogue_name] = generated
+                uploaded_direct_refs.append({'filename': catalogue_name, 'entry': entry})
+            elif name.lower().endswith('.json'):
                 if config is not None or size > 1024 * 1024:
                     raise ValueError('Provide exactly one configuration JSON no larger than 1 MiB')
                 config = json.loads(target.read_text(encoding='utf-8'))
@@ -3153,7 +3225,7 @@ def import_preview():
                             raise ValueError('Duplicate catalogue upload filename')
                         catalogue_streams[name] = target
             else:
-                raise ValueError('Import files must be JSON or ZIP')
+                raise ValueError('Import files must be JSON, ZIP, ZIM, or PDF')
         if mode == 'settings_only':
             if (not isinstance(config, dict) or config.get('format') != 'cyberdeck-config' or
                     not isinstance(config.get('subjects'), list) or not config.get('subjects')):
@@ -3191,6 +3263,18 @@ def import_preview():
                            rss_cards=config.get('rss_cards'),
                            can_remove=not any(item['assigned_count'] is None
                                               for item in plan['omitted']) if remove_omitted else True)
+        if config is not None and uploaded_direct_refs:
+            if not isinstance(config, dict):
+                raise ValueError('Configuration JSON must contain an object')
+            offline_catalogues = config.setdefault('offline_catalogues', [])
+            subjects = config.setdefault('subjects', [])
+            if not isinstance(offline_catalogues, list) or not isinstance(subjects, list):
+                raise ValueError('Configuration catalogues and subjects must be lists')
+            offline_catalogues.extend(uploaded_direct_refs)
+            if not any(subject.get('id') == 'general-reference'
+                       for subject in subjects if isinstance(subject, dict)):
+                subjects.append({
+                    'id': 'general-reference', 'title': 'General reference', 'description': ''})
         refs = ({item['filename']: item['entry'] for item in config.get('offline_catalogues', [])}
                 if config is not None else {})
         if config is not None and set(catalogue_streams) != set(refs):
@@ -3221,7 +3305,7 @@ def import_preview():
                              'entry_type': 'zim' if 'asset' in metadata.get('entry', {}) else 'document'})
         if config is None:
             if not discovered_refs:
-                raise ValueError('Select a configuration JSON or at least one offline catalogue ZIP')
+                raise ValueError('Select a configuration JSON, offline catalogue ZIP, ZIM file, or PDF file')
             config = {'format': 'cyberdeck-config', 'version': 1,
                       'name': catalogs[0]['name'] or 'Offline catalogue import',
                       'reserve_bytes': 1_000_000_000, 'assets': [],

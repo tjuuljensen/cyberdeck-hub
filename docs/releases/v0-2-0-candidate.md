@@ -88,6 +88,9 @@ Refresh disks button.
 select and menu chevrons, and connected card groups.
 `0.2.0-beta.37` opens ZIM and document selection groups in import previews and
 opens the document and content groups in export options for easier discovery.
+`0.2.0-beta.38` accepts standalone ZIM and PDF files in Admin import, previewing
+them as local libraries or documents. Exported JSON and ZIP imports preserve
+online source URLs and any selected cached PDF copies.
 
 ## Included scope
 
