@@ -91,6 +91,10 @@ for action in hotspot-module-enable hotspot-module-disable cyberchef-status cybe
     grep -Fq "'$action':" "$admin_helper" ||
         fail "the staged admin helper is outdated (missing $action); rebuild the source kit."
 done
+for action in firewall-status firewall-enable firewall-disable; do
+    grep -Fq "admin-helper.py $action" "$installer" ||
+        fail "the staged installer does not grant sudo access for $action; rebuild the source kit."
+done
 
 account=$(getent passwd cyberdeck || true)
 if [[ -n $account ]]; then

@@ -69,6 +69,7 @@ If Debian 13 is already installed, skip the USB and Debian Installer sections an
 - If the ISO checksum does not match Debian's checksum list, discard the image and download it again. Do not write it to USB.
 - If the USB does not boot, record whether the system uses UEFI or legacy BIOS and rebuild the media from a verified ISO.
 - If first-boot setup is skipped or interrupted, retry it with the command above. Keep the staged kit until setup and service checks succeed.
+- First-boot setup checks that the staged installer grants the firewall status and change actions before it offers to apply. If it reports a missing action, rebuild the media or source kit from the current repository and retry; do not hand-edit the installed sudoers file.
 - If install reports a deployment recovery ID, retain it and preview rollback before executing rollback.
 - After install, verify `cyberdeck-web.service` and `cyberdeck-kiwix.service`; follow the manual guide for backup and disconnected restore procedures.
 
