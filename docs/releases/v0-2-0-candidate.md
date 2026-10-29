@@ -94,6 +94,10 @@ online source URLs and any selected cached PDF copies.
 `0.2.0-beta.39` makes the import picker show all files so ZIMs remain visible in
 file dialogs that do not recognize their MIME type, and labels duplicate notices
 with the import category for context.
+`0.2.0-beta.40` adds item counts to matching import and export categories and
+shows the selected ZIM count in the import storage summary.
+`0.2.0-beta.41` classifies cached public document files under Documents during
+import, lets administrators choose those copies, and preserves their source URLs.
 
 ## Included scope
 

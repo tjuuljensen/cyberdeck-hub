@@ -50,6 +50,8 @@ async function refreshExportOptions() {
     const makeItemGroup = (title, groupEntries, {includePdfToggle = false} = {}) => {
       const category = makeCategory(title);
       category.details.open = true;
+      const heading = category.details.querySelector('summary span');
+      if (heading) heading.textContent = `${t(title)} (${groupEntries.length})`;
       const list = document.createElement('div');
       list.className = 'export-category-items';
       if (includePdfToggle) {
@@ -241,7 +243,7 @@ function appendImportItemGroup({title,help,items,selection,keyFor,describe,onCha
   details.open=true;
   const summary=document.createElement('summary');
   const master=document.createElement('input');master.type='checkbox';master.setAttribute('aria-label',t(title));
-  const heading=document.createElement('span');heading.textContent=t(title);
+  const heading=document.createElement('span');heading.textContent=`${t(title)} (${items.length})`;
   summary.append(master,heading);details.append(summary);
   if(help){const note=document.createElement('p');note.className='subtle export-category-help';note.textContent=t(help);details.append(note)}
   const list=document.createElement('div');list.className='export-category-items';
@@ -427,14 +429,20 @@ importForm.addEventListener('submit', async event => {
       selection:onlinePdfSelection,keyFor:'onlinePdfKey',
       describe:item=>`${item.title} · ${item.bytes?formatBytes(item.bytes):t('ui.0354')}`,
       onChange:()=>updateImportCapacity()});
-    const localDocumentGroup=appendImportItemGroup({title:'ui.0843',help:'ui.0532',items:result.document_options,
+    const cachedDocumentGroup=appendImportItemGroup({title:'ui.0872',help:'ui.0873',
+      items:(result.document_options||[]).filter(item=>item.location==='library'),
       selection:documentSelection,keyFor:'documentKey',describe:item=>`${item.title} · ${formatBytes(item.bytes)}`,
       onChange:()=>updateImportCapacity()});
-    if(onlineDocumentGroup||localDocumentGroup){
+    const localDocumentGroup=appendImportItemGroup({title:'ui.0843',help:'ui.0532',
+      items:(result.document_options||[]).filter(item=>item.location!=='library'),
+      selection:documentSelection,keyFor:'documentKey',describe:item=>`${item.title} · ${formatBytes(item.bytes)}`,
+      onChange:()=>updateImportCapacity()});
+    if(onlineDocumentGroup||cachedDocumentGroup||localDocumentGroup){
       const documents=document.createElement('details');documents.className='export-category import-documents-category';
       documents.open=true;
       const summary=document.createElement('summary');summary.textContent=t('ui.0841');documents.append(summary);
       if(onlineDocumentGroup)documents.append(onlineDocumentGroup);
+      if(cachedDocumentGroup)documents.append(cachedDocumentGroup);
       if(localDocumentGroup)documents.append(localDocumentGroup);
       importPreview.append(documents);
     }
@@ -448,23 +456,36 @@ importForm.addEventListener('submit', async event => {
     const applyBlocks = [];
     const updateImportCapacity = () => {
       const chosen = (result.zim_options || []).filter(item => zimSelection.has(item.key));
-      const omittedDocumentBytes = (result.document_options || []).filter(item => !documentSelection.has(item.key)).reduce((sum, item) => sum + item.bytes, 0);
+      const omittedDocumentBytes = (result.document_options || []).filter(item =>
+        item.location !== 'library' && !documentSelection.has(item.key)).reduce((sum, item) => sum + item.bytes, 0);
       const documentRequired = Math.max(0, result.required_bytes - omittedDocumentBytes);
       const required = chosen.filter(item => item.kind === 'catalogue').reduce((sum, item) => sum + item.bytes, 0) +
         chosen.filter(item => item.kind === 'download').reduce((sum, item) => sum + item.bytes, 0) + result.reserve_bytes;
       const selectedOnlinePdfs = (result.online_pdf_options || []).filter(item => onlinePdfSelection.has(item.key));
       const onlinePdfBytes = selectedOnlinePdfs.reduce((sum, item) => sum + item.bytes, 0);
-      const libraryRequired = required + onlinePdfBytes;
+      const cachedDocumentBytes = (result.document_options || []).filter(item =>
+        item.location === 'library' && documentSelection.has(item.key)).reduce((sum, item) => sum + item.bytes, 0);
+      const libraryRequired = required + onlinePdfBytes + cachedDocumentBytes;
       const selectedConflicts = (result.zim_options || []).filter(item => zimSelection.has(item.key) && item.conflict);
       const selectedOnlinePdfConflicts = selectedOnlinePdfs.filter(item => item.conflict);
+      const selectedDocumentConflicts = (result.document_options || []).filter(item =>
+        item.location === 'library' && documentSelection.has(item.key) &&
+        result.path_conflicts.includes(item.path));
+      const coveredConflictPaths = new Set([
+        ...(result.zim_options || []).map(item => item.path),
+        ...(result.online_pdf_options || []).map(item => item.path),
+        ...(result.document_options || []).map(item => item.path).filter(Boolean),
+      ]);
       const uncoveredConflicts = result.path_conflicts.filter(path =>
-        !(result.zim_options || []).some(item => item.path === path));
+        !coveredConflictPaths.has(path));
       capacity.textContent = t('ui.0542', {
-        pdf_count: selectedOnlinePdfs.length, required: formatBytes(libraryRequired),
+        zim_count: chosen.length, pdf_count: selectedOnlinePdfs.length,
+        required: formatBytes(libraryRequired),
         available: formatBytes(result.available_data_bytes)});
       capacity.textContent += ` ${t('ui.0534', {
         required: formatBytes(documentRequired), available: formatBytes(result.available_bytes)})}`;
-      const blockedByConflict = uncoveredConflicts.length > 0 || selectedConflicts.length > 0 || selectedOnlinePdfConflicts.length > 0;
+      const blockedByConflict = uncoveredConflicts.length > 0 || selectedConflicts.length > 0 ||
+        selectedOnlinePdfConflicts.length > 0 || selectedDocumentConflicts.length > 0;
       const blockedBySpace = result.available_data_bytes < libraryRequired;
       applyBlocks.length = 0;
       if (blockedByConflict) applyBlocks.push(t('ui.0349'));

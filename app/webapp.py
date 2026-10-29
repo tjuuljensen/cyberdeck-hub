@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.39'
+APP_VERSION = '0.2.0-beta.41'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -2642,11 +2642,30 @@ def _duplicate_import_warnings(db, catalogues):
 
 
 def _document_import_options(db, catalogues):
-    """Describe PDF attachments and mark matching existing or incoming content."""
+    """Describe local document copies and PDF attachments for import selection."""
     candidates = []
     sizes = set()
     for filename, metadata in sorted(catalogues, key=lambda entry: entry[0].casefold()):
         entry = metadata.get('entry', {})
+        if 'asset' in entry:
+            asset = entry['asset']
+            path = asset.get('path', '')
+            if not path.startswith('public/'):
+                continue
+            file_map = {file.get('path'): file for file in metadata.get('files', [])
+                        if isinstance(file, dict)}
+            payload = file_map.get(path, {})
+            digest = str(payload.get('sha256', '')).lower()
+            size = payload.get('bytes', 0)
+            if not re.fullmatch(r'[0-9a-f]{64}', digest) or type(size) is not int:
+                continue
+            sizes.add(size)
+            candidates.append({'key': f'document-catalogue:{filename}',
+                               'catalogue': filename, 'stored_path': None,
+                               'title': asset.get('title') or Path(path).name,
+                               'path': path, 'location': 'library',
+                               'bytes': size, 'sha256': digest})
+            continue
         if 'item' not in entry:
             continue
         item = entry['item']
@@ -2666,9 +2685,17 @@ def _document_import_options(db, catalogues):
             candidates.append({'key': f'document:{filename}:{stored_path}',
                                'catalogue': filename, 'stored_path': stored_path,
                                'title': attachment.get('filename') or item.get('title') or filename,
+                               'path': None, 'location': 'private',
                                'bytes': size, 'sha256': digest})
 
     existing = {}
+    existing_paths = set(acquired_records())
+    for path, record in acquired_records().items():
+        if not path.startswith('public/'):
+            continue
+        digest = str(record.get('sha256', '')).lower() if isinstance(record, dict) else ''
+        if re.fullmatch(r'[0-9a-f]{64}', digest):
+            existing.setdefault(digest, f"{Path(path).name} ({path})")
     for row in db.execute(
             'SELECT item.title AS title, attachment.filename AS filename, '
             'attachment.stored_path AS stored_path, item.id AS item_id FROM attachment '
@@ -2685,9 +2712,14 @@ def _document_import_options(db, catalogues):
     seen = set()
     for option in candidates:
         prior = existing.get(option['sha256'])
-        if prior:
+        if option['path'] and (option['path'] in existing_paths or
+                               library.safe_path(DATA_ROOT, option['path']).exists()):
             option['duplicate'] = True
-            option['reason'] = f"Matches an existing PDF: {prior}"
+            option['reason'] = f"{option['path']} is already installed or registered"
+        elif prior:
+            option['duplicate'] = True
+            kind = 'document file' if option['location'] == 'library' else 'PDF'
+            option['reason'] = f"Matches an existing {kind}: {prior}"
         elif option['sha256'] in seen:
             option['duplicate'] = True
             option['reason'] = 'Matches another PDF in this import'
@@ -3319,7 +3351,8 @@ def import_preview():
             catalogs.append({'filename': filename, 'name': metadata.get('name', filename), 'bytes': size,
                              'expanded_html_bytes': expanded_html_bytes,
                              'asset_path': asset_path,
-                             'entry_type': 'zim' if 'asset' in metadata.get('entry', {}) else 'document'})
+                             'entry_type': ('zim' if isinstance(asset_path, str) and
+                                            asset_path.startswith('zim/') else 'document')})
         if config is None:
             if not discovered_refs:
                 raise ValueError('Select a configuration JSON, offline catalogue ZIP, ZIM file, or PDF file')
@@ -3386,6 +3419,8 @@ def import_preview():
         document_bytes = sum(file['bytes'] for filename, metadata in catalogue_metadata
                              if 'item' in metadata['entry']
                              for file in metadata.get('files', []))
+        cached_document_bytes = sum(option['bytes'] for option in document_options
+                                    if option['location'] == 'library' and not option['duplicate'])
         expanded_html_bytes = sum(item['expanded_html_bytes'] for item in catalogs)
         reserve_bytes = config.get('reserve_bytes', 0)
         disk_free = shutil.disk_usage(PRIVATE_ROOT).free
@@ -3406,7 +3441,7 @@ def import_preview():
                        online_pdf_options=online_pdf_options,
                        required_bytes=document_bytes + expanded_html_bytes,
                        expanded_html_bytes=expanded_html_bytes,
-                       required_data_bytes=zim_bytes + online_zim_bytes,
+                       required_data_bytes=zim_bytes + online_zim_bytes + cached_document_bytes,
                        reserve_bytes=reserve_bytes,
                        available_bytes=disk_free,
                        available_data_bytes=max(0, shutil.disk_usage(DATA_ROOT).free - reserved_zim_bytes),
@@ -3533,12 +3568,19 @@ def import_apply():
             return jsonify(error='The selected document list does not match the import preview'), 400
         selected_document_keys = set(selected_documents)
         omitted_document_catalogues = set()
+        omitted_asset_document_catalogues = set()
         omitted_pdf_count = 0
         for _path, metadata, _size, _html in catalogue_plans:
             entry = metadata['entry']
+            filename = metadata['_catalogue_filename']
+            if 'asset' in entry and entry['asset'].get('path', '').startswith('public/'):
+                option_key = 'document-catalogue:' + filename
+                if option_key not in selected_document_keys:
+                    omitted_document_catalogues.add(filename)
+                    omitted_asset_document_catalogues.add(filename)
+                continue
             if 'item' not in entry:
                 continue
-            filename = metadata['_catalogue_filename']
             options = [option for option in document_options
                        if option['catalogue'] == filename]
             omitted_paths = {option['stored_path'] for option in options
@@ -3567,7 +3609,8 @@ def import_apply():
                 item for item in config.get('offline_catalogues', [])
                 if item.get('filename') not in omitted_document_catalogues]
         catalogue_plans = [plan for plan in catalogue_plans
-                           if plan[1]['_catalogue_filename'] not in empty_document_catalogues]
+                           if plan[1]['_catalogue_filename'] not in empty_document_catalogues and
+                           plan[1]['_catalogue_filename'] not in omitted_asset_document_catalogues]
         deferred_catalogue_zims = sum(
             1 for _path, metadata, _size, _html in catalogue_plans
             if 'asset' in metadata['entry'] and
@@ -3613,7 +3656,11 @@ def import_apply():
             return jsonify(error='Import would overwrite existing files: {files}',
                            error_params={'files': ', '.join(conflicts[:8])}), 409
         zim_bytes = sum(size for _path, metadata, size, _html_bytes in catalogue_plans
-                        if 'asset' in metadata['entry'])
+                        if 'asset' in metadata['entry'] and
+                        metadata['entry']['asset'].get('path', '').startswith('zim/'))
+        cached_document_bytes = sum(size for _path, metadata, size, _html_bytes in catalogue_plans
+                                    if 'asset' in metadata['entry'] and
+                                    metadata['entry']['asset'].get('path', '').startswith('public/'))
         document_bytes = sum(file['bytes'] for _path, metadata, _size, _html_bytes in catalogue_plans
                              if 'item' in metadata['entry']
                              for file in metadata.get('files', []))
@@ -3623,7 +3670,7 @@ def import_apply():
                                'online:' + asset['path'] in selected_zim_keys)
         online_pdf_bytes = sum(asset.get('expected_bytes', asset['max_bytes'])
                                for asset in online_pdf_assets)
-        required_data_bytes = (zim_bytes + online_zim_bytes + online_pdf_bytes +
+        required_data_bytes = (zim_bytes + cached_document_bytes + online_zim_bytes + online_pdf_bytes +
                                config.get('reserve_bytes', 0))
         reserved_zim_bytes = active_zim_reservations(g.db)
         if (shutil.disk_usage(DATA_ROOT).free < required_data_bytes + reserved_zim_bytes or

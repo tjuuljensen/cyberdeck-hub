@@ -2076,7 +2076,7 @@
     "context": "Default library subject text or server response. Preserve placeholders and product names."
   },
   "ui.0542": {
-    "default": "Selected ZIMs and {pdf_count} internet PDFs need {required} including reserve; {available} library storage remains.",
+    "default": "Selected {zim_count} ZIMs and {pdf_count} internet PDFs need {required} including reserve; {available} library storage remains.",
     "context": "User interface text used in admin.js. Preserve placeholders and product names."
   },
   "ui.0543": {
@@ -3158,5 +3158,13 @@
   "ui.0871": {
     "default": "Supported files: JSON and ZIP exports, ZIM libraries, and PDF documents. Choose an exported JSON or ZIP to preserve online source URLs and cached PDF copies.",
     "context": "Help beside the import file picker describing accepted types and how online source metadata is preserved."
+  },
+  "ui.0872": {
+    "default": "Cached copies included",
+    "context": "Import category for online document files that are included in the uploaded export bundle."
+  },
+  "ui.0873": {
+    "default": "These local files came from the online document sources in this bundle. They are selected by default; clear one to omit its cached copy. Its URL remains in the imported configuration.",
+    "context": "Help text for selecting cached copies of online documents during import."
   }
 }

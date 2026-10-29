@@ -518,7 +518,7 @@
   "ui.0535": "Listen over valgte dokumenter stemmer ikke med importvisningen",
   "ui.0544": "Konfigurationen blev gemt privat som {filename}. Offlinekataloger importeret: {catalogues}. ZIM-filer medtaget: {included}; udsat: {deferred}. ZIM-hentninger startet: {zim_downloads}; sat i kø til efter PDF'er: {queued_zims}. Internet-PDF'er, der hentes: {pdf_downloads}. PDF-vedhæftninger sprunget over: {skipped_pdfs}. Andre kilder, der stadig skal hentes: {sources}. Onlinekildekort importeret: {online_cards}; RSS-kort importeret: {rss_cards}.",
   "ui.0541": "Internet-PDF'er begynder at blive hentet først, når du anvender importen. De valgte ZIM-filer hentes, når PDF'erne er færdige. Andre onlinekilder gemmes til senere hentning.",
-  "ui.0542": "De valgte ZIM-filer og {pdf_count} internet-PDF'er kræver {required} inklusive reserve. Der er {available} biblioteksplads tilbage.",
+  "ui.0542": "De valgte {zim_count} ZIM-filer og {pdf_count} internet-PDF'er kræver {required} inklusive reserve. Der er {available} biblioteksplads tilbage.",
   "ui.0543": "Importen kan ikke anvendes: Det valgte indhold overskrider den ledige biblioteksplads ({required} kræves inklusive reserve, {available} er tilgængelig).",
   "ui.0545": "Nogle internet-PDF-hentninger kunne ikke startes: {errors}",
   "ui.0546": "Klik én gang på en strømhandling for at aktivere den, og klik igen for at bekræfte.",
@@ -788,5 +788,7 @@
   "ui.0866": "Konfiguration af bibliotekets mappe",
   "ui.0867": "Slet alt indhold",
   "ui.0868": "Slet kort og alt indhold",
-  "ui.0871": "Understøttede filer: JSON- og ZIP-eksporter, ZIM-biblioteker og PDF-dokumenter. Vælg en eksporteret JSON eller ZIP for at bevare onlinekilders URL'er og hentede PDF-kopier."
+  "ui.0871": "Understøttede filer: JSON- og ZIP-eksporter, ZIM-biblioteker og PDF-dokumenter. Vælg en eksporteret JSON eller ZIP for at bevare onlinekilders URL'er og hentede PDF-kopier.",
+  "ui.0872": "Hentede kopier i pakken",
+  "ui.0873": "Disse lokale filer stammer fra online dokumentkilder i pakken. De er valgt som standard; fravælg en fil for at udelade dens hentede kopi. URL'en bevares i den importerede konfiguration."
 }
