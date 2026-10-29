@@ -1,0 +1,14 @@
+http://{$CYBERDECK_HOSTNAME} {
+	@bootstrap path /help/certificate /trust/ca.crt /trust/ca.cer /static/* /accent.css
+	handle @bootstrap {
+		reverse_proxy hub:8000
+	}
+	handle {
+		redir https://{host}{uri} 308
+	}
+}
+
+{$CYBERDECK_HOSTNAME} {
+	tls internal
+	reverse_proxy hub:8000
+}

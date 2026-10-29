@@ -1,0 +1,89 @@
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      CYBERDECK_HOSTNAME: ${CYBERDECK_HOSTNAME:-cyberdeck.local}
+      CYBERDECK_SESSION_KEY: ${CYBERDECK_SESSION_KEY:?Set CYBERDECK_SESSION_KEY in .env}
+      CYBERDECK_KIWIX_BACKEND: http://kiwix:8080
+      CYBERDECK_TRUST_PROXY: "1"
+      CYBERDECK_CA_CERT_FILE: /public-ca/root.crt
+    volumes:
+      - hub_data:/srv/cyberdeck
+      - hub_private:/srv/cyberdeck-private
+      - caddy_ca:/public-ca:ro
+    networks:
+      - cyberdeck
+    depends_on:
+      kiwix:
+        condition: service_started
+      ca-exporter:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kiwix:
+    build:
+      context: .
+      dockerfile: docker/kiwix.Dockerfile
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    volumes:
+      - hub_data:/srv/cyberdeck:ro
+    networks:
+      - cyberdeck
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    environment:
+      CYBERDECK_HOSTNAME: ${CYBERDECK_HOSTNAME:-cyberdeck.local}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - cyberdeck
+    restart: unless-stopped
+
+  ca-exporter:
+    build:
+      context: .
+      dockerfile: docker/ca-exporter.Dockerfile
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=8m
+    volumes:
+      - caddy_data:/caddy-data:ro
+      - caddy_ca:/public-ca
+    depends_on:
+      caddy:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /public-ca/root.crt"]
+      interval: 2s
+      timeout: 1s
+      retries: 60
+      start_period: 5s
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  cyberdeck:
+    name: cyberdeck
+
+volumes:
+  hub_data:
+  hub_private:
+  caddy_data:
+  caddy_ca:
+  caddy_config:

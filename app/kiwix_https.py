@@ -18,10 +18,25 @@ RESPONSE_HEADERS = {'content-type', 'content-length', 'content-encoding',
                     'content-disposition', 'content-security-policy', 'location'}
 
 
+def backend_address():
+    """Return the configured internal Kiwix HTTP backend address and path prefix."""
+    value = os.environ.get('CYBERDECK_KIWIX_BACKEND', 'http://127.0.0.1:8080')
+    parsed = urllib.parse.urlsplit(value)
+    if (parsed.scheme != 'http' or not parsed.hostname or parsed.username or parsed.password or
+            parsed.query or parsed.fragment):
+        raise ValueError('Kiwix backend must be an internal HTTP URL')
+    return parsed.hostname, parsed.port or 80, parsed.path.rstrip('/')
+
+
 def location_for_client(location):
     host = os.environ.get('CYBERDECK_HOSTNAME', 'cyberdeck.local')
     parsed = urllib.parse.urlsplit(location)
-    if parsed.hostname in {'127.0.0.1', 'localhost', host} and parsed.port in (None, 8080):
+    try:
+        backend_host, backend_port, _prefix = backend_address()
+    except ValueError:
+        backend_host, backend_port = '127.0.0.1', 8080
+    if (parsed.hostname in {backend_host, '127.0.0.1', 'localhost', host} and
+            parsed.port in (None, backend_port, 8080)):
         path = parsed.path if parsed.path.startswith('/kiwix/') else '/kiwix/' + parsed.path.lstrip('/')
         return urllib.parse.urlunsplit(('https', host, path, parsed.query, parsed.fragment))
     return location
@@ -48,8 +63,11 @@ def proxy(path):
     if (len(target) > 16384 or not target.startswith('/') or target.startswith('//')
             or any(character in target for character in '\r\n#')):
         return Response('Invalid Kiwix URL.', status=400, mimetype='text/plain')
-    connection = http.client.HTTPConnection('127.0.0.1', 8080, timeout=30)
     try:
+        backend_host, backend_port, prefix = backend_address()
+        connection = http.client.HTTPConnection(backend_host, backend_port, timeout=30)
+        if prefix:
+            target = prefix + target
         headers = {name: request.headers[name] for name in REQUEST_HEADERS if name in request.headers}
         connection.request(request.method, target, headers=headers)
         upstream = connection.getresponse()
@@ -58,7 +76,8 @@ def proxy(path):
                     for name, value in upstream.getheaders()
                     if name.lower() in RESPONSE_HEADERS and name.lower() not in connection_headers]
     except (OSError, http.client.HTTPException, ValueError):
-        connection.close()
+        if 'connection' in locals():
+            connection.close()
         return Response('Kiwix is temporarily unavailable. Return to the library and try again shortly.',
                         status=503, mimetype='text/plain', headers={'Retry-After': '5'})
 

@@ -271,6 +271,35 @@ class WebAppTests(unittest.TestCase):
                 self.assertEqual(anonymous.head('/trust/ca.' + extension).data, b'')
             self.assertEqual(anonymous.get('/trust/ca.key').status_code, 404)
 
+    def test_container_health_endpoint_and_kiwix_index_include_verified_zims_only(self):
+        self.assertEqual(self.client.get('/healthz').status_code, 200)
+        archive_dir = webapp.DATA_ROOT / 'zim'
+        archive_dir.mkdir(parents=True)
+        (archive_dir / 'ready.zim').write_bytes(b'verified fixture')
+        (archive_dir / 'failed.zim').write_bytes(b'unverified fixture')
+        with closing(webapp.connect_db()) as db:
+            db.execute('INSERT INTO zim(id,title,subject,filename,source_url,status) '
+                       'VALUES(?,?,?,?,?,?)',
+                       ('ready-id', 'Ready', 'general-reference', 'ready.zim',
+                        'https://download.kiwix.org/zim/ready.zim', 'ready'))
+            db.execute('INSERT INTO zim(id,title,subject,filename,source_url,status) '
+                       'VALUES(?,?,?,?,?,?)',
+                       ('failed-id', 'Failed', 'general-reference', 'failed.zim',
+                        'https://download.kiwix.org/zim/failed.zim', 'failed: validator'))
+            db.commit()
+        webapp.sync_kiwix_index()
+        index = (webapp.DATA_ROOT / 'kiwix-index.txt').read_text(encoding='utf-8')
+        self.assertEqual(index, 'ready.zim\n')
+        with closing(webapp.connect_db()) as db:
+            db.execute("UPDATE zim SET status='paused' WHERE id='ready-id'")
+            db.commit()
+        webapp.sync_kiwix_index()
+        self.assertEqual((webapp.DATA_ROOT / 'kiwix-index.txt').read_text(encoding='utf-8'), '')
+        with patch.dict(webapp.os.environ, {'CYBERDECK_RUNTIME_MODE': 'container'}), \
+                patch.object(webapp.subprocess, 'run') as host_process:
+            self.assertIsNone(webapp.restart_kiwix())
+            host_process.assert_not_called()
+
     def test_certificate_help_handles_missing_or_invalid_certificate(self):
         certificate = Path(self.temp.name) / 'missing.crt'
         anonymous = webapp.app.test_client()

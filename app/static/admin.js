@@ -475,7 +475,16 @@ importForm.addEventListener('submit', async event => {
 let hotspotConfigLoaded=false;
 let hotspotPasswordLoaded=false;
 let zimPolling=false;
-async function requestJson(url, options={}) { let response;try{response=await fetch(url,{...options,headers:{...headers,...options.headers}})}catch{throw new Error(window.cyberdeckNetworkError())}if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(window.cyberdeckApiError(body,response.status))}return response.status===204?null:response.json(); }
+let zimLoaded=false;
+async function requestJson(url, options={}) { let response;try{response=await fetch(url,{...options,headers:{...headers,...options.headers}})}catch{const error=new Error(window.cyberdeckNetworkError());error.networkError=true;throw error}if(!response.ok){const body=await response.json().catch(()=>({}));const error=new Error(window.cyberdeckApiError(body,response.status));error.status=response.status;throw error}return response.status===204?null:response.json(); }
+async function requestJsonWithRetry(url, options={}, attempts=4){
+  for(let attempt=0;;attempt++){
+    try{return await requestJson(url,options)}catch(error){
+      if(attempt+1>=attempts||(error.status&&error.status<500)||(!error.status&&!error.networkError))throw error;
+      await new Promise(resolve=>setTimeout(resolve,400*2**attempt));
+    }
+  }
+}
 let pdfImportPoll;
 let adminDocumentEntries=[];
 let pdfImportJobs=[];
@@ -568,7 +577,7 @@ function updateZimRow(el,item){el.zimItem=item;el.querySelector('.zim-file-detai
   }
 }
 
-async function refreshZims(){const list=document.querySelector('#zim-list');const items=await requestJson('/api/admin/zims');zimPolling=items.some(item=>item.status.startsWith('pid:')||item.status==='downloading');const previous=new Map(Array.from(list.children,el=>[el.dataset.zimId,el]));const ordered=[];for(const item of items){const el=previous.get(item.id)||createZimRow(item);previous.delete(item.id);updateZimRow(el,item);ordered.push(el)}for(const el of previous.values())el.remove();const current=Array.from(list.children);if(current.length!==ordered.length||current.some((el,index)=>el!==ordered[index]))for(const el of ordered)list.append(el);document.querySelector('#zim-count').textContent=ordered.length;applyContentCardFilters()}
+async function refreshZims(){const list=document.querySelector('#zim-list');let items;try{items=await requestJsonWithRetry('/api/admin/zims')}catch(error){document.querySelector('#zim-status').textContent=`Could not load ZIMs: ${error.message}`;throw error}zimLoaded=true;document.querySelector('#zim-status').textContent='';zimPolling=items.some(item=>item.status.startsWith('pid:')||item.status==='downloading');const previous=new Map(Array.from(list.children,el=>[el.dataset.zimId,el]));const ordered=[];for(const item of items){const el=previous.get(item.id)||createZimRow(item);previous.delete(item.id);updateZimRow(el,item);ordered.push(el)}for(const el of previous.values())el.remove();const current=Array.from(list.children);if(current.length!==ordered.length||current.some((el,index)=>el!==ordered[index]))for(const el of ordered)list.append(el);document.querySelector('#zim-count').textContent=ordered.length;applyContentCardFilters()}
 function createManagedDocumentRow(item,importStatus=null){
   const el=row(item.title,'','Remove',()=>{});
   el.dataset.subject=item.subject||'';
@@ -681,7 +690,7 @@ let documentsRefresh=0;
 async function refreshDocuments(){
   const generation=++documentsRefresh;
   const status=document.querySelector('#documents-status');status.textContent='Loading documents...';
-  const [result]=await Promise.allSettled([requestJson('/api/admin/documents')]);
+  const [result]=await Promise.allSettled([requestJsonWithRetry('/api/admin/documents')]);
   if(generation!==documentsRefresh)return;
   if(result.status==='rejected'){console.error('Could not load admin documents:',result.reason);status.textContent=t('ui.0384');return}
   adminDocumentEntries=result.value.sort((a,b)=>a.title.localeCompare(b.title));renderAdminDocuments();
@@ -1295,7 +1304,7 @@ async function hotspotStatus(){
 hotspotStatus().catch(error=>alert(error.message));
 setInterval(()=>hotspotStatus().catch(()=>{}),30000);
 }
-const powerPanel=document.querySelector('#management');
+const powerPanel=document.querySelector('#management .management-power');
 if(powerPanel){
   const powerStatus=document.createElement('p');powerStatus.className='subtle';powerStatus.setAttribute('role','status');powerStatus.setAttribute('aria-live','polite');
   powerStatus.textContent=t('ui.0546');
@@ -1484,7 +1493,7 @@ function refreshSubjectSelects(){
     if(select.type==='checkbox')return;const previous=select.value;select.replaceChildren(...subjects.map(card=>{const option=new Option(card.display_title||card.title,card.id);option.dataset.userContent='true';return option}));if(subjects.some(card=>card.id===previous))select.value=previous;
   });
 }
-async function refreshCards(){const result=await requestJson('/api/admin/cards');adminCards=result.cards;renderCards()}
+async function refreshCards(){const result=await requestJsonWithRetry('/api/admin/cards');adminCards=result.cards;renderCards();cardStatus.textContent=''}
 cardForm?.addEventListener('submit',async event=>{event.preventDefault();const button=cardForm.querySelector('[type="submit"]');button.disabled=true;try{const card=cardPayloadFromForm();const editing=Boolean(cardForm.elements.id.value);const path=editing?`/api/admin/cards/${encodeURIComponent(card.id)}`:'/api/admin/cards';const saved=await requestJson(path,{method:editing?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(card)});resetCardForm();await refreshCards();cardStatus.textContent='Card saved.'}catch(error){cardStatus.textContent=error.message}finally{button.disabled=false}});
 cardForm?.elements.type.addEventListener('change',updateCardFormVisibility);
 cardForm?.querySelector('#card-cancel').addEventListener('click',resetCardForm);
@@ -1494,4 +1503,4 @@ document.querySelector('#online-source-card-filter')?.addEventListener('change',
 document.querySelector('#documents-list')&&new MutationObserver(applyContentCardFilters).observe(document.querySelector('#documents-list'),{childList:true});
 document.querySelector('#zim-list')&&new MutationObserver(()=>{const rows=document.querySelectorAll('#zim-list>.item-row').length;document.querySelector('#zim-count').textContent=rows;applyContentCardFilters()}).observe(document.querySelector('#zim-list'),{childList:true});
 refreshCards().catch(error=>{cardStatus.textContent=error.message});
-Promise.all([refreshZims(),refreshDocuments(),refreshExportOptions(),refreshPdfImports()]).catch(error=>alert(error.message));setInterval(()=>{if(zimPolling)refreshZims().catch(()=>{})},10000);
+Promise.all([refreshZims(),refreshDocuments(),refreshExportOptions(),refreshPdfImports()]).catch(error=>alert(error.message));setInterval(()=>{if(zimPolling||!zimLoaded)refreshZims().catch(error=>{document.querySelector('#zim-status').textContent=`Could not load ZIMs: ${error.message}`})},10000);

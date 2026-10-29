@@ -33,6 +33,26 @@ class KiwixHttpsTests(unittest.TestCase):
         self.assertNotIn('Set-Cookie', response.headers)
         self.connection.close.assert_called()
 
+    def test_container_backend_and_prefix_are_configurable(self):
+        with patch.dict(proxy.os.environ, {'CYBERDECK_KIWIX_BACKEND': 'http://kiwix:8081'}):
+            response = self.client.get('/kiwix/viewer?q=one')
+        self.assertEqual(response.status_code, 200)
+        self.factory.assert_called_once_with('kiwix', 8081, timeout=30)
+        self.connection.request.assert_called_once_with('GET', '/kiwix/viewer?q=one', headers={})
+
+        self.connection.request.reset_mock()
+        with patch.dict(proxy.os.environ, {'CYBERDECK_KIWIX_BACKEND': 'http://kiwix:8081/base'}):
+            self.client.get('/kiwix/search')
+        self.connection.request.assert_called_once_with('GET', '/base/kiwix/search', headers={})
+
+    def test_backend_redirect_to_service_is_rewritten_to_public_host(self):
+        self.upstream.status = 302
+        self.upstream.getheaders.return_value = [('Location', 'http://kiwix:8080/viewer#book')]
+        with patch.dict(proxy.os.environ, {'CYBERDECK_KIWIX_BACKEND': 'http://kiwix:8080',
+                                           'CYBERDECK_HOSTNAME': 'hub.example.test'}):
+            result = self.client.get('/kiwix/viewer')
+        self.assertEqual(result.headers['Location'], 'https://hub.example.test/kiwix/viewer#book')
+
     def test_range_compression_and_head_headers(self):
         self.upstream.status = 206
         self.upstream.getheaders.return_value = [('Content-Type', 'application/octet-stream'),

@@ -1,0 +1,16 @@
+**
+!.dockerignore
+!Dockerfile
+!LICENSE
+!requirements-container.txt
+!compose.yaml
+!Caddyfile
+!app/
+!app/**
+!config/
+!config/debian/
+!config/debian/starter.json
+!config/debian/profiles/
+!config/debian/profiles/*.json
+!docker/
+!docker/**

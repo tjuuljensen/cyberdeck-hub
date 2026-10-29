@@ -44,21 +44,98 @@ point:
 | --- | --- |
 | You are preparing a new Cyberdeck computer | Use the guided Debian USB bootstrap. It prepares custom Debian install media with the Hub source kit and first-boot setup. See the [bootstrap install guide](docs/runbooks/bootstrap-install.md). |
 | Debian 13 is already installed | Start at the existing-system installation section in the [manual Debian install guide](docs/runbooks/debian-install.md). It covers preview, install, configuration, customization, and recovery. |
+| You want to run the Hub in containers | Use the [Docker Compose guide](docs/runbooks/docker-compose.md) for a Hub, Kiwix, and Caddy stack. |
 | You are developing or deploying a Hub change | Build a source-only Debian kit from this checkout with `python3 scripts/debian/build-kit.py --output ./cyberdeck-hub-debian-kit.tar.gz`, then follow the [manual Debian install guide](docs/runbooks/debian-install.md) to preview and install it on the target. |
 
 The install guide identifies supported Debian versions and architectures and
-separates source/package checks from physical-target acceptance. Generic ARM64
-support does not establish support for a particular Raspberry Pi model.
+separates source/package checks from physical-target acceptance. Hub deployment
+has succeeded on a Raspberry Pi 4 running 64-bit Debian 13; this does not
+establish support for every Pi model or accessory.
+
+### Install on a Raspberry Pi 4
+
+Use Raspberry Pi Imager to prepare a microSD card with the current **Raspberry
+Pi OS Lite (64-bit)** image. In Imager's OS customisation settings, configure:
+
+- Hostname: `cyberdeck-pi` (choose a unique name if you have more than one Hub)
+- Username: `operator` (`cyberdeck` is reserved for the Hub service account)
+- Your Wi-Fi country and, if using Wi-Fi for setup, network credentials
+- SSH with public-key authentication
+
+Raspberry Pi's [headless setup guide](https://www.raspberrypi.com/documentation/computers/getting-started.html)
+covers Imager customisation. Insert the card, boot the Pi, and connect over SSH:
+
+```sh
+ssh operator@cyberdeck-pi.local
+```
+
+If `.local` name resolution is unavailable, use the Pi's address instead:
+`ssh operator@<PI-IP>`. Confirm that the image is 64-bit Debian 13-based before
+installing:
+
+```sh
+cat /etc/os-release
+dpkg --print-architecture
+```
+
+The architecture should be `arm64`. Update the OS, then reboot if requested:
+
+```sh
+sudo apt update
+sudo apt full-upgrade
+sudo reboot
+```
+
+Build a source kit from the intended Cyberdeck Hub checkout on a connected
+workstation, then transfer the kit and checksum to the Pi. For example, on a
+Linux, macOS, or Git Bash workstation:
+
+```sh
+python3 scripts/debian/build-kit.py --output ./cyberdeck-hub-debian-kit.tar.gz
+sha256sum cyberdeck-hub-debian-kit.tar.gz > cyberdeck-hub-debian-kit.tar.gz.sha256
+scp cyberdeck-hub-debian-kit.tar.gz cyberdeck-hub-debian-kit.tar.gz.sha256 \
+  operator@cyberdeck-pi.local:~
+```
+
+Then, on the Pi, verify and unpack the kit, preview the installer, and apply it:
+
+```sh
+set -e
+sha256sum -c cyberdeck-hub-debian-kit.tar.gz.sha256
+mkdir -p cyberdeck-hub-source
+tar -xzf cyberdeck-hub-debian-kit.tar.gz -C cyberdeck-hub-source
+cd cyberdeck-hub-source
+bash scripts/debian/install.sh --hostname cyberdeck-pi
+sudo bash scripts/debian/install.sh --apply --hostname cyberdeck-pi
+```
+
+The preview must complete successfully before applying. The installer keeps
+Raspberry Pi OS in place; it does not repartition the card or change the Pi's
+hostname or network configuration. For kit checksums, recovery, and detailed
+post-install checks, follow the [manual Debian install
+guide](docs/runbooks/debian-install.md). After installation, check Wi-Fi
+readiness with:
+
+```sh
+sudo cyberdeck-wifi-diagnostics
+```
+
+The diagnostic reports radio state, detected interfaces, AP-mode support, and
+firmware errors. Resolve any reported radio or driver issue for the specific
+adapter before testing the optional hotspot.
 
 ## First use
 
 After installation, connect your phone or computer to the same local network
-as the Hub. For first-time setup, open `http://cyberdeck.local/` (or use the
-server IP printed by the installer; the standard Cyberdeck hotspot is
-`http://10.42.0.1/`). This HTTP page is only for setting up certificate trust;
-do not enter passwords or use the Hub over HTTP. Download the CA certificate,
-verify its SHA-256 fingerprint against the value on the server, then install it
-as a trusted root certificate on the device. On iPhone, use Safari to download
+as the Hub. On Debian, start certificate setup at `http://cyberdeck.local/` (or
+use the server IP printed by the installer; the standard Cyberdeck hotspot is
+`http://10.42.0.1/`). With Docker Compose, open
+`http://<CYBERDECK_HOSTNAME>/help/certificate` as described in the
+[Compose guide](docs/runbooks/docker-compose.md). HTTP is only for setting up
+certificate trust; do not enter passwords or use the Hub over HTTP. Download
+the CA certificate, verify its SHA-256 fingerprint against the value on the
+server, then install it as a trusted root certificate on the device. On
+iPhone, use Safari to download
 the certificate, install the downloaded profile from **Settings > General >
 VPN & Device Management**, and enable full trust under **Settings > General >
 About > Certificate Trust Settings**. On Windows, import it into **Trusted Root
@@ -153,7 +230,10 @@ managed firewall; review the host's firewall and remote-access setup before
 enabling it. Read the install guide before changing host network or firewall
 settings, especially when administering the host remotely.
 
-Docker is not currently a supported installation path. Use the Debian guide.
+For the container deployment, see the [Docker Compose guide](docs/runbooks/docker-compose.md).
+It runs the Hub and Kiwix in separate containers behind Caddy. Host controls such
+as hotspot, firewall, power, hostname, and storage management are unavailable in
+container mode. For a host-integrated installation, use the Debian guide.
 
 ## More practical guides
 

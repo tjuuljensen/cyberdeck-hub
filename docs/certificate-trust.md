@@ -15,6 +15,11 @@ The private signing key stays on the server and must never be copied to a client
 
 ## First connection
 
+For Docker Compose, use `http://<CYBERDECK_HOSTNAME>/help/certificate` for the
+initial CA bootstrap. Its Caddy front end serves that help page and certificate
+over HTTP while redirecting other HTTP paths to HTTPS. For a Debian install,
+continue with the steps below.
+
 1. Connect the device to the same trusted local network as Cyberdeck. If using
    the standard Cyberdeck hotspot, connect to that Wi-Fi network first.
 2. Open `http://cyberdeck.local/` in a browser. If `.local` does not resolve,

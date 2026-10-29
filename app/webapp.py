@@ -47,9 +47,10 @@ from flask import (Flask, abort, g, jsonify, make_response, redirect, render_tem
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.exceptions import NotFound
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.22'
+APP_VERSION = '0.2.0-beta.23'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -844,6 +845,9 @@ if secret and Path(secret).is_file():
     app.secret_key = Path(secret).read_bytes()
 else:
     app.secret_key = os.environ.get('CYBERDECK_SESSION_KEY')
+if os.environ.get('CYBERDECK_TRUST_PROXY') == '1':
+    # The Compose deployment only exposes the app to its Caddy proxy.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 def load_translation_catalogues(directory=TRANSLATIONS_DIR):
     """Load stable message IDs, English defaults with context, and locale strings."""
@@ -1432,7 +1436,7 @@ def load_request_state():
     recover_import_transactions(g.db)
     g.csrf = session.setdefault('csrf', secrets.token_urlsafe(32))
     if not admin_account_exists():
-        allowed_endpoints = {'first_admin_setup', 'static', 'trust_ca',
+        allowed_endpoints = {'first_admin_setup', 'static', 'trust_ca', 'healthz',
                              'certificate_help', 'language_select'}
         if request.endpoint not in allowed_endpoints:
             if request.path.startswith('/api/'):
@@ -1485,6 +1489,12 @@ def security_headers(response):
     response.headers['Cache-Control'] = 'no-store' if request.path.startswith(('/admin', '/api/admin', '/api/connectivity', '/api/online', '/private')) else 'no-cache'
     response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000')
     return response
+
+
+@app.get('/healthz')
+def healthz():
+    return 'ok\n', 200, {'Content-Type': 'text/plain; charset=utf-8',
+                         'Cache-Control': 'no-store'}
 
 
 @app.get('/')
@@ -5514,6 +5524,7 @@ def fetch_zim_worker(zid):
                 db.execute('UPDATE zim SET status=? WHERE id=?', (failure_status, zid))
                 db.commit()
                 raise ValueError(str(error)) from error
+        sync_kiwix_index()
         restart_kiwix()
 
 
@@ -5675,6 +5686,7 @@ def zim_remove(zid):
         zim_pause_path(zid).unlink(missing_ok=True)
         g.db.execute('DELETE FROM zim WHERE id=?', (zid,))
     g.db.commit()
+    sync_kiwix_index()
     restart_kiwix()
     return '', 204
 
@@ -6080,12 +6092,46 @@ def read_only_helper(action):
     return json.loads(result.stdout or '{}')
 
 
+def sync_kiwix_index():
+    """Publish the verified ZIM filenames consumed by the Compose Kiwix service."""
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    index_path = DATA_ROOT / 'kiwix-index.txt'
+    if index_path.is_symlink():
+        raise RuntimeError('Refusing a symlink at the Kiwix index')
+    with closing(connect_db()) as db:
+        # Serialize concurrent workers so an older snapshot cannot replace a
+        # newer index after another ZIM download/removal has completed.
+        db.execute('BEGIN IMMEDIATE')
+        rows = db.execute("SELECT filename FROM zim WHERE status='ready' ORDER BY filename").fetchall()
+        filenames = []
+        for row in rows:
+            filename = row['filename']
+            if (not isinstance(filename, str) or
+                    not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*\.zim', filename)):
+                continue
+            archive = library.safe_path(DATA_ROOT, f'zim/{filename}')
+            if archive.is_symlink() or not archive.is_file():
+                continue
+            filenames.append(filename)
+        contents = ''.join(filename + '\n' for filename in filenames)
+        if index_path.is_file() and index_path.read_text(encoding='utf-8') == contents:
+            db.commit()
+            return
+        temporary = DATA_ROOT / ('.kiwix-index-' + uuid.uuid4().hex + '.tmp')
+        try:
+            temporary.write_text(contents, encoding='utf-8')
+            temporary.chmod(0o644)
+            os.replace(temporary, index_path)
+            db.commit()
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
 def restart_kiwix():
     """Restart only the Kiwix reader process through the active runtime adapter."""
     if os.environ.get('CYBERDECK_RUNTIME_MODE') == 'container':
-        return subprocess.run(['/usr/bin/supervisorctl', '-c', '/etc/supervisor/supervisord.conf',
-                               'restart', 'kiwix'], check=False, capture_output=True,
-                              text=True, timeout=30)
+        # The separate Compose service monitors the shared index and reloads it.
+        return None
     return subprocess.run(['sudo', '-n', '/usr/bin/systemctl', 'restart', 'cyberdeck-kiwix.service'],
                           check=False, capture_output=True, text=True, timeout=30)
 
