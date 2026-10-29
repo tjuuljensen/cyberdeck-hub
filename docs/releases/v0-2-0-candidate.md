@@ -91,6 +91,9 @@ opens the document and content groups in export options for easier discovery.
 `0.2.0-beta.38` accepts standalone ZIM and PDF files in Admin import, previewing
 them as local libraries or documents. Exported JSON and ZIP imports preserve
 online source URLs and any selected cached PDF copies.
+`0.2.0-beta.39` makes the import picker show all files so ZIMs remain visible in
+file dialogs that do not recognize their MIME type, and labels duplicate notices
+with the import category for context.
 
 ## Included scope
 

@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.38'
+APP_VERSION = '0.2.0-beta.39'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -2567,17 +2567,34 @@ def _duplicate_import_warnings(db, catalogues):
                 continue
             digest = str(item.get('sha256', '')).lower()
             size = item.get('bytes')
-            label = f"{filename}: {item.get('path', 'unknown path')}"
+            entry = metadata.get('entry', {})
+            asset = entry.get('asset', {}) if isinstance(entry, dict) else {}
+            if isinstance(entry, dict) and 'item' in entry:
+                context = 'local document'
+                label = (f"{filename}: {entry['item'].get('title', item.get('path', 'unknown path'))} · "
+                         f"{item.get('path', 'unknown path')}")
+            elif isinstance(asset, dict) and asset.get('path', '').startswith('zim/'):
+                context = 'ZIM library'
+                label = (f"{filename}: {asset.get('title') or item.get('path', 'unknown path')} · "
+                         f"{item.get('path', 'unknown path')}")
+            elif isinstance(asset, dict) and asset.get('path', '').startswith('public/'):
+                context = 'document copy'
+                label = (f"{filename}: {asset.get('title') or item.get('path', 'unknown path')} · "
+                         f"{item.get('path', 'unknown path')}")
+            else:
+                context = 'import file'
+                label = f"{filename}: {item.get('path', 'unknown path')}"
             if not re.fullmatch(r'[0-9a-f]{64}', digest) or type(size) is not int:
                 continue
             incoming_sizes.add(size)
             previous = incoming.get(digest)
             if previous:
+                previous_label, _previous_context = previous
                 duplicate_warnings.append(
-                    f'Duplicate file content: {label} matches {previous} in this import.'
+                    f'Duplicate {context} content: {label} matches {previous_label} in this import.'
                 )
             else:
-                incoming[digest] = label
+                incoming[digest] = (label, context)
 
     if not incoming:
         return duplicate_warnings
@@ -2615,11 +2632,11 @@ def _duplicate_import_warnings(db, catalogues):
             continue
         existing.setdefault(digest, f"{row['title']} ({row['filename']})")
 
-    for digest, label in incoming.items():
+    for digest, (label, context) in incoming.items():
         previous = existing.get(digest)
         if previous:
             duplicate_warnings.append(
-                f'Duplicate file content: {label} matches existing {previous}.'
+                f'Duplicate {context} content: {label} matches existing {previous}.'
             )
     return duplicate_warnings
 

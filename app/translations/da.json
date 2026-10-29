@@ -716,9 +716,9 @@
   "ui.0783": "RSS-FEED {id}",
   "ui.0784": "Onlinekilder",
   "ui.0785": "RSS",
-  "ui.0786": "Kort med onlinekilder",
+  "ui.0786": "Onlinekilder",
   "ui.0787": "Opret flere kort med online links. Kortene vises sammen med bibliotekets øvrige kort og skjules, når Cyberdeck ikke har internetadgang.",
-  "ui.0794": "RSS-feedkort",
+  "ui.0794": "RSS-feedS",
   "ui.0795": "Opret flere RSS-kort. Feedindhold hentes kun, når Cyberdeck har internetadgang. Størrelsen på svar og antal poster er begrænset.",
   "ui.0798": "Redigér",
   "ui.0799": "Slet",
@@ -787,5 +787,6 @@
   "ui.0865": "Lokale kopier medtages som kataloger. Hvis en PDF ikke er downloadet, forbliver dens adresse i konfigurationen, og den kræver internetadgang ved import.",
   "ui.0866": "Konfiguration af bibliotekets mappe",
   "ui.0867": "Slet alt indhold",
-  "ui.0868": "Slet kort og alt indhold"
+  "ui.0868": "Slet kort og alt indhold",
+  "ui.0871": "Understøttede filer: JSON- og ZIP-eksporter, ZIM-biblioteker og PDF-dokumenter. Vælg en eksporteret JSON eller ZIP for at bevare onlinekilders URL'er og hentede PDF-kopier."
 }

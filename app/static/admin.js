@@ -257,7 +257,7 @@ function appendImportItemGroup({title,help,items,selection,keyFor,describe,onCha
     checkbox.dataset[keyFor]=item.key;
     const content=document.createElement('span');
     const text=document.createElement('span');text.textContent=describe(item);content.append(text);
-    if(item.duplicate){const error=document.createElement('span');error.className='import-option-error';error.textContent=t(duplicateMessage,{reason:item.reason});content.append(error)}
+    if(item.duplicate){const error=document.createElement('span');error.className='import-option-error';error.textContent=`${t(title)} — ${t(duplicateMessage,{reason:item.reason})}`;content.append(error)}
     label.append(checkbox,content);list.append(label);checkboxes.push(checkbox);
     checkbox.addEventListener('change',()=>{
       if(checkbox.checked)selection.add(item.key);else selection.delete(item.key);

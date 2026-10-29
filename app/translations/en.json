@@ -2868,7 +2868,7 @@
     "context": "Admin navigation label for RSS card settings."
   },
   "ui.0786": {
-    "default": "Online source cards",
+    "default": "Online sources",
     "context": "Admin heading for editing online source cards."
   },
   "ui.0787": {
@@ -2876,7 +2876,7 @@
     "context": "Admin help text for online source cards."
   },
   "ui.0794": {
-    "default": "RSS feed cards",
+    "default": "RSS feeds",
     "context": "Admin heading for editing RSS feed cards."
   },
   "ui.0795": {
@@ -3154,5 +3154,9 @@
   "ui.0868": {
     "default": "Delete card and all contents",
     "context": "Final confirmation label when deleting a populated card."
+  },
+  "ui.0871": {
+    "default": "Supported files: JSON and ZIP exports, ZIM libraries, and PDF documents. Choose an exported JSON or ZIP to preserve online source URLs and cached PDF copies.",
+    "context": "Help beside the import file picker describing accepted types and how online source metadata is preserved."
   }
 }
