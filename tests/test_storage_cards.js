@@ -39,6 +39,29 @@ const disk = {model: 'Test USB disk', stable_id: 'usb-test', adopted: true, adop
 const primary = card => descendants(card).find(item => item.className === 'storage-disk-primary-actions');
 
 async function verify() {
+  const statusNode = {replaceChildren() {}, setAttribute() {}, scrollIntoView() {}, classList: {add() {}}};
+  let currentCard = {_storageDisk: {stable_id: 'usb-test'}, append(node) { this.status = node; }};
+  const folderSlot = {append(node) { this.status = node; }};
+  let folderOpened = false;
+  const statusContext = {
+    storageStatus: statusNode, storageStatusDiskId: null, storageFolderStatusSlot: folderSlot,
+    storageList: {querySelectorAll() { return [currentCard]; }},
+    document: {createElement() { return {setAttribute() {}}; },
+      querySelector() { return {setAttribute() { folderOpened = true; }}; },
+      querySelectorAll() { return []; }}, t: id => id,
+  };
+  vm.createContext(statusContext);
+  vm.runInContext(source.slice(source.indexOf('function showStorageStatus(){'),
+                              source.indexOf('function finishStorageOperation(')), statusContext);
+  statusContext.beginStorageOperation('Unmounting', 'usb-test');
+  assert.equal(currentCard.status, statusNode);
+  assert.equal(folderOpened, false, 'a disk action must not open the library folder fold');
+  currentCard = {_storageDisk: {stable_id: 'usb-test'}, append(node) { this.status = node; }};
+  statusContext.selectStorageStatus('usb-test');
+  assert.equal(currentCard.status, statusNode, 'status follows the disk card after refresh');
+  statusContext.selectStorageStatus(null);
+  assert.equal(folderSlot.status, statusNode, 'library actions retain their folder status location');
+
   const mounted = context.createStorageCard(disk);
   assert.deepEqual(primary(mounted).children.map(item => item.textContent), ['Unmount']);
   assert(descendants(mounted).some(item => item.textContent === `Mounted at ${mount}`));
@@ -56,7 +79,7 @@ async function verify() {
   const calls = [];
   let complete;
   const worker = new Promise(resolve => { complete = resolve; });
-  context.beginStorageOperation = message => calls.push(message);
+  context.beginStorageOperation = (message, identity) => calls.push([message, identity]);
   context.postStorage = async (action, target) => calls.push([action, target.stable_id]);
   context.watchStorageOperation = async (kind, identity) => {
     calls.push([kind, identity]);
@@ -66,7 +89,7 @@ async function verify() {
   let returned = false;
   const pending = primary(mounted).children[0].click().then(() => { returned = true; });
   await new Promise(setImmediate);
-  assert.deepEqual(calls, ['Unmounting adopted disk…', ['unmount', 'usb-test'], ['initialization', 'usb-test']]);
+  assert.deepEqual(calls, [['Unmounting adopted disk…', 'usb-test'], ['unmount', 'usb-test'], ['initialization', 'usb-test']]);
   assert.equal(returned, false, 'a queued action must not be reported as completed');
   complete();
   await pending;

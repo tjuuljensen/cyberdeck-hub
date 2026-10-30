@@ -1,7 +1,8 @@
 # v0.2.0 release candidate
 
 Status: local candidate prepared for review; this is not a published release.
-`0.2.0-beta.52` excludes RAM-backed zram/ram devices from physical disk
+`0.2.0-beta.53` displays disk-operation progress and results on the affected
+disk card. `0.2.0-beta.52` excludes RAM-backed zram/ram devices from physical disk
 management while retaining unnamed physical disks. Protected system storage
 without a hardware model name is labeled System storage in Admin.
 `0.2.0-beta.51` repairs adopted-disk unmounting, runs mount changes through the

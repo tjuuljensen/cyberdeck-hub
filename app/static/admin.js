@@ -997,6 +997,8 @@ async function refreshSystemOverview(){
 const storageList=document.querySelector('#storage-management-list');
 const storageActions=document.querySelector('#storage-management-actions');
 const storageStatus=document.querySelector('#storage-management-status');
+const storageFolderStatusSlot=document.querySelector('#storage-folder-status-slot');
+let storageStatusDiskId=null;
 const storageConfirmation=document.querySelector('#storage-action-confirmation');
 function renderStorageDiskUsage(card,disk,info=approvedLocationsSystemInfo){
   if(!card){
@@ -1030,7 +1032,8 @@ function renderStorageDiskUsage(card,disk,info=approvedLocationsSystemInfo){
 function storageButton(label,action){const button=document.createElement('button');button.className='button';button.type='button';button.textContent=t(label);button.addEventListener('click',action);return button}
 async function postStorage(action,target,extra={}){const identity=typeof target==='string'?{target_mount:target}:target?.stable_id?{stable_id:target.stable_id}:target?.target_mount?{target_mount:target.target_mount}:{};return requestJson('/api/admin/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...identity,...extra})})}
 function showStorageStatus(){storageStatus.scrollIntoView({block:'nearest',behavior:'smooth'})}
-function beginStorageOperation(message){document.querySelector('.storage-folder-configuration')?.setAttribute('open','');const progress=document.createElement('progress');progress.className='storage-operation-progress';progress.setAttribute('aria-label',t('ui.0621'));const label=document.createElement('span');label.textContent=message;storageStatus.replaceChildren(progress,label);storageStatus.setAttribute('aria-busy','true');storageStatus.classList.add('storage-operation-running');document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);showStorageStatus()}
+function selectStorageStatus(diskId=null){storageStatusDiskId=diskId;const card=diskId?[...storageList.querySelectorAll('.storage-disk-card')].find(item=>item._storageDisk?.stable_id===diskId):null;(card||storageFolderStatusSlot).append(storageStatus)}
+function beginStorageOperation(message,diskId=null){selectStorageStatus(diskId);if(!diskId)document.querySelector('.storage-folder-configuration')?.setAttribute('open','');const progress=document.createElement('progress');progress.className='storage-operation-progress';progress.setAttribute('aria-label',t('ui.0621'));const label=document.createElement('span');label.textContent=message;storageStatus.replaceChildren(progress,label);storageStatus.setAttribute('aria-busy','true');storageStatus.classList.add('storage-operation-running');document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);showStorageStatus()}
 function finishStorageOperation(message,scroll=true){storageStatus.removeAttribute('aria-busy');storageStatus.classList.remove('storage-operation-running');storageStatus.textContent=message;document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=false);if(scroll)showStorageStatus()}
 function hideStorageConfirmation(){storageConfirmation.hidden=true;storageConfirmation.replaceChildren()}
 function showStorageConfirmation({title,detail,confirmationValue,submitLabel,onConfirm}){
@@ -1075,8 +1078,9 @@ async function watchStorageOperation(kind,operationId){
     activeStorageWatchKey=null;
   }
 }
-async function startDiskInitialization(disk,confirmValue){beginStorageOperation(t('ui.0622'));await new Promise(requestAnimationFrame);try{await postStorage('initialize',disk,{confirm:confirmValue});await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
+async function startDiskInitialization(disk,confirmValue){beginStorageOperation(t('ui.0622'),disk.stable_id);await new Promise(requestAnimationFrame);try{await postStorage('initialize',disk,{confirm:confirmValue});await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
 function initializeStorage(disk,button){
+  selectStorageStatus(disk.stable_id);
   const label=t('ui.0593');
   const reset=()=>{if(button.dataset.armTimer)clearTimeout(Number(button.dataset.armTimer));delete button.dataset.armTimer;delete button.dataset.armed;button.textContent=label;button.removeAttribute('aria-pressed')};
   if(button.dataset.armed==='true'){
@@ -1088,9 +1092,9 @@ function initializeStorage(disk,button){
   storageStatus.textContent=`${t('ui.0615',{model:disk.model,capacity:formatBytes(disk.capacity_bytes),id:disk.stable_id})} ${t('ui.0632')}`;
   button.dataset.armTimer=String(setTimeout(()=>{if(button.dataset.armed==='true'){reset();storageStatus.textContent=t('ui.0646')}},5000));
 }
-async function adoptStorage(disk){beginStorageOperation(t('ui.0626'));try{await postStorage('adopt',disk);await refreshStorage();finishStorageOperation(t('ui.0602',{message:t('ui.0592')}))}catch(error){finishStorageOperation(error.message)}}
-async function changeStorageMount(disk,action){beginStorageOperation(t(action==='mount'?'ui.0883':'ui.0884'));try{await postStorage(action,disk);await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
-async function useExistingStorage(disk){beginStorageOperation(t('ui.0627'));try{await postStorage('use-existing',disk);await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
+async function adoptStorage(disk){beginStorageOperation(t('ui.0626'),disk.stable_id);try{await postStorage('adopt',disk);await refreshStorage();finishStorageOperation(t('ui.0602',{message:t('ui.0592')}))}catch(error){finishStorageOperation(error.message)}}
+async function changeStorageMount(disk,action){beginStorageOperation(t(action==='mount'?'ui.0883':'ui.0884'),disk.stable_id);try{await postStorage(action,disk);await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
+async function useExistingStorage(disk){beginStorageOperation(t('ui.0627'),disk.stable_id);try{await postStorage('use-existing',disk);await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
 async function moveLibraryStorage(targetMount){beginStorageOperation(t('ui.0662'));await new Promise(resolve=>setTimeout(resolve,0));try{const preview=await postStorage('migration-preview',targetMount);if(!preview.eligible){finishStorageOperation(t('ui.0610'));return}const existingNotice=preview.destination_empty===true?'':t('ui.0670');const summary=`${t('ui.0601',{bytes:formatBytes(preview.copy_bytes),source:preview.data_root,destination:preview.destination,free:formatBytes(preview.free_bytes),model:preview.model,id:preview.uuid,filesystem:preview.filesystem,mount:preview.mount})} ${existingNotice} ${t('ui.0604')} ${t('ui.0609')}`;finishStorageOperation(t('ui.0668'),false);showStorageConfirmation({title:t('ui.0643'),detail:summary,confirmationValue:preview.target_id,submitLabel:t('ui.0595'),onConfirm:async confirmValue=>{beginStorageOperation(t('ui.0608'));await new Promise(resolve=>setTimeout(resolve,0));try{await postStorage('move-library',{target_mount:preview.target_mount},{target_id:preview.target_id,confirm:confirmValue});await watchStorageOperation('migration',preview.target_id)}catch(error){finishStorageOperation(error.message)}}})}catch(error){finishStorageOperation(error.message)}}
 let storageInventorySignature=null;
 let storageTerminalNoticeKey=null;
@@ -1209,11 +1213,12 @@ async function refreshStorage(){
       }
       storageList.replaceChildren(...cards);
       storageActions.replaceChildren(...actionCards);
+      selectStorageStatus(storageStatusDiskId);
     }
     if(storageStatus.hasAttribute('aria-busy')){
       document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);
     }else if(initialization.status==='queued'||initialization.status==='initializing'){
-      beginStorageOperation(storageOperationPhase(initialization,'initialization'));
+      beginStorageOperation(storageOperationPhase(initialization,'initialization'),initialization.stable_id);
       if(activeStorageWatchKey!==`initialization:${initialization.stable_id}`)
         void watchStorageOperation('initialization',initialization.stable_id);
     }else if(migration.status&&['queued','copying','quiescing','verifying','switching','pending-health'].includes(migration.status)){
@@ -1228,6 +1233,7 @@ async function refreshStorage(){
         const noticeKey=`migration:${migration.updated_at}:${migration.target_id||migration.stable_id}:${migration.status}`;
         if(noticeKey!==storageTerminalNoticeKey){
           storageTerminalNoticeKey=noticeKey;
+          selectStorageStatus(null);
           finishStorageOperation(migration.status==='failed'
             ?t('ui.0673',{error:migration.error||t('ui.0233')})
             :t('ui.0669',{destination:migration.destination||t('ui.0233'),source:migration.source||t('ui.0233')}));
@@ -1236,6 +1242,7 @@ async function refreshStorage(){
         const noticeKey=`initialization:${initialization.updated_at}:${initialization.stable_id}:${initialization.status}`;
         if(noticeKey!==storageTerminalNoticeKey){
           storageTerminalNoticeKey=noticeKey;
+          selectStorageStatus(initialization.stable_id);
           if(initialization.status==='completed')finishStorageOperation(initializationCompletionMessage(initialization));
           else finishStorageOperation(initialization.error||t('ui.0640'));
         }
