@@ -1,6 +1,14 @@
 # v0.2.0 release candidate
 
 Status: local candidate prepared for review; this is not a published release.
+`0.2.0-beta.52` excludes RAM-backed zram/ram devices from physical disk
+management while retaining unnamed physical disks. Protected system storage
+without a hardware model name is labeled System storage in Admin.
+`0.2.0-beta.51` repairs adopted-disk unmounting, runs mount changes through the
+host storage worker, and refreshes disk cards from the host mount table.
+Connected unmounted disks show Unmounted and a Mount action that reuses their
+saved configuration without formatting. The system and active library disks
+remain protected.
 `0.2.0-beta.50` makes the standalone Hub own complete Debian deployment,
 rejects stale helper/sudoers combinations before applying, and checks firewall
 access inside the live web service mount namespace. The parent developer

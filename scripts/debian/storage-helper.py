@@ -76,9 +76,26 @@ def run_as_json(args):
 def block_inventory():
     result = run_as_json([
         '/usr/bin/lsblk', '--json', '--bytes', '--paths', '--output',
-        'NAME,KNAME,TYPE,SIZE,MODEL,SERIAL,WWN,TRAN,RO,FSTYPE,UUID,MOUNTPOINTS',
+        'NAME,KNAME,TYPE,SIZE,MODEL,SERIAL,WWN,TRAN,RO,FSTYPE,UUID,MAJ:MIN',
     ])
-    return result.get('blockdevices', [])
+    # lsblk in the web service sees its private mount namespace. Read the
+    # host's mount table explicitly so completed host workers cannot leave
+    # the disk card showing a stale mount from the service sandbox.
+    mounts = run_as_json(['/usr/bin/findmnt', '--json', '--list', '--task', '1',
+                          '--output', 'MAJ:MIN,TARGET']).get('filesystems', [])
+    by_device = {}
+    for mount in mounts:
+        if mount.get('maj:min') and mount.get('target'):
+            by_device.setdefault(mount['maj:min'], []).append(mount['target'])
+
+    def apply_mounts(rows):
+        for row in rows:
+            row['mountpoints'] = sorted(set(by_device.get(row.get('maj:min'), [])))
+            apply_mounts(row.get('children') or [])
+
+    rows = result.get('blockdevices', [])
+    apply_mounts(rows)
+    return rows
 
 
 def has_signatures(device):
@@ -122,7 +139,10 @@ def disk_fingerprint(disk):
 def flatten_disks(rows):
     result = []
     for row in rows:
-        if row.get('type') != 'disk':
+        kernel_name = Path(row.get('kname') or row.get('name') or '').name
+        # zram reports TYPE=disk, but RAM-backed devices are OS resources,
+        # not physical storage candidates for Admin's disk management.
+        if row.get('type') != 'disk' or re.fullmatch(r'(?:zram|ram)\d+', kernel_name):
             continue
         children = row.get('children') or []
         partitions = []
@@ -189,6 +209,7 @@ def list_disks():
         disk['adoption_stale'] = bool(
             adoption and adoption.get('inventory_fingerprint') != disk_fingerprint(disk))
         disk['mount'] = None
+        disk['managed_mount'] = adoption.get('mount') if adoption else None
         disk['initialized'] = False
         for part in disk['partitions']:
             if part['mounts']:
@@ -263,35 +284,81 @@ def adopt(payload):
                                            if item['stable_id'] == stable_id)}
 
 
-def unmount_adopted(payload):
+def adopted_mount_plan(payload):
+    """Resolve a current adoption to its UUID-bound managed mount path."""
     stable_id = payload.get('stable_id')
     disk = resolve_disk(stable_id)
     adoptions = adopted_state()['disks']
     require_current_adoption(stable_id, disk, adoptions)
     adoption = adoptions[stable_id]
-    if disk['system_disk'] or disk['active_data_disk']:
-        raise ValueError('System and active library disks cannot be unmounted here')
+    # resolve_disk already rejects the system and active library disks. Its
+    # records do not contain the presentation flags added by list_disks.
     migration_status = public_migration_status().get('status', 'idle')
     if migration_status in {'queued', 'copying', 'quiescing', 'verifying', 'switching', 'pending-health'}:
-        raise ValueError('Wait for the library storage operation to finish before unmounting this disk')
-    initialization_status = read_json(INITIALIZE_STATUS, {}).get('status')
-    if initialization_status in {'queued', 'initializing'}:
-        raise ValueError('Wait for the disk operation to finish before unmounting this disk')
+        raise ValueError('Wait for the library storage operation to finish before changing this disk mount')
     mount = adoption.get('mount')
     managed_mounts = {str(MOUNT_ROOT / part['uuid']) for part in disk['partitions']
                       if isinstance(part.get('uuid'), str) and re.fullmatch(r'[A-Fa-f0-9-]{16,64}', part['uuid'])}
     if not isinstance(mount, str) or mount not in managed_mounts:
-        raise ValueError('This adopted disk has no Cyberdeck-managed mount to unmount')
-    if MOUNT_ROOT.is_symlink() or Path(mount).is_symlink() or not os.path.ismount(mount):
-        raise ValueError('The adopted disk is not mounted at its expected Cyberdeck path')
+        raise ValueError('This adopted disk has no Cyberdeck-managed mount')
+    if MOUNT_ROOT.is_symlink() or Path(mount).is_symlink():
+        raise ValueError('Refusing a symlink at the storage mount path')
     mounted_paths = set(disk['mounts'])
     mounted_paths.update(path for part in disk['partitions'] for path in part['mounts'])
-    if mounted_paths != {mount}:
+    if mounted_paths - {mount}:
         raise ValueError('Unmount other mounted partitions before safely disconnecting this disk')
+    return stable_id, disk, mount, mounted_paths
+
+
+def unmount_adopted(payload):
+    _stable_id, _disk, mount, mounted_paths = adopted_mount_plan(payload)
+    if mounted_paths != {mount} or not os.path.ismount(mount):
+        raise ValueError('The adopted disk is not mounted at its expected Cyberdeck path')
     run(['/usr/bin/umount', '--', mount], timeout=30)
     if os.path.ismount(mount):
         raise ValueError('The adopted disk is still mounted; close files using it and retry')
     return {'unmounted': True, 'mount': mount}
+
+
+def mount_adopted(payload):
+    _stable_id, disk, mount, mounted_paths = adopted_mount_plan(payload)
+    partition = next(part for part in disk['partitions']
+                     if str(MOUNT_ROOT / str(part.get('uuid'))) == mount)
+    if partition['filesystem'] != 'ext4':
+        raise ValueError('The managed filesystem is no longer ext4; inspect the disk before mounting it')
+    marker = f'# cyberdeck-storage:{partition["uuid"]}'
+    configured = any(
+        len(fields := line.split()) >= 4 and fields[0] == 'UUID=' + partition['uuid']
+        and fields[1] == mount and fields[2] == 'ext4' and marker in line
+        for line in fstab_lines())
+    if not configured:
+        raise ValueError('The managed mount configuration no longer matches this adopted disk')
+    if not mounted_paths:
+        run(['/usr/bin/mount', '--', mount], timeout=30)
+    if not os.path.ismount(mount):
+        raise ValueError('The adopted disk did not mount at its expected Cyberdeck path')
+    return {'mounted': True, 'mount': mount}
+
+
+def start_mount_action(payload, operation):
+    if operation not in {'mount', 'unmount'}:
+        raise ValueError('Unsupported disk mount action')
+    stable_id, _disk, _mount, mounts = adopted_mount_plan(payload)
+    if operation == 'unmount' and not mounts:
+        raise ValueError('The adopted disk is already unmounted')
+    if read_json(INITIALIZE_STATUS, {}).get('status') in {'queued', 'initializing'}:
+        raise ValueError('Wait for the disk operation to finish before changing its mount state')
+    write_json(INITIALIZE_REQUEST, {'operation': operation, 'stable_id': stable_id}, mode=0o600)
+    write_initialization_status('queued', operation=operation, stable_id=stable_id, phase='queued')
+    try:
+        # Reuse the existing root worker, which runs in the host mount
+        # namespace. Mount changes made inside the web sandbox stay private.
+        run(['/usr/bin/systemctl', 'start', '--no-block', EXISTING_STORAGE_UNIT], timeout=15)
+    except (OSError, subprocess.SubprocessError) as error:
+        write_initialization_status('failed', operation=operation, stable_id=stable_id,
+                                    phase='failed', error=str(error))
+        raise
+    return {'status': 'queued', 'stable_id': stable_id}
 
 
 def root_disk_paths():
@@ -559,14 +626,19 @@ def use_existing_filesystem(payload):
 def existing_storage_worker():
     request = read_json(INITIALIZE_REQUEST, {})
     stable_id = request.get('stable_id')
+    operation = request.get('operation', 'use-existing')
     try:
-        write_initialization_status('initializing', operation='use-existing',
-                                    stable_id=stable_id, phase='mounting-existing')
-        result = use_existing_filesystem(request)
-        write_initialization_status('completed', operation='use-existing', stable_id=stable_id,
+        operations = {'mount': mount_adopted, 'unmount': unmount_adopted,
+                      'use-existing': use_existing_filesystem}
+        if operation not in operations:
+            raise ValueError('Unsupported existing-storage operation')
+        write_initialization_status('initializing', operation=operation,
+                                    stable_id=stable_id, phase=operation)
+        result = operations[operation](request)
+        write_initialization_status('completed', operation=operation, stable_id=stable_id,
                                     phase='completed', mount=result['mount'])
     except Exception as error:
-        write_initialization_status('failed', operation='use-existing', stable_id=stable_id,
+        write_initialization_status('failed', operation=operation, stable_id=stable_id,
                                     phase='failed', error=str(error))
         raise
 
@@ -1029,7 +1101,7 @@ def main():
         raise ValueError('Storage helper must run as root')
     action = sys.argv[1] if len(sys.argv) == 2 else ''
     raw = sys.stdin.read(MAX_REQUEST + 1) if action in {
-        'adopt', 'unmount', 'initialize', 'use-existing', 'migration-preview', 'migrate'} else '{}'
+        'adopt', 'mount', 'unmount', 'initialize', 'use-existing', 'migration-preview', 'migrate'} else '{}'
     if len(raw) > MAX_REQUEST:
         raise ValueError('Storage request is too large')
     payload = json.loads(raw)
@@ -1038,7 +1110,8 @@ def main():
     allowed = {
         'list': list_disks,
         'adopt': lambda: adopt(payload),
-        'unmount': lambda: unmount_adopted(payload),
+        'mount': lambda: start_mount_action(payload, 'mount'),
+        'unmount': lambda: start_mount_action(payload, 'unmount'),
         'initialize': lambda: start_initialization(payload),
         'initialize-worker': initialize_worker,
         'use-existing': lambda: start_existing_storage(payload),

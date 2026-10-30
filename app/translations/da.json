@@ -793,5 +793,13 @@
   "ui.0876": "Visningsindstillinger",
   "ui.0877": "Tilpasning",
   "ui.0878": "Vis startkortet på startsiden",
-  "ui.0879": "Opdaterer den installerede kopi, når den nye PDF er verificeret"
+  "ui.0879": "Opdaterer den installerede kopi, når den nye PDF er verificeret",
+  "ui.0880": "Montér",
+  "ui.0881": "Afmontér",
+  "ui.0882": "Afmonteret",
+  "ui.0883": "Monterer den tilknyttede disk…",
+  "ui.0884": "Afmonterer den tilknyttede disk…",
+  "ui.0885": "Disken er monteret på {mount}.",
+  "ui.0886": "Disken er sikkert afmonteret. Du kan frakoble den eller montere den igen fra dette kort.",
+  "ui.0887": "Systemlager"
 }

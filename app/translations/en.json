@@ -3178,5 +3178,37 @@
   "ui.0879": {
     "default": "Refreshes the installed copy after the new PDF is verified",
     "context": "Import preview note for an online PDF with a stable document identity."
+  },
+  "ui.0880": {
+    "default": "Mount",
+    "context": "Mount an adopted disk at its saved Cyberdeck path without formatting."
+  },
+  "ui.0881": {
+    "default": "Unmount",
+    "context": "Safely unmount an adopted disk."
+  },
+  "ui.0882": {
+    "default": "Unmounted",
+    "context": "Live state of a connected disk with no mounted filesystem."
+  },
+  "ui.0883": {
+    "default": "Mounting adopted disk…",
+    "context": "Progress while the host mounts an adopted disk."
+  },
+  "ui.0884": {
+    "default": "Unmounting adopted disk…",
+    "context": "Progress while the host unmounts an adopted disk."
+  },
+  "ui.0885": {
+    "default": "Disk mounted at {mount}.",
+    "context": "Confirmation after the host verifies a disk mount."
+  },
+  "ui.0886": {
+    "default": "Disk safely unmounted. You can disconnect it or mount it again from this card.",
+    "context": "Confirmation after the host verifies a disk unmount."
+  },
+  "ui.0887": {
+    "default": "System storage",
+    "context": "Disk card name when the protected system disk has no hardware model name."
   }
 }

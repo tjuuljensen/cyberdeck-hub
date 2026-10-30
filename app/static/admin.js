@@ -1049,8 +1049,8 @@ function showStorageConfirmation({title,detail,confirmationValue,submitLabel,onC
   const cancel=storageButton('ui.0633',()=>{const wasArmed=armed;reset();hideStorageConfirmation();if(wasArmed)storageStatus.textContent=t('ui.0646')});
   actions.append(confirmButton,cancel);form.append(actions);storageConfirmation.replaceChildren(form);storageConfirmation.hidden=false;heading.scrollIntoView({block:'nearest'});
 }
-function storageOperationPhase(status,kind){if(status.status==='queued')return t('ui.0634');if(kind==='initialization'){if(status.operation==='use-existing')return t('ui.0627');const phases={checking:'ui.0635',wiping:'ui.0636',partitioning:'ui.0637',formatting:'ui.0638',mounting:'ui.0639'};return t(phases[status.phase]||'ui.0622')}const phases={copying:'ui.0663',quiescing:'ui.0664',verifying:'ui.0665',switching:'ui.0666','pending-health':'ui.0667'};return t(phases[status.status]||'ui.0608',{destination:status.destination||t('ui.0233')})}
-function initializationCompletionMessage(status){if(status.operation==='use-existing')return t('ui.0661',{mount:status.mount||t('ui.0233')});return t('ui.0660',{mount:status.mount||t('ui.0233')})}
+function storageOperationPhase(status,kind){if(status.status==='queued')return t('ui.0634');if(kind==='initialization'){if(status.operation==='use-existing')return t('ui.0627');if(status.operation==='mount')return t('ui.0883');if(status.operation==='unmount')return t('ui.0884');const phases={checking:'ui.0635',wiping:'ui.0636',partitioning:'ui.0637',formatting:'ui.0638',mounting:'ui.0639'};return t(phases[status.phase]||'ui.0622')}const phases={copying:'ui.0663',quiescing:'ui.0664',verifying:'ui.0665',switching:'ui.0666','pending-health':'ui.0667'};return t(phases[status.status]||'ui.0608',{destination:status.destination||t('ui.0233')})}
+function initializationCompletionMessage(status){if(status.operation==='unmount')return t('ui.0886');if(status.operation==='mount')return t('ui.0885',{mount:status.mount||t('ui.0233')});if(status.operation==='use-existing')return t('ui.0661',{mount:status.mount||t('ui.0233')});return t('ui.0660',{mount:status.mount||t('ui.0233')})}
 async function waitForStorageOperation(kind,operationId){for(;;){const result=await refreshStorage();const status=result?.[kind];const matches=kind==='migration'?(status?.target_id===operationId||status?.stable_id===operationId):status?.stable_id===operationId;if(matches){if(status.status==='failed')throw new Error(status.error||t('ui.0640'));if(status.status==='completed'||status.status==='committed')return status;if(status.status==='queued'||status.status==='initializing'||['copying','quiescing','verifying','switching','pending-health'].includes(status.status)){const label=storageStatus.querySelector('span');if(label)label.textContent=storageOperationPhase(status,kind)}}await new Promise(resolve=>setTimeout(resolve,1500))}}
 let activeStorageWatchKey=null;
 async function watchStorageOperation(kind,operationId){
@@ -1089,7 +1089,7 @@ function initializeStorage(disk,button){
   button.dataset.armTimer=String(setTimeout(()=>{if(button.dataset.armed==='true'){reset();storageStatus.textContent=t('ui.0646')}},5000));
 }
 async function adoptStorage(disk){beginStorageOperation(t('ui.0626'));try{await postStorage('adopt',disk);await refreshStorage();finishStorageOperation(t('ui.0602',{message:t('ui.0592')}))}catch(error){finishStorageOperation(error.message)}}
-async function unmountStorage(disk){beginStorageOperation('Unmounting adopted disk…');try{await postStorage('unmount',disk);await refreshStorage();finishStorageOperation('Disk safely unmounted. You can disconnect it or mount it again from this card.')}catch(error){finishStorageOperation(error.message)}}
+async function changeStorageMount(disk,action){beginStorageOperation(t(action==='mount'?'ui.0883':'ui.0884'));try{await postStorage(action,disk);await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
 async function useExistingStorage(disk){beginStorageOperation(t('ui.0627'));try{await postStorage('use-existing',disk);await watchStorageOperation('initialization',disk.stable_id)}catch(error){finishStorageOperation(error.message)}}
 async function moveLibraryStorage(targetMount){beginStorageOperation(t('ui.0662'));await new Promise(resolve=>setTimeout(resolve,0));try{const preview=await postStorage('migration-preview',targetMount);if(!preview.eligible){finishStorageOperation(t('ui.0610'));return}const existingNotice=preview.destination_empty===true?'':t('ui.0670');const summary=`${t('ui.0601',{bytes:formatBytes(preview.copy_bytes),source:preview.data_root,destination:preview.destination,free:formatBytes(preview.free_bytes),model:preview.model,id:preview.uuid,filesystem:preview.filesystem,mount:preview.mount})} ${existingNotice} ${t('ui.0604')} ${t('ui.0609')}`;finishStorageOperation(t('ui.0668'),false);showStorageConfirmation({title:t('ui.0643'),detail:summary,confirmationValue:preview.target_id,submitLabel:t('ui.0595'),onConfirm:async confirmValue=>{beginStorageOperation(t('ui.0608'));await new Promise(resolve=>setTimeout(resolve,0));try{await postStorage('move-library',{target_mount:preview.target_mount},{target_id:preview.target_id,confirm:confirmValue});await watchStorageOperation('migration',preview.target_id)}catch(error){finishStorageOperation(error.message)}}})}catch(error){finishStorageOperation(error.message)}}
 let storageInventorySignature=null;
@@ -1101,7 +1101,8 @@ function createStorageCard(disk){
   const headerRow=document.createElement('div');
   headerRow.className='storage-disk-header';
   const heading=document.createElement('h4');
-  heading.textContent=t('ui.0587',{model:disk.model,capacity:formatBytes(disk.capacity_bytes)});
+  const model=disk.model==='Unknown disk'&&disk.system_disk?t('ui.0887'):disk.model;
+  heading.textContent=t('ui.0587',{model,capacity:formatBytes(disk.capacity_bytes)});
   const primaryActions=document.createElement('div');
   primaryActions.className='storage-disk-primary-actions';
   const addPrimaryAction=button=>primaryActions.append(button);
@@ -1154,6 +1155,11 @@ function createStorageCard(disk){
       mount.className='subtle';
       mount.textContent=t('ui.0605',{mount:disk.mount});
       card.append(mount);
+    }else{
+      const unmounted=document.createElement('p');
+      unmounted.className='subtle';
+      unmounted.textContent=t('ui.0882');
+      card.append(unmounted);
     }
     if(disk.adoption_stale){
       const warning=document.createElement('p');
@@ -1162,11 +1168,12 @@ function createStorageCard(disk){
       card.append(warning);
       if(disk.adoptable)addAction(storageButton('ui.0623',()=>adoptStorage(disk)));
     }else{
-      if(disk.mount?.startsWith('/mnt/cyberdeck-disks/'))addPrimaryAction(storageButton('Unmount',()=>unmountStorage(disk)));
+      if(disk.mount?.startsWith('/mnt/cyberdeck-disks/'))addPrimaryAction(storageButton('ui.0881',()=>changeStorageMount(disk,'unmount')));
+      else if(!disk.mount&&disk.managed_mount?.startsWith('/mnt/cyberdeck-disks/'))addPrimaryAction(storageButton('ui.0880',()=>changeStorageMount(disk,'mount')));
       const actionRow=document.createElement('div');
       actionRow.className='button-row';
       if(!disk.mount){const initialize=storageButton('ui.0593',()=>initializeStorage(disk,initialize));actionRow.append(initialize)}
-      if(!disk.mount&&disk.partitions?.length===1&&disk.partitions[0].filesystem==='ext4')actionRow.append(storageButton('ui.0611',()=>useExistingStorage(disk)));
+      if(!disk.mount&&!disk.managed_mount&&disk.partitions?.length===1&&disk.partitions[0].filesystem==='ext4')actionRow.append(storageButton('ui.0611',()=>useExistingStorage(disk)));
       if(actionRow.childElementCount)addAction(actionRow);
     }
   }else if(disk.adoptable){
@@ -1182,8 +1189,7 @@ async function refreshStorage(){
     const result=await requestJson('/api/admin/storage');
     approvedLocationsStorageInfo=result;
     renderApprovedStorageLocations();
-    const disks=(result.disks||[]).filter(disk=>!(disk.model==='Unknown disk'&&!disk.transport&&!disk.stable_id&&
-      !disk.partitions?.length&&!disk.mounts?.length&&!disk.system_disk&&!disk.active_data_disk&&!disk.adopted));
+    const disks=result.disks||[];
     const migration=result.migration||{};
     const initialization=result.initialization||{};
     const signature=JSON.stringify({disks,migration:{status:migration.status,stable_id:migration.stable_id,

@@ -166,6 +166,23 @@ systemctl is-enabled cyberdeck-web cyberdeck-kiwix
 Do not treat a successful installer exit or a workstation package build as
 proof of offline operation or recoverability.
 
+## Mount and unmount an adopted disk
+
+Admin's Management disk cards show current host mount state. For a connected,
+adopted disk at its saved Cyberdeck path, Unmount queues a host storage worker.
+After that worker verifies completion, the card shows Unmounted and offers
+Mount. Mount uses the saved filesystem configuration without formatting or
+rewriting it. Failure leaves an error message rather than claiming success.
+System disks and disks containing the active library remain protected.
+RAM-backed zram/ram devices and loop devices are excluded from disk management;
+this visibility rule does not disable OS swap. Physical disks without hardware
+model names remain visible, and an unnamed system disk is labeled System storage.
+
+Unmount does not delete the disk adoption or its `/etc/fstab` entry. A reboot
+can mount the disk again through that startup configuration. Disconnecting
+the disk removes it from the live inventory; reconnecting causes a new state
+check. Explicitly mounting it again also restores the Mounted at display.
+
 ## Wi-Fi adapter troubleshooting
 
 The installer runs the read-only Wi-Fi diagnostic after starting Hub services.

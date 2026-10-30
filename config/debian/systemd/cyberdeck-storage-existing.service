@@ -1,5 +1,5 @@
 [Unit]
-Description=Mount an adopted Cyberdeck filesystem without formatting
+Description=Manage adopted Cyberdeck filesystem mounts without formatting
 After=local-fs.target
 
 [Service]

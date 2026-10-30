@@ -50,7 +50,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Release identity shipped with the app; bump for each deployed app release.
-APP_VERSION = '0.2.0-beta.50'
+APP_VERSION = '0.2.0-beta.52'
 DEFAULT_ACCENT_COLOR = '#c4f36b'
 APP_DIR = Path(__file__).resolve().parent
 TRANSLATIONS_DIR = APP_DIR / 'translations'
@@ -4830,7 +4830,7 @@ def admin_storage_action():
         return jsonify(error='Expected a storage action'), 400
     action = body.get('action')
     stable_id = body.get('stable_id')
-    if action in {'adopt', 'unmount', 'initialize', 'use-existing'} and (
+    if action in {'adopt', 'mount', 'unmount', 'initialize', 'use-existing'} and (
             not isinstance(stable_id, str) or len(stable_id) > 180):
         return jsonify(error='Select a disk with a stable identity'), 400
     try:
@@ -4838,6 +4838,8 @@ def admin_storage_action():
             result = storage_helper('adopt', {'stable_id': stable_id})
         elif action == 'unmount':
             result = storage_helper('unmount', {'stable_id': stable_id})
+        elif action == 'mount':
+            result = storage_helper('mount', {'stable_id': stable_id})
         elif action == 'initialize':
             result = storage_helper('initialize', {
                 'stable_id': stable_id, 'confirm': body.get('confirm')})
