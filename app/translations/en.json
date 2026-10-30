@@ -360,7 +360,7 @@
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0093": {
-    "default": "PDF and Kiwix links",
+    "default": "Link opening",
     "context": "User interface text used in admin.html. Preserve placeholders and product names."
   },
   "ui.0094": {

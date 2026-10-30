@@ -2984,7 +2984,7 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b'<meta name="theme-color" content="#336699">', home.data)
         self.assertIn(b'href="https://browse.library.kiwix.org/" rel="noopener noreferrer" hidden target="_blank"',
                       home.data)
-        self.assertIn(b'PDF and Kiwix links', self.client.get('/admin', base_url='https://localhost').data)
+        self.assertIn(b'Link opening', self.client.get('/admin', base_url='https://localhost').data)
 
         invalid = self.client.put('/api/admin/settings',
             headers={'X-CSRF-Token': self.csrf},
