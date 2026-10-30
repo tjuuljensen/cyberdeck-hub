@@ -29,7 +29,7 @@ class DeployHelperTests(unittest.TestCase):
             with patch.object(helper, 'BACKUP_ROOT', root / 'backups'), \
                     patch.object(helper, 'TREE_PATHS', (app, config.parent)), \
                     patch.object(helper, 'FILE_PATHS', (absent,)), \
-                    patch.object(helper, 'SERVICE_NAMES', ('cyberdeck-web.service',)), \
+                    patch.object(helper, 'SERVICE_NAMES', ('cyberdeck-web.service', 'cyberdeck-firewall.service')), \
                     patch.object(helper, 'require_root'), \
                     patch.object(helper, 'service_state', return_value={'enabled': 'enabled', 'active': 'active'}), \
                     patch.object(helper.os, 'chown', create=True), \
@@ -50,6 +50,8 @@ class DeployHelperTests(unittest.TestCase):
             run.assert_any_call('dconf', 'update')
             run.assert_any_call('systemctl', 'enable', 'cyberdeck-web.service', check=False)
             run.assert_any_call('systemctl', 'restart', 'cyberdeck-web.service', check=False)
+            run.assert_any_call('systemctl', 'enable', 'cyberdeck-firewall.service', check=False)
+            run.assert_any_call('systemctl', 'restart', 'cyberdeck-firewall.service', check=False)
 
     def test_snapshot_rejects_symlinks_in_managed_tree(self):
         with tempfile.TemporaryDirectory() as temporary:

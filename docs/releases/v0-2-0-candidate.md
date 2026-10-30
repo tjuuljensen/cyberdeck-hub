@@ -1,6 +1,11 @@
 # v0.2.0 release candidate
 
 Status: local candidate prepared for review; this is not a published release.
+`0.2.0-beta.50` makes the standalone Hub own complete Debian deployment,
+rejects stale helper/sudoers combinations before applying, and checks firewall
+access inside the live web service mount namespace. The parent developer
+entry points delegate to Hub, preventing updates from restoring old runtime
+files. Deployment reconciles an already-enabled firewall and validates HTTPS.
 Candidate builds follow the [Hub versioning policy](versioning.md). The tested
 `0.2.0` build predates the pre-release labels. `0.2.0-beta.1` adds the first
 version label; `0.2.0-beta.2` attempted to reset the Admin page to its first
@@ -144,9 +149,9 @@ Admin import form.
 - Two curated profiles are included from the supplied emergency library:
   a Danish/Denmark profile and an international-English profile. The source
   curation rule and omissions are recorded in `docs/content/profile-curation.md`.
-- The Hub repository owns the guided Debian USB bootstrap as well as the direct
-  existing-Debian installer. The sibling `cyberdeck` repository retains its
-  Windows developer deployment helper and target evidence.
+- The Hub repository owns the guided Debian USB bootstrap, existing-Debian
+  installer, and Windows deployment launcher. The sibling `cyberdeck`
+  repository retains compatibility wrappers and its historical target evidence.
 - Online source and RSS card definitions are editable in Admin and included in
   configuration import/export. The default online links and Danish police RSS
   feeds appear as separate home cards, alongside subjects and services, and

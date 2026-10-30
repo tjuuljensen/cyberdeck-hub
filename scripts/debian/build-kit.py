@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import gzip
 import hashlib
 import json
@@ -20,6 +21,8 @@ KIT_FILES = (
     'docs/runbooks/bootstrap-install.md',
     'docs/runbooks/debian-install.md',
     'scripts/debian/configure-deploy-cache.sh',
+    'scripts/debian/build-kit.py',
+    'scripts/debian/verify-runtime.py',
     'scripts/debian/install.sh',
     'scripts/debian/install-cyberchef.py',
     'scripts/debian/deploy-helper.py',
@@ -88,7 +91,35 @@ def collect_files(repo_root: Path) -> list[tuple[Path, str]]:
     if missing:
         raise ValueError(f'Debian install kit is missing installer-required sources: {", ".join(missing)}')
     validate_profile_sources(repo_root, included_paths)
+    validate_runtime_sources(repo_root)
     return sorted(files, key=lambda item: item[1])
+
+
+def validate_runtime_sources(repo_root: Path) -> None:
+    """Reject an app kit whose helper, sudo policy, or firewall unit is stale."""
+    helper = ast.parse((repo_root / 'scripts/debian/admin-helper.py').read_text(encoding='utf-8'))
+    actions = set()
+    for node in ast.walk(helper):
+        if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict)
+                and any(isinstance(target, ast.Name) and target.id == 'allowed'
+                        for target in node.targets)):
+            actions.update(key.value for key in node.value.keys
+                           if isinstance(key, ast.Constant) and isinstance(key.value, str))
+    required = {'firewall-status', 'firewall-enable', 'firewall-disable',
+                'firewall-load', 'firewall-remove'}
+    missing = sorted(required - actions)
+    if missing:
+        raise ValueError('Outdated admin helper; missing actions: ' + ', '.join(missing))
+    installer = (repo_root / 'scripts/debian/install.sh').read_text(encoding='utf-8')
+    policy = re.search(r"(?m)^\s*'cyberdeck ALL=\(root\) NOPASSWD: ([^'\n]+)'", installer)
+    grants = set(policy.group(1).split(', ')) if policy else set()
+    for action in ('firewall-status', 'firewall-enable', 'firewall-disable'):
+        if '/usr/local/lib/cyberdeck/admin-helper.py ' + action not in grants:
+            raise ValueError('Installer sudoers policy is missing ' + action)
+    unit = (repo_root / 'config/debian/systemd/cyberdeck-firewall.service').read_text(encoding='utf-8')
+    for directive, action in (('ExecStart', 'firewall-load'), ('ExecStop', 'firewall-remove')):
+        if f'{directive}=/usr/local/lib/cyberdeck/admin-helper.py {action}' not in unit.splitlines():
+            raise ValueError('Firewall service is missing ' + directive + ' for ' + action)
 
 
 def validate_profile_sources(repo_root: Path, included_paths: set[str]) -> None:
@@ -186,12 +217,19 @@ def build_kit(repo_root: Path, output: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', required=True, type=Path,
+    operation = parser.add_mutually_exclusive_group(required=True)
+    operation.add_argument('--output', type=Path,
                         help='destination .tar.gz path; its parent directory must exist')
+    operation.add_argument('--validate-only', action='store_true',
+                           help='validate the complete source kit without writing or installing it')
     parser.add_argument('--source-root', type=Path, default=REPO_ROOT,
                         help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
+        if args.validate_only:
+            count = len(collect_files(args.source_root))
+            print(f'Validated {count} source files, helper actions, sudoers grants, and firewall unit.')
+            return 0
         count = build_kit(args.source_root, args.output)
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -14,6 +14,29 @@ _spec.loader.exec_module(build_kit_module)
 
 
 class BuildKitTests(unittest.TestCase):
+    def test_stale_helper_or_sudoers_is_rejected_before_archive_replacement(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'source'
+            for source, relative in build_kit_module.collect_files(build_kit_module.REPO_ROOT):
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+            output = Path(temp) / 'existing.tar.gz'
+            output.write_bytes(b'keep existing kit')
+            helper = root / 'scripts/debian/admin-helper.py'
+            original_helper = helper.read_text(encoding='utf-8')
+            helper.write_text(original_helper.replace("'firewall-load': firewall_load,", ''), encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'Outdated admin helper.*firewall-load'):
+                build_kit_module.build_kit(root, output)
+            self.assertEqual(output.read_bytes(), b'keep existing kit')
+            helper.write_text(original_helper, encoding='utf-8')
+            installer = root / 'scripts/debian/install.sh'
+            installer.write_text(installer.read_text(encoding='utf-8').replace(
+                ', /usr/local/lib/cyberdeck/admin-helper.py firewall-status', ''), encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'sudoers policy is missing firewall-status'):
+                build_kit_module.build_kit(root, output)
+            self.assertEqual(output.read_bytes(), b'keep existing kit')
+
     def test_kit_contains_installer_app_profile_and_runbook_without_tests(self):
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp) / 'cyberdeck-hub-debian-kit.tar.gz'
@@ -26,6 +49,9 @@ class BuildKitTests(unittest.TestCase):
             'scripts/debian/install.sh',
             'scripts/debian/install-cyberchef.py',
             'scripts/debian/deploy-helper.py',
+            'scripts/debian/build-kit.py',
+            'scripts/debian/verify-runtime.py',
+            'config/debian/systemd/cyberdeck-firewall.service',
             'config/debian/starter.json',
             'config/debian/systemd/cyberdeck-cyberchef.service',
             'config/debian/systemd/cyberdeck-web.service',

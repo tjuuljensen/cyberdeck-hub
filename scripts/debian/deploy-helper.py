@@ -52,6 +52,7 @@ SERVICE_NAMES = (
     'cyberdeck-storage-migration.service', 'cyberdeck-storage-initialize.service',
     'cyberdeck-storage-existing.service', 'cyberdeck-storage-recovery.service',
     'cyberdeck-storage-boot-recovery.service',
+    'cyberdeck-firewall.service',
     'cyberdeck-hotspot-autostart.timer',
     'sleep.target', 'suspend.target', 'hibernate.target', 'hybrid-sleep.target',
 )
@@ -174,7 +175,10 @@ def restore(expected_host: str, deployment_id: str) -> None:
             or {row.get('path') for row in records} != expected):
         raise ValueError('Deployment backup managed-path set is invalid.')
     services = state.get('services')
-    if not isinstance(services, dict) or set(services) != set(SERVICE_NAMES):
+    # Older Hub snapshots predate recording the firewall unit state. Preserve
+    # their existing compatibility without guessing the omitted state.
+    service_sets = (set(SERVICE_NAMES), set(SERVICE_NAMES) - {'cyberdeck-firewall.service'})
+    if not isinstance(services, dict) or set(services) not in service_sets:
         raise ValueError('Deployment backup service-state set is invalid.')
     for record in records:
         if (not isinstance(record, dict) or record.get('kind') not in {'tree', 'file'}

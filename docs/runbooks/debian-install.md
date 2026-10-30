@@ -86,6 +86,60 @@ use `--data-root` only when the installation uses a non-default data root.
 After apply, confirm that the `cyberdeck-web` service is active and reload
 Admin.
 
+### Windows deployment launcher
+
+Run the launcher from this standalone Hub checkout. The parent `cyberdeck`
+repository's launcher and builder are compatibility wrappers that delegate to
+this checkout; `-HubSourceRoot` selects the entire runtime source. Application,
+installer, privileged helpers, sudoers policy, profiles, and systemd units must
+come from the same Hub checkout. A current app combined with the parent's old
+runtime files removes firewall operations and permissions during each update.
+
+Commit the candidate first, then preview the intended target:
+
+```powershell
+.\scripts\debian\deploy-windows.ps1 -Target operator@SERVER-IP -ExpectedHost cyberdeck-pi
+```
+
+Preview lists source revision, components, checks, and backup location without
+connecting to the host. Apply builds and validates a complete kit, verifies the
+target identity and transferred SHA-256, stages it in a new unique directory,
+runs the installer preview, and applies with a recovery snapshot. It restarts
+an already-enabled firewall using the refreshed helper and preserves a disabled
+module. Validation exercises firewall status and change authorization as the
+service account inside the running web service's mount namespace, checks the
+enabled unit and loaded rules, and requests Hub HTTPS with the installed CA.
+
+```powershell
+.\scripts\debian\deploy-windows.ps1 -Target operator@SERVER-IP -ExpectedHost cyberdeck-pi -Authenticate
+.\scripts\debian\deploy-windows.ps1 -Target operator@SERVER-IP -ExpectedHost cyberdeck-pi -Apply -UseCachedSudo
+```
+
+Authentication primes the existing host sudo cache; no password is stored.
+`-UseCachedSudo` fails without prompting if that cache has expired. Omit it to
+use the normal interactive sudo prompt. The launcher prints the kit checksum
+and source commit. Keep its output with the deployment recovery ID. A failed
+deployment preserves remote staging and backups for diagnosis; do not blindly
+retry or restart a firewall with an incompatible helper.
+
+Preview recovery using the exact printed snapshot ID:
+
+```powershell
+.\scripts\debian\deploy-windows.ps1 -Target operator@SERVER-IP -ExpectedHost cyberdeck-pi -RollbackId SNAPSHOT_ID
+```
+
+Add `-ExecuteRollback` only to execute the reviewed recovery. Snapshots contain
+software and configuration, including firewall enablement/service state, and
+exclude library data and installed packages. A snapshot taken before repairing
+an incompatible installation also contains that incompatibility; inspect it
+before selecting rollback as a recovery strategy.
+
+The same read-only runtime check can be repeated from an extracted complete kit:
+
+```sh
+sudo python3 scripts/debian/verify-runtime.py --expected-host cyberdeck-pi
+```
+
 If the firewall card reports that sudo does not permit the status helper, run
 these read-only checks on the server:
 

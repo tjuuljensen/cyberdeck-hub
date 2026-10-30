@@ -252,6 +252,10 @@ if [[ -d "$profiles_source" ]]; then
     shopt -u nullglob
 fi
 
+# Validate the staged helper and policy before packages, backups, or host writes.
+python3 "$repo_root/scripts/debian/build-kit.py" --validate-only ||
+    die 'The source kit has incompatible runtime components; rebuild a complete Hub kit.'
+
 if (( ! apply )); then
     printf '%s\n' 'PREVIEW ONLY — no changes made.'
     printf 'Library address: https://%s.local/\n' "$hostname_expected"
