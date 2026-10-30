@@ -163,6 +163,45 @@ Admin import form.
 
 ## Supported path and limitations
 
+### beta.50 targeted RPi upgrade verification, 2026-10-30
+
+- Deployed Hub source commit `b78cdd3f2f423b3fa66b4a1a99a8a4f76e315634`,
+  version `0.2.0-beta.50`, through the parent compatibility launcher at commit
+  `e0d66e973fad9b27c3920404916780b86bbd61d4` from clean checkouts.
+- The complete 72-file kit SHA-256 was
+  `e7dfd595de054d2b5414cf56f514526965dab572b19b946b411aca6165010cfa`.
+  The target verified the transferred checksum and source contract before apply.
+- Workstation validation: 39 focused tests passed across kit construction,
+  stale-component rejection, parent delegation, runtime verification, snapshots,
+  host helpers, and installer previews. PowerShell parsing, Bash syntax, and
+  focused Git whitespace checks passed.
+- Target: existing Debian 13.7 aarch64 RPi installation. Apply preserved
+  `/srv/cyberdeck`, created recovery snapshot
+  `da252d56e4af406cb1f94e4e1f2e0b0b`, and refreshed the complete runtime.
+  Backup: `/var/backups/cyberdeck/deployments/da252d56e4af406cb1f94e4e1f2e0b0b`.
+- The installed admin helper SHA-256 matched the Hub source:
+  `899c0cbcc8bc706870754590c07c30911041dda56e2d63585f06e94b2474cdf6`.
+  `visudo` accepted the installed policy. Firewall status and change
+  authorization passed as the service account inside the running web mount
+  namespace. The already-enabled module's actual `firewall-enable` operation
+  also succeeded in that namespace.
+- The refreshed firewall unit restarted successfully and remained enabled.
+  Status reported available, enabled, active, and no conflicts. The loaded
+  nftables input chain had policy drop, allowed SSH port 22 and Hub ports 80,
+  443, and 8445, and retained DNS, DHCP, mDNS, loopback, ICMP, and established
+  connection rules. Hub and Kiwix were active.
+- Hub HTTPS returned success using the installed CA on the Pi. An independent
+  workstation Python TLS request verified that CA and the server hostname and
+  received HTTP 200. Windows curl's Schannel stack could not determine local-CA
+  revocation status, so it was not used as the external TLS acceptance result.
+- These are targeted upgrade and firewall checks, not reboot, offline-library,
+  or backup/restore acceptance. The recovery snapshot contains the incompatible
+  pre-repair helper and policy; inspect it before considering rollback.
+  To preview that snapshot, use the Hub Windows launcher with the intended
+  `-Target`, `-ExpectedHost cyberdeck-pi`, and
+  `-RollbackId da252d56e4af406cb1f94e4e1f2e0b0b`. Only
+  `-ExecuteRollback` performs restoration; see the Debian runbook.
+
 The source installer targets existing Debian 13 amd64 and arm64 systems. The
 guided custom USB flow currently prepares Debian 13 amd64 media. No v0.2.0
 physical target has been accepted; use the Debian acceptance runbook to close
