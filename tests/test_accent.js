@@ -25,6 +25,7 @@ const input = {
 };
 const status = {textContent: ''};
 const theme = {href: ''};
+const favicon = {href: ''};
 const context = {
   document: {
     querySelector(selector) {
@@ -32,6 +33,7 @@ const context = {
       if (selector === '#accent-color-status') return status;
       if (selector === '.admin-head') return {dataset: {csrf: 'test-token'}};
       if (selector === '#site-accent-theme') return theme;
+      if (selector === '#site-favicon') return favicon;
       if (selector === 'meta[name="theme-color"]') return {setAttribute() {}};
       return null;
     }
@@ -59,6 +61,7 @@ vm.runInNewContext(source, context, {filename: 'accent.js'});
 async function verify() {
   input.value = '#79ace6';
   handlers.input();
+  assert.equal(favicon.href, '/favicon.svg?color=%2379ace6');
   assert.equal(status.textContent, 'Gemmer farven…');
   await handlers.change();
   assert.equal(status.textContent, 'Farven blev ikke gemt: Anmodningen mislykkedes (503)');

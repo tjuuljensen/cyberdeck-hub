@@ -1429,7 +1429,7 @@ def load_request_state():
     g.csrf = session.setdefault('csrf', secrets.token_urlsafe(32))
     if not admin_account_exists():
         allowed_endpoints = {'first_admin_setup', 'static', 'trust_ca', 'healthz',
-                             'certificate_help', 'language_select'}
+                             'certificate_help', 'language_select', 'favicon'}
         if request.endpoint not in allowed_endpoints:
             if request.path.startswith('/api/'):
                 return jsonify(error='Create the first administrator to finish setup'), 503
@@ -1596,6 +1596,20 @@ def online_police_rss_compat():
         return jsonify(error=str(error)), 503
     response = jsonify(result)
     response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.get('/favicon.svg')
+def favicon():
+    color = request.args.get('color')
+    if color is None:
+        color = site_preferences()['accent_color']
+    elif not re.fullmatch(r'#[0-9a-fA-F]{6}', color):
+        abort(400)
+    # Reuse the original artwork, replacing only its green accent details.
+    artwork = (APP_DIR / 'static' / 'favicon.svg').read_text(encoding='utf-8')
+    response = make_response(artwork.replace('#c4f36b', color.lower()))
+    response.headers['Content-Type'] = 'image/svg+xml; charset=utf-8'
     return response
 
 

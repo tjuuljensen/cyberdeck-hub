@@ -9,6 +9,8 @@
 
   window.cyberdeckSetAccent = color => {
     themeLink.href = `/accent.css?color=${encodeURIComponent(color)}`;
+    const favicon = document.querySelector('#site-favicon');
+    if (favicon) favicon.href = `/favicon.svg?color=${encodeURIComponent(color)}`;
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
   };
   if (!input || !status || !csrf) return;

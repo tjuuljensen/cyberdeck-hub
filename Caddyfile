@@ -1,5 +1,5 @@
 http://{$CYBERDECK_HOSTNAME} {
-	@bootstrap path /help/certificate /trust/ca.crt /trust/ca.cer /static/* /accent.css
+	@bootstrap path /help/certificate /trust/ca.crt /trust/ca.cer /static/* /accent.css /favicon.svg
 	handle @bootstrap {
 		reverse_proxy hub:8000
 	}

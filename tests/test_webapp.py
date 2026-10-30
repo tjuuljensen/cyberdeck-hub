@@ -3009,6 +3009,35 @@ class WebAppTests(unittest.TestCase):
                 accent = self.client.get('/accent.css', base_url='https://localhost')
                 self.assertEqual(accent.data, b':root{--accent:#c4f36b;}')
 
+    def test_favicon_preview_is_public_validated_and_preserves_artwork(self):
+        client = webapp.app.test_client()
+        original = (webapp.APP_DIR / 'static' / 'favicon.svg').read_text(encoding='utf-8')
+        default = client.get('/favicon.svg', base_url='https://localhost')
+        self.assertEqual(default.status_code, 200)
+        self.assertEqual(default.get_data(as_text=True), original)
+        preview = client.get('/favicon.svg', query_string={'color': '#79ACE6'},
+                             base_url='https://localhost')
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.mimetype, 'image/svg+xml')
+        self.assertEqual(preview.get_data(as_text=True), original.replace('#c4f36b', '#79ace6'))
+        self.assertEqual(client.get('/favicon.svg', base_url='https://localhost').data, default.data)
+        saved = self.client.put('/api/admin/settings/accent',
+            headers={'X-CSRF-Token': self.csrf}, json={'accent_color': '#336699'},
+            base_url='https://localhost')
+        self.assertEqual(saved.status_code, 200)
+        home = client.get('/', base_url='https://localhost')
+        self.assertIn(b'href="/favicon.svg?color=%23336699"', home.data)
+        favicon = client.get('/favicon.svg', base_url='https://localhost')
+        self.assertEqual(favicon.get_data(as_text=True), original.replace('#c4f36b', '#336699'))
+        for color in ('red', '#123', '<script>alert(1)</script>'):
+            with self.subTest(color=color):
+                invalid = client.get('/favicon.svg', query_string={'color': color},
+                                     base_url='https://localhost')
+                self.assertEqual(invalid.status_code, 400)
+        with closing(webapp.connect_db()) as db, db:
+            db.execute('DELETE FROM admin')
+        self.assertEqual(client.get('/favicon.svg', base_url='https://localhost').status_code, 200)
+
     def test_document_inventory_combines_profile_and_live_added_content(self):
         item_id = self.export_fixture()
         response = self.client.get('/api/admin/documents', base_url='https://localhost')

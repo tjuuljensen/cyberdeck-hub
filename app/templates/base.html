@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="{{ site_preferences.accent_color }}"><title>{% block title %}Cyberdeck Hub{% endblock %}</title>
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="icon" id="site-favicon" type="image/svg+xml" href="{{ url_for('favicon', color=site_preferences.accent_color) }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='cyberdeck.css', v=app_version) }}">
   <link rel="stylesheet" id="site-accent-theme" href="{{ url_for('accent_stylesheet') }}">
   <script src="{{ url_for('static', filename='i18n.js', v=app_version) }}" defer></script>
