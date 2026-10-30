@@ -1033,8 +1033,8 @@ function storageButton(label,action){const button=document.createElement('button
 async function postStorage(action,target,extra={}){const identity=typeof target==='string'?{target_mount:target}:target?.stable_id?{stable_id:target.stable_id}:target?.target_mount?{target_mount:target.target_mount}:{};return requestJson('/api/admin/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...identity,...extra})})}
 function showStorageStatus(){storageStatus.scrollIntoView({block:'nearest',behavior:'smooth'})}
 function selectStorageStatus(diskId=null){storageStatusDiskId=diskId;const card=diskId?[...storageList.querySelectorAll('.storage-disk-card')].find(item=>item._storageDisk?.stable_id===diskId):null;(card||storageFolderStatusSlot).append(storageStatus)}
-function beginStorageOperation(message,diskId=null){selectStorageStatus(diskId);if(!diskId)document.querySelector('.storage-folder-configuration')?.setAttribute('open','');const progress=document.createElement('progress');progress.className='storage-operation-progress';progress.setAttribute('aria-label',t('ui.0621'));const label=document.createElement('span');label.textContent=message;storageStatus.replaceChildren(progress,label);storageStatus.setAttribute('aria-busy','true');storageStatus.classList.add('storage-operation-running');document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);showStorageStatus()}
-function finishStorageOperation(message,scroll=true){storageStatus.removeAttribute('aria-busy');storageStatus.classList.remove('storage-operation-running');storageStatus.textContent=message;document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=false);if(scroll)showStorageStatus()}
+function beginStorageOperation(message,diskId=null){selectStorageStatus(diskId);if(!diskId)document.querySelector('.storage-folder-configuration')?.setAttribute('open','');const progress=document.createElement('progress');progress.className='storage-operation-progress';progress.setAttribute('aria-label',t('ui.0621'));const label=document.createElement('span');label.textContent=message;storageStatus.replaceChildren(progress,label);storageStatus.setAttribute('aria-busy','true');storageStatus.classList.add('storage-operation-running');document.querySelectorAll('#storage-management button, .storage-folder-configuration button').forEach(button=>button.disabled=true);showStorageStatus()}
+function finishStorageOperation(message,scroll=true){storageStatus.removeAttribute('aria-busy');storageStatus.classList.remove('storage-operation-running');storageStatus.textContent=message;document.querySelectorAll('#storage-management button, .storage-folder-configuration button').forEach(button=>button.disabled=false);if(scroll)showStorageStatus()}
 function hideStorageConfirmation(){storageConfirmation.hidden=true;storageConfirmation.replaceChildren()}
 function showStorageConfirmation({title,detail,confirmationValue,submitLabel,onConfirm}){
   const heading=document.createElement('h4');heading.textContent=title;
@@ -1216,7 +1216,7 @@ async function refreshStorage(){
       selectStorageStatus(storageStatusDiskId);
     }
     if(storageStatus.hasAttribute('aria-busy')){
-      document.querySelectorAll('#storage-management button').forEach(button=>button.disabled=true);
+      document.querySelectorAll('#storage-management button, .storage-folder-configuration button').forEach(button=>button.disabled=true);
     }else if(initialization.status==='queued'||initialization.status==='initializing'){
       beginStorageOperation(storageOperationPhase(initialization,'initialization'),initialization.stable_id);
       if(activeStorageWatchKey!==`initialization:${initialization.stable_id}`)

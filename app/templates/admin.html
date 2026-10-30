@@ -61,7 +61,11 @@
   <h3 id="storage-management-heading">{{ t('ui.0582') }}</h3>
   <p class="subtle">{{ t('ui.0583') }}</p>
   <div id="storage-management-list" class="storage-management-list" aria-live="polite">{{ t('ui.0585') }}</div>
-  <details class="content-add storage-folder-configuration"><summary>{{ t('ui.0866') }} (<span id="storage-config-partition">{{ t('ui.0233') }}</span>)</summary>
+</section>
+{% endif %}
+<section class="management-danger-zone" aria-labelledby="management-danger-heading"><h3 id="management-danger-heading">{{ t('ui.0862') }}</h3><p class="subtle">{{ t('ui.0863') }}</p>
+{% if capabilities.storage %}
+  <details class="management-fold storage-folder-configuration"><summary>{{ t('ui.0866') }} (<span id="storage-config-partition">{{ t('ui.0233') }}</span>)</summary>
   <div id="storage-action-confirmation" class="storage-action-confirmation" hidden></div>
   <button class="button" type="button" id="storage-reload">{{ t('ui.0584') }}</button>
   <div id="storage-management-actions" class="storage-management-actions" aria-live="polite"></div>
@@ -73,10 +77,7 @@
     <ul id="storage-approved-locations" class="storage-approved-locations" aria-live="polite"><li>{{ t('ui.0585') }}</li></ul>
   </section>
   </details>
-</section>
 {% endif %}
-<section class="management-danger-zone" aria-labelledby="management-danger-heading"><h3 id="management-danger-heading">{{ t('ui.0862') }}</h3><p class="subtle">{{ t('ui.0863') }}</p>
-<details class="management-fold"><summary id="content-reset-heading">{{ t('ui.0867') }}</summary><section aria-labelledby="content-reset-heading"><p class="subtle">Permanently deletes all cards, documents, ZIMs, RSS feeds, Online Sources, and acquired content. Administrator accounts and server settings are kept.</p><button class="button danger" id="content-reset" type="button">{{ t('ui.0867') }}</button><p id="content-reset-status" class="subtle" role="status" aria-live="polite"></p></section></details>
 {% if capabilities.hostname %}<details class="management-fold"><summary>{{ t('ui.0174') }} (<span id="hostname-summary">{{ t('ui.0233') }}</span>)</summary>
 <section class="hostname-settings" aria-labelledby="hostname-heading"><h4 id="hostname-heading" class="visually-hidden">{{ t('ui.0173') }}</h4>
 <p>{{ t('ui.0258') }} <strong>knowledge-hub</strong>{{ t('ui.0259') }}</p>
@@ -89,6 +90,7 @@
 </details>{% endif %}
 <details class="management-fold"><summary>{{ t('ui.0850') }}</summary><p class="subtle">{{ t('ui.0860') }}</p>
 <form id="admin-password-form" class="stack"><label>{{ t('ui.0851') }}<input type="password" name="current_password" required maxlength="1024" autocomplete="current-password"></label><label>{{ t('ui.0852') }}<input type="password" name="new_password" required minlength="14" maxlength="1024" autocomplete="new-password"></label><label>{{ t('ui.0853') }}<input type="password" name="confirmation" required minlength="14" maxlength="1024" autocomplete="new-password"></label><button class="button" type="submit">{{ t('ui.0854') }}</button></form><p id="admin-password-status" class="subtle" role="status" aria-live="polite"></p></details>
+<details class="management-fold"><summary id="content-reset-heading">{{ t('ui.0867') }}</summary><section aria-labelledby="content-reset-heading"><p class="subtle">Permanently deletes all cards, documents, ZIMs, RSS feeds, Online Sources, and acquired content. Administrator accounts and server settings are kept.</p><button class="button danger" id="content-reset" type="button">{{ t('ui.0867') }}</button><p id="content-reset-status" class="subtle" role="status" aria-live="polite"></p></section></details>
 {% if capabilities.power %}<section class="management-power" aria-labelledby="management-power-heading"><h3 id="management-power-heading">{{ t('ui.0618') }}</h3><p>These actions affect the whole server and interrupt anyone using the library.</p><div class="button-row"><button class="button" data-power="reboot">Reboot server</button><button class="button danger" data-power="poweroff">Shut down server</button></div></section>{% endif %}
 </section></article>
 </section>

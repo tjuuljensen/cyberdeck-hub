@@ -1,6 +1,8 @@
 # v0.2.0 release candidate
 
 Status: local candidate prepared for review; this is not a published release.
+`0.2.0-beta.54` moves Library folder configuration into Danger Zone and places
+it before Server name, Change admin password, and Delete all contents.
 `0.2.0-beta.53` displays disk-operation progress and results on the affected
 disk card. `0.2.0-beta.52` excludes RAM-backed zram/ram devices from physical disk
 management while retaining unnamed physical disks. Protected system storage
