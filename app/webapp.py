@@ -3887,6 +3887,7 @@ def import_apply():
         journal = {'id': ticket['id'], 'targets': targets,
                    'acquired': {'existed': old_acquired is not None}}
         journal_written = False
+        temporary_index = None
         g.db.execute('BEGIN IMMEDIATE')
         try:
             reserved_zim_bytes = active_zim_reservations(g.db)
@@ -4071,10 +4072,14 @@ def import_apply():
                 raise ValueError('Imported configuration destination already exists')
             os.replace(temporary_config, saved_config)
             if acquired:
-                temporary_index = temporary_root / 'acquired.json'
+                # PRIVATE_ROOT and DATA_ROOT may be separate Docker mounts.
+                # Keep the replacement file beside its destination so the
+                # final rename remains atomic and does not cross filesystems.
+                temporary_index = DATA_ROOT / ('.acquired-' + uuid.uuid4().hex + '.tmp')
                 temporary_index.write_text(json.dumps(acquired, ensure_ascii=False, indent=2) + '\n',
                                            encoding='utf-8')
                 os.replace(temporary_index, acquired_path)
+                temporary_index = None
             else:
                 # An empty lock is rejected by the library verifier. Keep the
                 # fresh-install state as an absent index until the first asset
@@ -4084,6 +4089,8 @@ def import_apply():
             g.db.commit()
         except Exception:
             g.db.rollback()
+            if temporary_index is not None:
+                temporary_index.unlink(missing_ok=True)
             if journal_written:
                 rollback_import_files(stage_root, journal)
             shutil.rmtree(stage_root, ignore_errors=True)
