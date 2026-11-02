@@ -1264,8 +1264,36 @@ const catalogMessage=document.querySelector('#catalog-message');
 const catalogResults=document.querySelector('#catalog-results');
 const zimEditor=document.querySelector('#zim-editor');
 const zimEditorForm=document.querySelector('#zim-editor-form');
-function ensureOriginField(form){if(!form||form.elements.origin_source)return;const label=document.createElement('label');label.append(document.createTextNode('Metadata Origin Source (optional) '));const input=document.createElement('input');input.name='origin_source';input.type='url';input.maxLength=2048;label.append(input);const anchor=form.querySelector('[name="search_terms"]')?.closest('label')||form.querySelector('[name="subject"]')?.closest('label');anchor?.after(label)}
+function foldedFields(form,title,kind){
+  let details=form.querySelector(`[data-extra-fields="${kind}"]`);
+  if(details)return details;
+  details=document.createElement('details');details.className='entry-translations';details.dataset.extraFields=kind;
+  const summary=document.createElement('summary');summary.textContent=t(title);details.append(summary);
+  const fields=document.createElement('div');fields.className='stack';details.append(fields);
+  const actions=form.querySelector(':scope > .button-row,:scope > button:not([type="button"])');
+  if(actions)actions.before(details);else form.append(details);
+  return details;
+}
+function ensureOriginField(form){
+  if(!form)return;
+  const details=foldedFields(form,'Metadata','metadata');const fields=details.lastElementChild;
+  if(!form.elements.origin_source){
+    const label=document.createElement('label');label.append(document.createTextNode(t('Origin Source (optional)')));
+    const input=document.createElement('input');input.name='origin_source';input.type='url';input.maxLength=2048;label.append(input);fields.append(label);
+    const help=document.createElement('p');help.className='subtle';help.textContent=t('Publisher or reference page describing the content. This is separate from the file download URL.');fields.append(help);
+  }
+  const search=form.querySelector('[name="search_terms"]')?.closest('label');
+  if(search){const help=search.nextElementSibling;fields.append(search);if(help?.tagName==='P')fields.append(help)}
+}
+function ensureVerificationFields(form){
+  const details=foldedFields(form,'Download verification','verification');
+  const label=document.createElement('label');label.textContent=t('Expected SHA-256 (optional)');
+  const input=document.createElement('input');input.name='expected_sha256';input.pattern='[0-9a-fA-F]{64}';input.maxLength=64;input.autocomplete='off';label.append(input);
+  const help=document.createElement('p');help.className='subtle';help.textContent=t('Leave blank to fetch the publisher checksum automatically. A supplied checksum must match the publisher checksum when available.');
+  details.lastElementChild.append(label,help);
+}
 ensureOriginField(zimEditorForm);ensureOriginField(document.querySelector('#item-form'));ensureOriginField(document.querySelector('#zim-form'));
+ensureVerificationFields(zimEditorForm);ensureVerificationFields(document.querySelector('#zim-form'));
 const zimEditorSave=document.querySelector('#zim-editor-save');
 const zimEditorCancel=document.querySelector('#zim-editor-cancel');
 const zimEditorError=document.querySelector('#zim-editor-error');
@@ -1283,9 +1311,45 @@ function renderZimDetails(target,item){
   if(facts.length){const metadata=document.createElement('p');metadata.className='subtle';metadata.textContent=facts.join(' · ');target.append(metadata)}
   const filename=document.createElement('p');filename.className='zim-filename';filename.textContent=item.filename||'';target.append(filename);
 }
+function renderFileDetails(item,kind){
+  const details=document.querySelector('#editor-file-details');const target=details.lastElementChild;target.replaceChildren();
+  const files=kind==='document'?item.attachments:[item];
+  for(const file of files){
+    for(const [label,value]of [['Filename',file.filename],['File size',Number.isSafeInteger(file.bytes)?formatBytes(file.bytes):''],['Stored SHA-256',file.sha256],['Expected SHA-256',file.expected_sha256],['Download URL',kind==='zim'?file.source_url||file.url:'']]){
+      if(!value)continue;const field=document.createElement('label');field.textContent=t(label);const input=document.createElement('input');input.readOnly=true;input.value=value;field.append(input);target.append(field);
+    }
+  }
+  details.hidden=!target.childElementCount;
+}
+function renderDocumentSources(item,kind,editing){
+  const target=document.querySelector('#document-download-sources');target.replaceChildren();
+  if(!editing||kind==='zim'){target.hidden=true;return}
+  const files=kind==='document'?item.attachments:[item];
+  for(const file of files.filter(file=>file.download_url)){
+    const group=document.createElement('div');group.className='stack';const label=document.createElement('label');label.textContent=t('Download URL');
+    if(kind==='document'){const filename=document.createElement('span');filename.dataset.userContent='true';filename.textContent=file.filename;label.append(filename)}
+    const input=document.createElement('input');input.type='url';input.required=true;input.maxLength=2048;input.value=file.download_url;input.dataset.documentUrl='true';input.name=`download_url_${file.id||'archive'}`;if(kind==='document')input.dataset.attachmentId=file.id;label.append(input);
+    const update=document.createElement('button');update.dataset.updateCopy='true';update.type='button';update.className='button';update.textContent=t('Update downloaded copy');
+    update.addEventListener('click',async()=>{
+      if(zimEditorBusy||editorHasUnsavedChanges())return;zimEditorBusy=true;zimEditorError.hidden=true;
+      const controls=[...zimEditorForm.elements].map(control=>[control,control.disabled]);controls.forEach(([control])=>{control.disabled=true});
+      const endpoint=kind==='document'?`/api/admin/items/${encodeURIComponent(item.id)}/attachments/${encodeURIComponent(file.id)}/refresh`:`/api/admin/archive/${encodeURIComponent(item.filename)}/refresh`;
+      const label=update.textContent;update.textContent=t('Updating downloaded copy…');
+      try{await requestJson(endpoint,{method:'POST'});zimEditor.close();await refreshDocuments();await refreshExportOptions()}
+      catch(error){zimEditorError.textContent=error.message;zimEditorError.hidden=false}
+      finally{zimEditorBusy=false;controls.forEach(([control,disabled])=>{control.disabled=disabled});update.disabled=editorHasUnsavedChanges();update.textContent=label}
+    });
+    group.append(label,update);target.append(group);
+  }
+  target.hidden=!target.childElementCount;
+  if(!target.hidden){const help=document.createElement('p');help.className='subtle';help.textContent=t('Save changes before updating the downloaded copy. The current copy stays available until the replacement is downloaded and validated.');target.append(help)}
+}
 function openZimEditor(item,editing,sourceButton=null,kind='zim'){
   zimSelection={item,editing,sourceButton,kind};
   zimEditorForm.reset();zimEditorError.hidden=true;
+  zimEditorForm.querySelectorAll('details').forEach(details=>{details.open=false});
+  const verification=zimEditorForm.querySelector('[data-extra-fields="verification"]');
+  verification.hidden=editing;zimEditorForm.elements.expected_sha256.disabled=editing;
   document.querySelector('#document-description').hidden=kind!=='document';
   zimEditorForm.elements.description.value=kind==='document'?item.description:'';
   document.querySelector('#document-search-terms').hidden=!['document','archive'].includes(kind);
@@ -1298,19 +1362,26 @@ function openZimEditor(item,editing,sourceButton=null,kind='zim'){
   document.querySelector('#zim-editor-heading').textContent=editing?'Edit library details':'Add library';
   zimEditorSave.textContent=editing?'Save changes':'Start download';
   document.querySelector('#zim-editor-note').textContent=editing?'Updates the title and subject shown in Cyberdeck. The archive, download progress, and titles inside Kiwix stay unchanged.':'Choose where this library appears in Cyberdeck. The download size and integrity will be verified before it becomes available.';
-  renderZimDetails(document.querySelector('#zim-editor-details'),editing?{filename:item.filename}:item);
+  document.querySelector('#zim-editor-details').hidden=editing;
+  if(editing)document.querySelector('#zim-editor-details').replaceChildren();else renderZimDetails(document.querySelector('#zim-editor-details'),item);
   document.querySelector('#zim-editor-kind').textContent=kind==='zim'?t('ui.0188'):t('ui.0502');
   if(kind==='archive'){
     document.querySelector('#zim-editor-heading').textContent='Edit document';
-    document.querySelector('#zim-editor-note').textContent='Changes the display title and subject for everyone. The file stays unchanged. These edits take precedence over starter-content metadata.';
+    document.querySelector('#zim-editor-note').textContent=item.download_url?'Saves document details and download URLs. Use Update downloaded copy separately to fetch a replacement.':'Changes the display title and subject for everyone. The file stays unchanged. These edits take precedence over starter-content metadata.';
   }
   if(kind==='document'){
     document.querySelector('#zim-editor-heading').textContent='Edit document';
-    document.querySelector('#zim-editor-note').textContent='Changes the title, description, and subject for everyone. Attachments stay unchanged.';
-    renderZimDetails(document.querySelector('#zim-editor-details'),{filename:item.attachments.map(a=>a.filename).join(', ')});
+    document.querySelector('#zim-editor-note').textContent=item.attachments.some(file=>file.download_url)?'Saves document details and download URLs. Use Update downloaded copy separately to fetch a replacement.':'Changes the title, description, and subject for everyone. Attachments stay unchanged.';
   }
+  renderDocumentSources(item,kind,editing);
+  renderFileDetails(item,kind);
+  zimSelection.snapshot=JSON.stringify([...new FormData(zimEditorForm)]);
   zimEditor.showModal();
 }
+function editorHasUnsavedChanges(){return zimSelection?.snapshot!==JSON.stringify([...new FormData(zimEditorForm)])}
+for(const event of ['input','change'])zimEditorForm.addEventListener(event,()=>{
+  zimEditorForm.querySelectorAll('[data-update-copy]').forEach(button=>{button.disabled=zimEditorBusy||editorHasUnsavedChanges()});
+});
 zimEditorCancel.addEventListener('click',()=>zimEditor.close());
 zimEditor.addEventListener('cancel',event=>{if(zimEditorBusy)event.preventDefault()});
 zimEditorForm.addEventListener('submit',async event=>{
@@ -1318,7 +1389,9 @@ zimEditorForm.addEventListener('submit',async event=>{
   const {item,editing,sourceButton,kind}=zimSelection;
   const body={title:zimEditorForm.elements.title.value.trim(),subject:zimEditorForm.elements.subject.value};
   body.origin_source=zimEditorForm.elements.origin_source?.value.trim()||'';
-  if(!editing)body.url=item.url;
+  if(!editing){body.url=item.url;body.expected_sha256=zimEditorForm.elements.expected_sha256.value.trim()}
+  if(kind==='archive'&&item.download_url)body.download_url=zimEditorForm.querySelector('[data-document-url]').value.trim();
+  if(kind==='document')body.attachment_urls=Object.fromEntries([...zimEditorForm.querySelectorAll('[data-document-url]')].map(input=>[input.dataset.attachmentId,input.value.trim()]));
   if(kind==='document')body.description=zimEditorForm.elements.description.value;
   if(kind==='document'||kind==='archive')body.origin_source=zimEditorForm.elements.origin_source?.value.trim()||'';
   if(kind==='document'||kind==='archive')body.search_terms=zimEditorForm.elements.search_terms.value;
@@ -1635,7 +1708,7 @@ cardForm?.elements.translation_language.addEventListener('change',()=>{const car
 function renderCardRow(card){
   const hasContents=card.child_count>0;const row=document.createElement('div');row.className=`item-row document-row card-definition-row ${hasContents?'has-contents':'empty-card'}`;
   const details=document.createElement('div');const title=document.createElement('strong');title.dataset.userContent='true';title.textContent=card.display_title||card.title;
-  const typeLabel=card.type==='subject'?'Documents / Subject':card.type==='rss'?'RSS':'Online Sources';
+  const typeLabel=card.type==='subject'?t('ui.0255'):card.type==='rss'?'RSS':'Online Sources';
   const summary=document.createElement('span');summary.textContent=hasContents?`${typeLabel} · Card has contents (${card.child_count})`:typeLabel;
   details.append(title,summary);
   row.append(details);
@@ -1651,18 +1724,17 @@ function appendEntryFormFields(form,card,entry=null){
   const url=document.createElement('input');url.name='url';url.type='url';url.required=true;url.maxLength=2048;url.value=entry?.url||'';
   form.append(Object.assign(document.createElement('label'),{textContent:'Title'}));form.lastChild.append(title);
   form.append(Object.assign(document.createElement('label'),{textContent:card.type==='rss'?'HTTPS Feed URL':'HTTPS URL'}));form.lastChild.append(url);
-  const origin=document.createElement('input');origin.name='origin_source';origin.type='url';origin.maxLength=2048;origin.value=entry?.origin_source||'';form.append(Object.assign(document.createElement('label'),{textContent:'Metadata Origin Source (optional)'}));form.lastChild.append(origin);
+  ensureOriginField(form);form.elements.origin_source.value=entry?.origin_source||'';
   if(card.type==='online'){const description=document.createElement('textarea');description.name='description';description.maxLength=300;description.rows=2;description.value=entry?.description||'';form.append(Object.assign(document.createElement('label'),{textContent:'Description'}));form.lastChild.append(description)}
 }
 async function persistEntry(card,entryId,body,method){const suffix=entryId?`/${encodeURIComponent(entryId)}`:'';await requestJson(`/api/admin/cards/${encodeURIComponent(card.id)}/entries${suffix}`,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});await refreshCards()}
 const sourceEntryDialog=document.querySelector('#source-entry-editor');
 const sourceEntryForm=document.querySelector('#source-entry-editor-form');
-for(const form of [sourceEntryForm,document.querySelector('#online-source-entry-form'),document.querySelector('#rss-entry-form')].filter(Boolean)){
-  if(!form.elements.origin_source){const label=document.createElement('label');label.append(document.createTextNode('Metadata Origin Source (optional) '));const input=document.createElement('input');input.name='origin_source';input.type='url';input.maxLength=2048;label.append(input);const url=form.elements.url?.closest('label');url?.after(label)}
-}
+for(const form of [sourceEntryForm,document.querySelector('#online-source-entry-form'),document.querySelector('#rss-entry-form')].filter(Boolean))ensureOriginField(form);
 function beginEntryEdit(card,entry){
   const form=sourceEntryForm;form.reset();resetEntryTranslationForm(form);form.elements.entry_id.value=entry.id;form.elements.original_card_id.value=card.id;
   const cardSelect=form.elements.card_id;cardSelect.dataset.userContent='true';cardSelect.replaceChildren(...adminCards.filter(item=>item.type===card.type).map(item=>new Option(item.display_title||item.title,item.id)));cardSelect.value=card.id;
+  form.querySelectorAll('[data-extra-fields]').forEach(details=>{details.open=false});
   form.elements.title.value=entry.display_title||entry.title;form.elements.url.value=entry.url;form.elements.origin_source.value=entry.origin_source||'';form.elements.description.value=entry.display_description||entry.description||'';form.elements.enabled.checked=entry.enabled!==false;form.dataset.initialTitle=form.elements.title.value;form.dataset.initialDescription=form.elements.description.value;
   const translationSelect=form.elements.translation_language;translationSelect.value='';form.elements.translation_title.value='';form.elements.translation_description.value='';translationSelect.querySelectorAll('option').forEach(option=>{option.disabled=option.value===entry.source_language});
   form.querySelectorAll('[data-entry-kind="online"]').forEach(element=>element.hidden=card.type!=='online');

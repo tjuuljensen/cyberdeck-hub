@@ -1,5 +1,10 @@
 # UI style rules
 
+- Use Cards for the overall management section, Subject for a grouping of
+  documents and ZIM libraries (Subject card when describing the card type),
+  and Documents for the reference files. Use Subject for assignment and
+  filtering; do not label shared documents as personal.
+
 - A card row with one or more child entries uses the existing muted red tint to
   distinguish populated cards from empty cards.
 - In content entry lists, place the entry text above its actions. Put Edit below

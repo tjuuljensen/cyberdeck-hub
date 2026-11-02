@@ -1060,6 +1060,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(plan['online_pdf_options'], [{
             'key': 'online-pdf:public/field-guide.pdf', 'title': 'Field guide',
             'path': 'public/field-guide.pdf', 'bytes': 512, 'conflict': False,
+            'update': False, 'update_path': None, 'update_paths': [],
             'duplicate': False, 'reason': '',
         }])
 
@@ -3111,7 +3112,7 @@ class WebAppTests(unittest.TestCase):
         viewer = self.client.get(f"/private/{item_id}/{attachment['id']}/viewer", base_url='https://localhost')
         self.assertEqual(viewer.status_code, 200)
         self.assertIn(b'<html lang="da">', viewer.data)
-        self.assertIn('<title>Personlig dokumentlæser</title>'.encode(), viewer.data)
+        self.assertIn('<title>Dokumentlæser</title>'.encode(), viewer.data)
         self.assertIn(b'sandbox="allow-scripts"', viewer.data)
         self.assertIn(b'name="language"', viewer.data)
         self.assertIn('Skift sprog'.encode(), viewer.data)
@@ -3128,7 +3129,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(changed_language.status_code, 303)
         english_viewer = self.client.get(
             f"/private/{item_id}/{attachment['id']}/viewer", base_url='https://localhost')
-        self.assertIn('<title>Personal document reader</title>'.encode(), english_viewer.data)
+        self.assertIn('<title>Document reader</title>'.encode(), english_viewer.data)
         public_viewer = webapp.app.test_client().get(
             f"/documents/{item_id}/{attachment['id']}/viewer", base_url='https://localhost')
         self.assertEqual(public_viewer.status_code, 200)
@@ -3177,6 +3178,258 @@ class WebAppTests(unittest.TestCase):
             webapp.safe_public_https_url('https://127.0.0.1/private.zim')
         with self.assertRaises(ValueError):
             webapp.safe_public_https_url('https://download.kiwix.org.attacker.example/zim/a.zim')
+
+    def test_document_url_save_and_refresh_preserve_identity_and_failed_copy(self):
+        old_payload = b'%PDF-1.7 old copy'
+        def download(url, destination):
+            destination.write_bytes(old_payload)
+            return 'guide.pdf'
+        with patch.object(webapp, 'download_public_attachment', side_effect=download):
+            created = self.client.post('/api/admin/items', headers={'X-CSRF-Token': self.csrf},
+                data={'title': 'Guide', 'subject': 'first-aid', 'description': 'Keep description',
+                      'origin_source': 'https://example.org/publisher',
+                      'attachment_url': 'https://example.org/old.pdf',
+                      'attachments': (io.BytesIO(b'%PDF-local'), 'local.pdf')},
+                base_url='https://localhost')
+        self.assertEqual(created.status_code, 201, created.data)
+        item_id = created.get_json()['id']
+        item = self.client.get('/api/admin/items', base_url='https://localhost').get_json()[0]
+        remote = next(a for a in item['attachments'] if a['source'] == 'url')
+        local = next(a for a in item['attachments'] if a['source'] == 'upload')
+        endpoint = f"/api/admin/items/{item_id}/attachments/{remote['id']}/refresh"
+        public_url = f"/documents/{item_id}/{remote['id']}"
+        body = {'title': 'Edited guide', 'description': 'Keep description', 'subject': 'first-aid',
+                'attachment_urls': {remote['id']: 'https://example.org/new.pdf'}}
+        with patch.object(webapp, 'validate_public_attachment_url', side_effect=lambda url: url), \
+                patch.object(webapp, 'download_public_attachment') as network:
+            response = self.client.put(f'/api/admin/items/{item_id}', json=body,
+                headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+            self.assertEqual(response.status_code, 204, response.data)
+            network.assert_not_called()
+        item = self.client.get('/api/admin/items', base_url='https://localhost').get_json()[0]
+        self.assertEqual(item['origin_source'], 'https://example.org/publisher')
+        self.assertEqual(next(a for a in item['attachments'] if a['id'] == remote['id'])['download_url'],
+                         'https://example.org/new.pdf')
+        with webapp.app.test_request_context('/'):
+            webapp.g.db = webapp.connect_db()
+            exported = next(e['asset'] for e in webapp.export_inventory() if e['id'] == 'source:' + remote['id'])
+            self.assertEqual(exported['url'], 'https://example.org/new.pdf')
+            self.assertNotIn('sha256', exported)
+            self.assertNotIn('expected_bytes', exported)
+        with self.client.get(public_url, base_url='https://localhost') as response:
+            self.assertEqual(response.data, old_payload)
+        self.assertEqual(webapp.app.test_client().post(endpoint, base_url='https://localhost').status_code, 401)
+        self.assertEqual(self.client.post(endpoint, base_url='https://localhost').status_code, 400)
+        bad = {**body, 'title': 'Must not save', 'attachment_urls': {local['id']: 'https://example.org/no.pdf'}}
+        response = self.client.put(f'/api/admin/items/{item_id}', json=bad,
+            headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.get('/api/admin/items', base_url='https://localhost').get_json()[0]['title'], 'Edited guide')
+        with patch.object(webapp.socket, 'getaddrinfo', return_value=[
+                (webapp.socket.AF_INET, webapp.socket.SOCK_STREAM, 6, '', ('127.0.0.1', 443))]):
+            unsafe = {**body, 'attachment_urls': {remote['id']: 'https://localhost/internal.pdf'}}
+            response = self.client.put(f'/api/admin/items/{item_id}', json=unsafe,
+                headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 400)
+        for failure in ('invalid', 'interrupted'):
+            def fail(url, destination):
+                destination.write_bytes(b'<html>not a PDF</html>')
+                if failure == 'interrupted':
+                    raise OSError('connection interrupted')
+                return 'guide.pdf'
+            with patch.object(webapp, 'download_public_attachment', side_effect=fail):
+                response = self.client.post(endpoint, headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+            self.assertEqual(response.status_code, 409, response.data)
+            with self.client.get(public_url, base_url='https://localhost') as response:
+                self.assertEqual(response.data, old_payload)
+        def replacement(url, destination):
+            self.assertEqual(url, 'https://example.org/new.pdf')
+            destination.write_bytes(b'%PDF-1.7 replacement')
+            return 'renamed.pdf'
+        with patch.object(webapp, 'download_public_attachment', side_effect=replacement):
+            response = self.client.post(endpoint, headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 204, response.data)
+        with self.client.get(public_url, base_url='https://localhost') as response:
+            self.assertEqual(response.data, b'%PDF-1.7 replacement')
+        current = self.client.get('/api/admin/items', base_url='https://localhost').get_json()[0]
+        self.assertEqual(current['id'], item_id)
+        self.assertEqual(current['description'], 'Keep description')
+        self.assertEqual({a['id'] for a in current['attachments']}, {remote['id'], local['id']})
+        self.assertEqual(next(a for a in current['attachments'] if a['id'] == remote['id'])['filename'], 'guide.pdf')
+
+    def test_html_attachment_refresh_validates_before_switching_viewer(self):
+        def html_zip(text, path='index.html'):
+            payload = io.BytesIO()
+            with zipfile.ZipFile(payload, 'w') as archive:
+                archive.writestr(path, text)
+            return payload.getvalue()
+        def download(url, destination):
+            destination.write_bytes(html_zip('old page'))
+            return 'site.zip'
+        with patch.object(webapp, 'download_public_attachment', side_effect=download):
+            response = self.client.post('/api/admin/items', headers={'X-CSRF-Token': self.csrf},
+                data={'title': 'Site', 'subject': 'first-aid', 'attachment_url': 'https://example.org/site.zip'},
+                base_url='https://localhost')
+        self.assertEqual(response.status_code, 201, response.data)
+        item = self.client.get('/api/admin/items', base_url='https://localhost').get_json()[0]
+        attachment = item['attachments'][0]
+        endpoint = f"/api/admin/items/{item['id']}/attachments/{attachment['id']}/refresh"
+        public_url = f"/documents/{item['id']}/{attachment['id']}/html/index.html"
+        for archive_path, expected_status, content in [('../index.html', 409, b'old page'), ('index.html', 204, b'new page')]:
+            def replace(url, destination):
+                destination.write_bytes(html_zip('new page', archive_path))
+                return 'site.zip'
+            with patch.object(webapp, 'download_public_attachment', side_effect=replace):
+                response = self.client.post(endpoint, headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+            self.assertEqual(response.status_code, expected_status, response.data)
+            with self.client.get(public_url, base_url='https://localhost') as response:
+                self.assertEqual(response.data, content)
+
+    def test_imported_document_source_edit_and_refresh_keep_metadata(self):
+        path, lock = self.archive_fixture()
+        record = json.loads(lock.read_text())['public/field-guide.pdf']
+        record['sha256'] = webapp.library.sha256(path)
+        record['asset'].update(url='https://example.org/old.pdf', max_bytes=1024,
+                               document_id='stable-guide', origin_source='https://example.org/publisher')
+        lock.write_text(json.dumps({'public/field-guide.pdf': record}))
+        item = self.client.get('/api/admin/archive', base_url='https://localhost').get_json()[0]
+        self.assertEqual(item['origin_source'], 'https://example.org/publisher')
+        original = path.read_bytes()
+        body = {'title': 'My guide', 'subject': 'first-aid', 'search_terms': 'medical',
+                'download_url': 'https://example.org/new.pdf'}
+        with patch.object(webapp, 'validate_public_attachment_url', side_effect=lambda url: url):
+            response = self.client.put('/api/admin/archive/field-guide.pdf', json=body,
+                headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(json.loads(lock.read_text())['public/field-guide.pdf'], record)
+        endpoint = '/api/admin/archive/field-guide.pdf/refresh'
+        with patch.object(webapp, 'download_public_attachment', side_effect=OSError('failed')):
+            response = self.client.post(endpoint, headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(path.read_bytes(), original)
+        def download(url, destination):
+            self.assertEqual(url, 'https://example.org/new.pdf')
+            destination.write_bytes(b'%PDF-1.7 new edition')
+            return 'new.pdf'
+        write_json = webapp.library.write_json
+        def fail_index_commit(destination, data):
+            if destination == lock and data['public/field-guide.pdf']['sha256'] != record['sha256']:
+                raise OSError('Cannot commit acquisition index')
+            return write_json(destination, data)
+        with patch.object(webapp, 'download_public_attachment', side_effect=download), \
+                patch.object(webapp.library, 'write_json', side_effect=fail_index_commit):
+            response = self.client.post(endpoint, headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(json.loads(lock.read_text())['public/field-guide.pdf'], record)
+        with patch.object(webapp, 'download_public_attachment', side_effect=download):
+            response = self.client.post(endpoint, headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 204, response.data)
+        self.assertEqual(path.read_bytes(), b'%PDF-1.7 new edition')
+        current = json.loads(lock.read_text())
+        self.assertEqual(list(current), ['public/field-guide.pdf'])
+        self.assertEqual(current['public/field-guide.pdf']['asset']['document_id'], 'stable-guide')
+        item = self.client.get('/api/admin/archive', base_url='https://localhost').get_json()[0]
+        self.assertEqual((item['title'], item['subject'], item['search_terms'], item['origin_source']),
+                         ('My guide', 'first-aid', 'medical', 'https://example.org/publisher'))
+        self.assertEqual(item['sha256'], webapp.library.sha256(path))
+        self.assertFalse(list((webapp.PRIVATE_ROOT / 'document-update-staging').iterdir()))
+
+    def test_document_refresh_preserves_pinned_publisher_url_resolution(self):
+        path, lock = self.archive_fixture()
+        digest = webapp.library.sha256(path)
+        record = {'asset': {'path': 'public/field-guide.pdf', 'title': 'Guide',
+                           'collection': 'first-aid', 'max_bytes': 1024, 'sha256': digest,
+                           'url': 'https://www.mediafire.com/file/abc123/guide.pdf/file',
+                           'url_resolver': 'mediafire'}, 'sha256': digest, 'bytes': path.stat().st_size}
+        lock.write_text(json.dumps({'public/field-guide.pdf': record}))
+        def resolve(asset):
+            webapp.library.validate_asset(asset)
+            self.assertEqual(asset['sha256'], digest)
+            return 'https://download1.mediafire.com/abc123/guide.pdf'
+        def download(url, destination):
+            self.assertEqual(url, 'https://download1.mediafire.com/abc123/guide.pdf')
+            destination.write_bytes(b'%PDF-new-publisher-edition')
+            return 'guide.pdf'
+        with patch.object(webapp.library, 'download_url', side_effect=resolve), \
+                patch.object(webapp, 'download_public_attachment', side_effect=download):
+            response = self.client.post('/api/admin/archive/field-guide.pdf/refresh',
+                headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 204, response.data)
+        saved = json.loads(lock.read_text())['public/field-guide.pdf']
+        self.assertEqual(saved['asset']['url'], record['asset']['url'])
+        self.assertEqual(saved['asset']['sha256'], webapp.library.sha256(path))
+
+    def test_imported_zim_origin_is_loaded_and_saved_on_first_edit(self):
+        filename = 'test.zim'
+        path = webapp.DATA_ROOT / 'zim' / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'ZIM\x04test')
+        (webapp.DATA_ROOT / 'acquired.json').write_text(json.dumps({'zim/test.zim': {
+            'asset': {'path': 'zim/test.zim', 'title': 'Test', 'collection': 'first-aid',
+                      'url': 'https://download.kiwix.org/zim/test.zim',
+                      'origin_source': 'https://example.org/original'},
+            'bytes': 8, 'sha256': 'a' * 64}}))
+        item = self.client.get('/api/admin/zims', base_url='https://localhost').get_json()[0]
+        self.assertEqual(item['origin_source'], 'https://example.org/original')
+        response = self.client.put('/api/admin/zims/file-test.zim', json={
+            'title': 'Edited', 'subject': 'first-aid', 'origin_source': 'https://example.org/updated'},
+            headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 200, response.data)
+        item = self.client.get('/api/admin/zims', base_url='https://localhost').get_json()[0]
+        self.assertEqual(item['origin_source'], 'https://example.org/updated')
+
+    def test_manual_zim_checksum_is_pinned_in_the_download_manifest(self):
+        url = 'https://download.kiwix.org/zim/test.zim'
+        with patch.object(webapp, 'inspect_kiwix_asset', return_value=(url, 123, 'b' * 64, None)) as inspect, \
+                patch.object(webapp, 'ensure_zim_capacity'):
+            response = self.client.post('/api/admin/zims', json={
+                'title': 'Test', 'subject': 'first-aid', 'url': url, 'expected_sha256': 'B' * 64,
+                'origin_source': 'https://example.org/publisher'},
+                headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 202, response.data)
+        inspect.assert_called_once_with(url, 'B' * 64)
+        manifest = webapp.PRIVATE_ROOT / 'requests' / (response.get_json()['id'] + '.json')
+        asset = json.loads(manifest.read_text())['assets'][0]
+        self.assertEqual(asset['sha256'], 'b' * 64)
+        self.assertEqual(asset['expected_bytes'], 123)
+        self.assertEqual(asset['origin_source'], 'https://example.org/publisher')
+        self.assertIn('administrator', asset['hash_provenance'])
+        webapp.library.validate_asset(asset)
+
+    def test_manual_zim_checksum_fallback_conflict_and_validation(self):
+        url = 'https://download.kiwix.org/zim/test.zim'
+        def response(body=b'', headers=None):
+            result = MagicMock()
+            result.__enter__.return_value = result
+            result.geturl.return_value = url
+            result.headers = headers or {}
+            result.read.return_value = body
+            return result
+        def head():
+            return response(headers={'Content-Length': '123'})
+        # Sidecar responses must retain their requested path.
+        sidecar = response(b'a' * 64)
+        sidecar.geturl.return_value = url + '.sha256'
+        with patch.object(webapp.urllib.request, 'urlopen', side_effect=[head(), sidecar]):
+            with self.assertRaisesRegex(ValueError, 'conflicts'):
+                webapp.inspect_kiwix_asset(url, 'b' * 64)
+        with patch.object(webapp.urllib.request, 'urlopen', side_effect=[head(), sidecar]):
+            self.assertEqual(webapp.inspect_kiwix_asset(url, 'A' * 64)[2], 'a' * 64)
+        with patch.object(webapp.urllib.request, 'urlopen', side_effect=[head(), OSError(), OSError()]):
+            result = webapp.inspect_kiwix_asset(url, 'B' * 64)
+            self.assertEqual(result[2:], ('b' * 64, None))
+        with patch.object(webapp.urllib.request, 'urlopen', side_effect=[head(), OSError(), OSError()]):
+            with self.assertRaisesRegex(ValueError, 'pinned checksum'):
+                webapp.inspect_kiwix_asset(url)
+        for value in ('invalid', 'g' * 64, 'a' * 63, 123, None):
+            with patch.object(webapp.urllib.request, 'urlopen') as network:
+                response = self.client.post('/api/admin/zims', json={
+                    'title': 'Test', 'subject': 'first-aid', 'url': url, 'expected_sha256': value},
+                    headers={'X-CSRF-Token': self.csrf}, base_url='https://localhost')
+                self.assertEqual(response.status_code, 400, response.data)
+                network.assert_not_called()
 
     def test_inspect_kiwix_asset_reads_checksum_from_canonical_download_host(self):
         digest = 'a' * 64

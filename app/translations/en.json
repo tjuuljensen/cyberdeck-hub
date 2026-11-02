@@ -144,7 +144,7 @@
     "context": "User interface text used in index.html. Preserve placeholders and product names."
   },
   "ui.0037": {
-    "default": "Browse local reference material by subject. Open ZIM libraries in Kiwix; administrators can add libraries and upload personal documents for everyone to read.",
+    "default": "Browse local reference material by subject. Open ZIM libraries in Kiwix; administrators can add libraries and upload documents for everyone to read.",
     "context": "User interface text used in index.html. Preserve placeholders and product names."
   },
   "ui.0038": {
@@ -164,7 +164,7 @@
     "context": "User interface text used in index.html. Preserve placeholders and product names."
   },
   "ui.0042": {
-    "default": "Personal documents are readable on the local network. Only an administrator can upload, edit, or remove them.",
+    "default": "Documents are readable on the local network. Only an administrator can upload, edit, or delete them.",
     "context": "User interface text used in index.html. Preserve placeholders and product names."
   },
   "ui.0043": {
@@ -220,7 +220,7 @@
     "context": "User interface text used in subject.html. Preserve placeholders and product names."
   },
   "ui.0056": {
-    "default": "An administrator can add a Kiwix library or upload personal documents for everyone on this local network.",
+    "default": "An administrator can add a Kiwix library or upload documents for everyone on this local network.",
     "context": "User interface text used in subject.html. Preserve placeholders and product names."
   },
   "ui.0057": {
@@ -240,7 +240,7 @@
     "context": "User interface text used in login.html. Preserve placeholders and product names."
   },
   "ui.0061": {
-    "default": "Public reference pages remain open to the local network. Management tools and personal files require an account.",
+    "default": "Documents and subject pages are readable on the local network. Management tools require an administrator account.",
     "context": "User interface text used in login.html. Preserve placeholders and product names."
   },
   "ui.0062": {
@@ -908,11 +908,11 @@
     "context": "User interface text used in certificate-help.html. Preserve placeholders and product names."
   },
   "ui.0230": {
-    "default": "Personal document reader",
+    "default": "Document reader",
     "context": "User interface text used in html-viewer.html. Preserve placeholders and product names."
   },
   "ui.0231": {
-    "default": "Personal HTML document",
+    "default": "HTML document",
     "context": "User interface text used in html-viewer.html. Preserve placeholders and product names."
   },
   "ui.0232": {
@@ -2844,8 +2844,8 @@
     "context": "Heading above the combined subject, service, online source, and RSS cards."
   },
   "ui.0781": {
-    "default": "DOCUMENTS {id}",
-    "context": "Index label on a documents and subject card. Preserve the id placeholder."
+    "default": "SUBJECT {id}",
+    "context": "Index label on a subject card. Preserve the id placeholder."
   },
   "ui.0782": {
     "default": "ONLINE SOURCES {id}",
@@ -3210,5 +3210,117 @@
   "ui.0887": {
     "default": "System storage",
     "context": "Disk card name when the protected system disk has no hardware model name."
+  },
+  "ui.0888": {
+    "default": "Create and edit subject, RSS, and online-source cards. Subject cards group documents and ZIM libraries. Card type is locked when the card has connected child data.",
+    "context": "Help text in Cards management. Subjects group documents and ZIM libraries."
+  },
+  "ui.0889": {
+    "default": "Metadata",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0890": {
+    "default": "Origin Source (optional)",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0891": {
+    "default": "Publisher or reference page describing the content. This is separate from the file download URL.",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0892": {
+    "default": "Download verification",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0893": {
+    "default": "Expected SHA-256 (optional)",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0894": {
+    "default": "Leave blank to fetch the publisher checksum automatically. A supplied checksum must match the publisher checksum when available.",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0895": {
+    "default": "File details",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0896": {
+    "default": "Filename",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0897": {
+    "default": "File size",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0898": {
+    "default": "Stored SHA-256",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0899": {
+    "default": "Download URL",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0900": {
+    "default": "Update downloaded copy",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0901": {
+    "default": "Updating downloaded copy…",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0902": {
+    "default": "Save changes before updating the downloaded copy. The current copy stays available until the replacement is downloaded and validated.",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0903": {
+    "default": "Saves document details and download URLs. Use Update downloaded copy separately to fetch a replacement.",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0904": {
+    "default": "Expected SHA-256 must contain exactly 64 hexadecimal characters",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0905": {
+    "default": "Supplied SHA-256 conflicts with the publisher checksum",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0906": {
+    "default": "Choose an existing online attachment",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0907": {
+    "default": "Download URL must be a non-empty HTTPS URL of at most 2048 characters",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0908": {
+    "default": "Replacement must have the same document format as the current file",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0909": {
+    "default": "Replacement is not a valid DOCX document",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0910": {
+    "default": "Replacement DOCX is damaged",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0911": {
+    "default": "Document changed during download; reopen it and try again",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0912": {
+    "default": "Attachment URLs must be an object",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0913": {
+    "default": "Remote attachment download is incomplete",
+    "context": "Content editor metadata, source URL, or download verification text."
+  },
+  "ui.0914": {
+    "default": "Expected SHA-256",
+    "context": "Download verification or replacement validation."
+  },
+  "ui.0915": {
+    "default": "Replacement DOCX exceeds safe expansion limits",
+    "context": "Download verification or replacement validation."
   }
 }

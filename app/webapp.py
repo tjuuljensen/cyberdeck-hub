@@ -1128,6 +1128,8 @@ def connect_db():
         db.execute("ALTER TABLE archive_metadata ADD COLUMN search_terms TEXT NOT NULL DEFAULT ''")
     if 'origin_source' not in archive_columns:
         db.execute("ALTER TABLE archive_metadata ADD COLUMN origin_source TEXT NOT NULL DEFAULT ''")
+    if 'download_url' not in archive_columns:
+        db.execute("ALTER TABLE archive_metadata ADD COLUMN download_url TEXT")
     db.executescript('''
         CREATE TRIGGER IF NOT EXISTS item_subject_insert
         BEFORE INSERT ON item
@@ -1864,7 +1866,7 @@ def active_starter_paths():
 
 def archive_metadata():
     return {row['filename']: dict(row) for row in
-            g.db.execute('SELECT filename,title,subject,search_terms,origin_source FROM archive_metadata')}
+            g.db.execute('SELECT filename,title,subject,search_terms,origin_source,download_url FROM archive_metadata')}
 
 
 def export_inventory():
@@ -1882,6 +1884,7 @@ def export_inventory():
         asset.update({key: local[value] for key, value in
                       [('title', 'title'), ('collection', 'subject'),
                        ('search_terms', 'search_terms'), ('origin_source', 'origin_source')] if value in local})
+        asset = document_download_asset(asset, local.get('download_url'))
         entries[path] = asset
     for row in g.db.execute('SELECT * FROM zim ORDER BY filename'):
         path = 'zim/' + row['filename']
@@ -1900,6 +1903,7 @@ def export_inventory():
         if row['origin_source']:
             asset['origin_source'] = row['origin_source']
         library.validate_asset(asset)
+        asset = document_download_asset(asset, local.get('download_url'))
         entries[path] = asset
     result = []
     for path, asset in sorted(entries.items()):
@@ -1918,7 +1922,7 @@ def export_inventory():
             source = g.db.execute('SELECT asset FROM attachment_source WHERE attachment_id=?',
                                   (attachment['id'],)).fetchone()
             if source:
-                asset = json.loads(source['asset'])
+                asset = document_download_asset(json.loads(source['asset']))
                 asset.update(title=row['title'] + ' - ' + attachment['filename'],
                              collection=row['subject'], description=row['description'],
                              search_terms=row['search_terms'],
@@ -4265,6 +4269,9 @@ def archive_list():
                        'title': local.get('title', asset.get('title', filename)),
                        'subject': local.get('subject', asset.get('collection', '')),
                        'search_terms': local.get('search_terms', asset.get('search_terms', '')),
+                       'origin_source': local.get('origin_source', asset.get('origin_source', '')),
+                       'download_url': local.get('download_url') or asset.get('url', ''),
+                       'sha256': record.get('sha256', ''),
                        'bytes': file_size if file_size is not None else record.get('bytes'),
                        'available': file_size is not None,
                        'managed': name in managed})
@@ -4301,7 +4308,7 @@ def archive_edit(filename):
     title, subject = body.get('title'), body.get('subject')
     search_terms = body.get('search_terms', '')
     try:
-        origin_source = _origin_source(body.get('origin_source', ''))
+        origin_source = _origin_source(body['origin_source']) if 'origin_source' in body else None
     except ValueError as error:
         return jsonify(error=str(error)), 400
     if not isinstance(title, str) or not 1 <= len(title.strip()) <= 200:
@@ -4317,11 +4324,22 @@ def archive_edit(filename):
         return jsonify(error=str(error)), 503
     if 'public/' + filename not in records:
         abort(404)
-    # Display overrides never rewrite acquisition identity or downloaded bytes.
-    g.db.execute('''INSERT INTO archive_metadata(filename,title,subject,search_terms,origin_source) VALUES(?,?,?,?,?)
-        ON CONFLICT(filename) DO UPDATE SET title=excluded.title,subject=excluded.subject,
-        search_terms=excluded.search_terms,origin_source=excluded.origin_source''',
-                 (filename, title.strip(), subject, search_terms.strip(), origin_source))
+    asset = records['public/' + filename]['asset']
+    local = archive_metadata().get(filename, {})
+    if origin_source is None:
+        origin_source = local.get('origin_source', asset.get('origin_source', ''))
+    download_url = local.get('download_url')
+    try:
+        if 'download_url' in body:
+            current_url = download_url or asset.get('url', '')
+            download_url = edited_document_url(body['download_url'], current_url)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    # Keep source corrections separate from the identity of the installed copy.
+    g.db.execute('''INSERT INTO archive_metadata(filename,title,subject,search_terms,origin_source,download_url)
+        VALUES(?,?,?,?,?,?) ON CONFLICT(filename) DO UPDATE SET title=excluded.title,subject=excluded.subject,
+        search_terms=excluded.search_terms,origin_source=excluded.origin_source,download_url=excluded.download_url''',
+                 (filename, title.strip(), subject, search_terms.strip(), origin_source, download_url))
     g.db.commit()
     return jsonify(filename=filename, title=title.strip(), subject=subject,
                    search_terms=search_terms.strip(), origin_source=origin_source)
@@ -5536,6 +5554,13 @@ def zims_list():
             row['status'] = g.db.execute('SELECT status FROM zim WHERE id=?', (row['id'],)).fetchone()[0]
         row['pause_requested'] = (row['status'].startswith('pid:') and zim_pause_path(row['id']).exists())
         row.update(zim_transfer_state(row['id'], row['filename'], row['status']))
+        if not row.get('sha256'):
+            manifest = library.safe_path(PRIVATE_ROOT, 'requests/' + row['id'] + '.json')
+            try:
+                assets = json.loads(manifest.read_text(encoding='utf-8')).get('assets', [])
+                row['expected_sha256'] = assets[0].get('sha256', '') if assets else ''
+            except (OSError, ValueError, KeyError, TypeError):
+                row['expected_sha256'] = ''
     g.db.commit()
     known = {row['filename'] for row in rows}
     acquired = DATA_ROOT / 'acquired.json'
@@ -5557,6 +5582,7 @@ def zims_list():
                          'filename': filename, 'source_url': asset.get('url', ''),
                          'bytes': file_size if file_size is not None else record.get('bytes'),
                          'sha256': record.get('sha256'),
+                         'origin_source': asset.get('origin_source', ''),
                          'status': 'ready'})
     return jsonify(rows)
 
@@ -5742,10 +5768,13 @@ def canonical_kiwix_download_url(value):
     return urllib.parse.urlunsplit(parsed)
 
 
-def inspect_kiwix_asset(value):
+def inspect_kiwix_asset(value, expected_sha256=''):
     # Kiwix's lb.download.kiwix.org redirects to community mirrors, which the
     # acquisition policy correctly rejects. Pin these official entry points to
     # Kiwix's own mirror before inspecting size and checksum.
+    if not isinstance(expected_sha256, str) or (expected_sha256 and not re.fullmatch(r'[0-9a-fA-F]{64}', expected_sha256)):
+        raise ValueError('Expected SHA-256 must contain exactly 64 hexadecimal characters')
+    expected_sha256 = expected_sha256.lower()
     url = canonical_kiwix_download_url(value)
     head = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'cyberdeck-library/1'})
     with urllib.request.urlopen(head, timeout=20) as response:
@@ -5772,6 +5801,9 @@ def inspect_kiwix_asset(value):
                 break
         except (OSError, UnicodeError, ValueError):
             continue
+    if checksum and expected_sha256 and checksum != expected_sha256:
+        raise ValueError('Supplied SHA-256 conflicts with the publisher checksum')
+    checksum = checksum or expected_sha256
     if not checksum:
         raise ValueError('This Kiwix archive has no readable SHA-256 sidecar; resumable acquisition requires a pinned checksum')
     # Preserve the vetted first-party URL. The acquisition worker independently
@@ -5841,12 +5873,15 @@ def zim_catalog():
                        error_params={'error': str(error)}), 502
 
 
-def acquire_zim(title, subject, source_url, db=None, origin_source=''):
+def acquire_zim(title, subject, source_url, db=None, origin_source='', expected_sha256=''):
     db = db or g.db
+    if not isinstance(expected_sha256, str) or (expected_sha256 and not re.fullmatch(r'[0-9a-fA-F]{64}', expected_sha256)):
+        raise ValueError('Expected SHA-256 must contain exactly 64 hexadecimal characters')
     title = title.strip()[:200]
     if not title or not db.execute('SELECT 1 FROM library_subject WHERE id=?', (subject,)).fetchone():
         raise ValueError('Title and a known subject are required')
-    clean_url, expected_bytes, checksum, checksum_url = inspect_kiwix_asset(source_url)
+    clean_url, expected_bytes, checksum, checksum_url = (inspect_kiwix_asset(source_url, expected_sha256)
+        if expected_sha256 else inspect_kiwix_asset(source_url))
     origin_source = _origin_source(origin_source)
     filename = secure_filename(Path(urllib.parse.urlsplit(clean_url).path).name)
     if not filename.lower().endswith('.zim'):
@@ -5858,7 +5893,8 @@ def acquire_zim(title, subject, source_url, db=None, origin_source=''):
     asset = {'path': f'zim/{filename}', 'title': title, 'collection': subject,
              'url': clean_url, 'max_bytes': expected_bytes, 'expected_bytes': expected_bytes,
              'sha256': checksum, 'checksum_url': checksum_url,
-             'hash_provenance': 'Kiwix HTTPS SHA-256 sidecar inspected at acquisition time.'}
+             'hash_provenance': ('Kiwix HTTPS SHA-256 sidecar inspected at acquisition time.' if checksum_url
+                                 else 'Expected SHA-256 supplied by the administrator.')}
     if origin_source:
         asset['origin_source'] = origin_source
     db.execute('BEGIN IMMEDIATE')
@@ -6123,7 +6159,8 @@ def zims_add():
     body = request.get_json(silent=True) or {}
     try:
         zid = acquire_zim(str(body.get('title', '')), str(body.get('subject', 'general-reference')),
-                          str(body.get('url', '')), origin_source=body.get('origin_source', ''))
+                          str(body.get('url', '')), origin_source=body.get('origin_source', ''),
+                          expected_sha256=body.get('expected_sha256', ''))
     except (ValueError, sqlite3.IntegrityError) as error:
         return jsonify(error=str(error)), 400
     return jsonify(id=zid, status='downloading'), 202
@@ -6166,11 +6203,16 @@ def zim_edit(zid):
                          (zid, title.strip(), subject, filename, record['asset'].get('url', ''),
                           record.get('bytes'), record.get('sha256'), 'ready',
                           record['asset'].get('origin_source', '')))
+            row = g.db.execute('SELECT * FROM zim WHERE id=?', (zid,)).fetchone()
     elif row is None:
         abort(404)
     if row is not None:
         zid = row['id']
-        origin_source = _origin_source(body.get('origin_source', row['origin_source'] if row else ''))
+        try:
+            origin_source = _origin_source(body.get('origin_source', row['origin_source']))
+        except ValueError as error:
+            g.db.rollback()
+            return jsonify(error=str(error)), 400
         g.db.execute('UPDATE zim SET title=?,subject=?,origin_source=? WHERE id=?',
                      (title.strip(), subject, origin_source, zid))
     g.db.commit()
@@ -6217,6 +6259,140 @@ def zim_remove(zid):
     g.db.commit()
     sync_kiwix_index()
     restart_kiwix()
+    return '', 204
+
+
+def edited_document_url(value, current):
+    if not current:
+        raise ValueError('Choose an existing online attachment')
+    if not isinstance(value, str) or not value.strip() or len(value) > 2048:
+        raise ValueError('Download URL must be a non-empty HTTPS URL of at most 2048 characters')
+    value = value.strip()
+    # Saving unrelated metadata must also work offline.
+    return current if value == current else validate_public_attachment_url(value)
+
+
+def document_download_asset(asset, url=None):
+    """Apply the desired source without claiming old bytes describe a new URL."""
+    asset = dict(asset)
+    url = url or asset.pop('download_url', None)
+    asset.pop('download_url', None)
+    if url and url != asset.get('url'):
+        for key in ('sha256', 'expected_bytes', 'checksum_url', 'url_resolver',
+                    'source_file', 'local_payload'):
+            asset.pop(key, None)
+        asset.update(url=url, max_bytes=MAX_ITEM_UPLOAD,
+                     hash_provenance='Source URL edited; verify the next downloaded copy.')
+    return asset
+
+
+def download_document_copy(asset, destination):
+    """Stage and validate a complete replacement using the public-URL policy."""
+    url = library.download_url(asset) if asset.get('url_resolver') else asset['url']
+    filename = download_public_attachment(url, destination)
+    ext = Path(asset['path']).suffix.lower()
+    with destination.open('rb') as stream:
+        kind = file_signature(ext, stream.read(8))
+    if not kind or Path(filename).suffix.lower() != ext:
+        raise ValueError('Replacement must have the same document format as the current file')
+    if kind == 'html-zip':
+        with destination.open('rb') as stream:
+            inspect_html_archive(stream)
+    elif kind == 'docx':
+        with zipfile.ZipFile(destination) as archive:
+            if '[Content_Types].xml' not in archive.namelist() or 'word/document.xml' not in archive.namelist():
+                raise ValueError('Replacement is not a valid DOCX document')
+            members = archive.infolist()
+            if (len(members) > MAX_ZIP_FILES or sum(m.file_size for m in members) > MAX_ZIP_EXPANDED or
+                    any(m.flag_bits & 1 or (m.file_size and not m.compress_size) or
+                        (m.compress_size and m.file_size / m.compress_size > 200) for m in members)):
+                raise ValueError('Replacement DOCX exceeds safe expansion limits')
+            if archive.testzip() is not None:
+                raise ValueError('Replacement DOCX is damaged')
+    return kind
+
+
+@app.post('/api/admin/archive/<filename>/refresh')
+@admin_required
+@csrf_required
+def archive_refresh(filename):
+    if not filename or '/' in filename or '\\' in filename or filename in {'.', '..'}:
+        abort(404)
+    path = 'public/' + filename
+    try:
+        record = acquired_records().get(path)
+        if record is None:
+            abort(404)
+        local = archive_metadata().get(filename, {})
+        asset = document_download_asset(record['asset'], local.get('download_url'))
+        if not asset.get('url'):
+            raise ValueError('Choose an existing online attachment')
+        # Keep the old pin for resolving publisher landing pages. The staged
+        # downloader validates the replacement and records its new checksum.
+        for key in ('expected_bytes', 'checksum_url'):
+            asset.pop(key, None)
+        asset['max_bytes'] = MAX_ITEM_UPLOAD
+        asset['hash_provenance'] = 'Computed locally from the updated document; not a publisher-signed checksum.'
+        replace_online_pdf_asset(asset, [path], downloader=download_document_copy)
+    except (ValueError, OSError, zipfile.BadZipFile) as error:
+        return jsonify(error=str(error)), 409
+    return '', 204
+
+
+@app.post('/api/admin/items/<item_id>/attachments/<attachment_id>/refresh')
+@admin_required
+@csrf_required
+def attachment_refresh(item_id, attachment_id):
+    row = g.db.execute('''SELECT a.*,s.asset FROM attachment a JOIN attachment_source s
+        ON s.attachment_id=a.id WHERE a.id=? AND a.item_id=?''', (attachment_id, item_id)).fetchone()
+    if row is None:
+        abort(404)
+    old = dict(row)
+    asset = document_download_asset(json.loads(old['asset']))
+    ext = Path(old['stored_path']).suffix.lower()
+    stored = str(uuid.uuid4()) + ext
+    staged = library.safe_path(PRIVATE_ROOT, f'files/{item_id}/{stored}')
+    expanded = staged.with_name(staged.name + '.html')
+    committed = False
+    try:
+        kind = download_document_copy(asset, staged)
+        if kind != old['kind']:
+            raise ValueError('Replacement must have the same document format as the current file')
+        if kind == 'html-zip':
+            with staged.open('rb') as stream:
+                validate_and_extract_zip(stream, expanded)
+        asset.update(sha256=library.sha256(staged), expected_bytes=staged.stat().st_size,
+                     max_bytes=staged.stat().st_size,
+                     hash_provenance='Computed locally from the updated attachment; not a publisher-signed checksum.')
+        # Readers keep using the old version until one atomic DB commit selects
+        # the fully downloaded file and, for HTML, its fully extracted directory.
+        g.db.execute('BEGIN IMMEDIATE')
+        current = g.db.execute('''SELECT a.*,s.asset FROM attachment a JOIN attachment_source s
+            ON s.attachment_id=a.id WHERE a.id=? AND a.item_id=?''', (attachment_id, item_id)).fetchone()
+        if current is None or dict(current) != old:
+            raise ValueError('Document changed during download; reopen it and try again')
+        g.db.execute('UPDATE attachment SET stored_path=? WHERE id=?', (stored, attachment_id))
+        g.db.execute('UPDATE attachment_source SET asset=? WHERE attachment_id=?',
+                     (json.dumps(asset), attachment_id))
+        g.db.commit()
+        committed = True
+    except (ValueError, OSError, zipfile.BadZipFile, sqlite3.Error) as error:
+        g.db.rollback()
+        return jsonify(error=str(error)), 409
+    finally:
+        if not committed:
+            staged.unlink(missing_ok=True)
+            if expanded.exists():
+                shutil.rmtree(expanded)
+    # An in-flight reader may still have the old file open on Windows.
+    try:
+        previous = library.safe_path(PRIVATE_ROOT, f"files/{item_id}/{old['stored_path']}")
+        previous.unlink(missing_ok=True)
+        previous_html = previous.with_name(previous.name + '.html')
+        if previous_html.exists():
+            shutil.rmtree(previous_html)
+    except OSError:
+        pass
     return '', 204
 
 
@@ -6279,6 +6455,8 @@ def download_public_attachment(value, destination):
                 output.write(chunk)
         if total == 0:
             raise ValueError('Remote attachment is empty')
+        if length is not None and total != int(length):
+            raise ValueError('Remote attachment download is incomplete')
         filename = (response.headers.get_filename() or
                     Path(urllib.parse.unquote(urllib.parse.urlsplit(final_url).path)).name)
     filename = secure_filename(filename or '')
@@ -6445,11 +6623,14 @@ def item_list():
     for row in rows:
         attachments = []
         for attachment in g.db.execute(
-                '''SELECT a.id,a.filename,a.stored_path,a.kind,
+                '''SELECT a.id,a.filename,a.stored_path,a.kind,s.asset,
                    CASE WHEN s.attachment_id IS NULL THEN 'upload' ELSE 'url' END AS source
                    FROM attachment a LEFT JOIN attachment_source s ON s.attachment_id=a.id
                    WHERE a.item_id=? ORDER BY a.filename''', (row['id'],)):
             item = dict(attachment)
+            source_asset = json.loads(item.pop('asset') or '{}')
+            item['download_url'] = source_asset.get('download_url') or source_asset.get('url', '')
+            item['sha256'] = source_asset.get('sha256', '')
             item['bytes'] = on_disk_file_size(
                 PRIVATE_ROOT, f"files/{row['id']}/{item.pop('stored_path')}")
             attachments.append(item)
@@ -6487,7 +6668,26 @@ def item_update(item_id):
     if (not isinstance(search_terms, str) or len(search_terms) > 1000 or
             any(ord(char) < 32 and char not in '\t\r\n' for char in search_terms)):
         return jsonify(error='Search terms must be at most 1000 characters of text'), 400
-    origin_source = _origin_source(body.get('origin_source', ''))
+    current = g.db.execute('SELECT * FROM item WHERE id=?', (item_id,)).fetchone()
+    if current is None:
+        abort(404)
+    try:
+        origin_source = _origin_source(body.get('origin_source', current['origin_source']))
+        urls = body.get('attachment_urls', {})
+        if not isinstance(urls, dict):
+            raise ValueError('Attachment URLs must be an object')
+        updates = []
+        for attachment_id, value in urls.items():
+            source = g.db.execute('''SELECT s.asset FROM attachment_source s JOIN attachment a
+                ON a.id=s.attachment_id WHERE a.item_id=? AND a.id=?''', (item_id, attachment_id)).fetchone()
+            if source is None:
+                raise ValueError('Choose an existing online attachment')
+            asset = json.loads(source['asset'])
+            asset['download_url'] = edited_document_url(value, asset.get('download_url') or asset.get('url', ''))
+            updates.append((json.dumps(asset), attachment_id))
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    g.db.executemany('UPDATE attachment_source SET asset=? WHERE attachment_id=?', updates)
     cursor = g.db.execute('UPDATE item SET title=?,description=?,search_terms=?,subject=?,origin_source=? WHERE id=?',
                           (title, description, search_terms.strip(), subject, origin_source, item_id))
     if not cursor.rowcount:
@@ -6951,7 +7151,7 @@ def start_pdf_import_worker(request_id):
         raise
 
 
-def replace_online_pdf_asset(asset, existing_paths):
+def replace_online_pdf_asset(asset, existing_paths, downloader=None):
     identity = asset.get('document_id') or ','.join(sorted(existing_paths))
     lock_name = hashlib.sha256(str(identity).encode('utf-8')).hexdigest()
     lock_path = library.safe_path(DATA_ROOT, '.online-pdf-update-' + lock_name + '.lock')
@@ -6978,20 +7178,20 @@ def replace_online_pdf_asset(asset, existing_paths):
                 raise ValueError('Another update of this online PDF did not finish in time')
             time.sleep(0.25)
     try:
-        return _replace_online_pdf_asset_locked(asset, existing_paths)
+        return _replace_online_pdf_asset_locked(asset, existing_paths, downloader=downloader)
     finally:
         if lock_path.is_symlink():
             raise ValueError('Refusing to remove an online PDF update lock symlink')
         lock_path.unlink(missing_ok=True)
 
 
-def _replace_online_pdf_asset_locked(asset, existing_paths):
-    """Refresh a stable online PDF identity without exposing a second copy."""
+def _replace_online_pdf_asset_locked(asset, existing_paths, downloader=None):
+    """Refresh a stable online document identity using the recovery journal."""
     existing_paths = list(dict.fromkeys(existing_paths))
     if not existing_paths:
         raise ValueError('Online PDF refresh has no installed destination')
     target_path = existing_paths[0]
-    if not target_path.startswith('public/') or not target_path.lower().endswith('.pdf'):
+    if not target_path.startswith('public/') or Path(target_path).suffix.lower() not in ALLOWED_EXTENSIONS:
         raise ValueError('Online PDF refresh destination is invalid')
     target = library.safe_path(DATA_ROOT, target_path)
     records = acquired_records()
@@ -7006,7 +7206,7 @@ def _replace_online_pdf_asset_locked(asset, existing_paths):
             raise ValueError(f'Installed PDF failed its integrity check: {path}')
 
     transaction_id = uuid.uuid4().hex
-    stage_path = 'public/update-' + transaction_id + '.pdf'
+    stage_path = 'public/update-' + transaction_id + Path(target_path).suffix.lower()
     staged = library.safe_path(DATA_ROOT, stage_path)
     download_asset = {key: value for key, value in asset.items()
                       if key != '_replace_existing_paths'}
@@ -7038,8 +7238,13 @@ def _replace_online_pdf_asset_locked(asset, existing_paths):
         shutil.rmtree(transaction_root, ignore_errors=True)
         raise
     try:
-        library.stream_download(download_asset, staged)
+        if downloader is None:
+            library.stream_download(download_asset, staged)
+        else:
+            downloader(download_asset, staged)
         new_digest = library.sha256(staged).lower()
+        if downloader is not None:
+            new_asset.update(sha256=new_digest, expected_bytes=staged.stat().st_size, max_bytes=staged.stat().st_size)
         current = acquired_records()
         if any(current.get(path) != record for path, record in old_records.items()):
             raise ValueError('Installed PDF changed during refresh; retry the update')
@@ -7134,7 +7339,7 @@ def recover_online_document_updates():
         target_path = journal.get('target_path')
         stage_path = journal.get('stage_path')
         if (not isinstance(target_path, str) or not target_path.startswith('public/') or
-                not target_path.lower().endswith('.pdf') or
+                Path(target_path).suffix.lower() not in ALLOWED_EXTENSIONS or
                 not isinstance(stage_path, str) or not stage_path.startswith('public/')):
             raise RuntimeError('Online document update journal contains an invalid path')
         records = acquired_records()

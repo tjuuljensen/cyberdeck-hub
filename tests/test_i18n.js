@@ -24,6 +24,7 @@ const makeTextNode = (value) => ({
 const makeElement = (attributes = {}) => ({
   nodeType: 1,
   attributes: {...attributes},
+  closest() { return null; },
   getAttribute(name) { return this.attributes[name] ?? null; },
   setAttribute(name, value) { this.attributes[name] = value; },
   querySelectorAll() { return []; }

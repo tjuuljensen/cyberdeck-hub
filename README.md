@@ -179,6 +179,19 @@ optional cover image can be JPEG, PNG, or WebP. Other document formats such as
 legacy `.doc`, EPUB, and plain text are not accepted as attachments. Add ZIM
 archives separately under **Admin > Kiwix libraries**.
 
+For documents added from a URL, use **Edit** to correct the **Download URL**
+(and each attachment URL when applicable), then **Save changes**. This does not
+start a download. Reopen **Edit** and select **Update downloaded copy** to fetch
+and validate a replacement; the current copy remains available if the update
+fails. Document identifiers, titles, and other metadata are preserved.
+
+Optional **Origin Source** and search terms are under **Metadata**. Origin Source
+is the publisher or reference page, separate from the file download URL.
+**File details** shows available filenames, sizes, and stored checksums.
+When adding a ZIM, **Download verification** accepts an optional SHA-256.
+Automatic publisher-checksum lookup remains enabled; conflicting checksums are
+rejected, and a supplied checksum can be used when no publisher checksum is available.
+
 **Online Source** cards open live websites and are unavailable when the client
 or Hub cannot reach the internet. **RSS** cards display recent feed entries
 when available; they do not save the linked articles, send push notifications,
