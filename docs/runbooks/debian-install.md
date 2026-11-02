@@ -1,11 +1,12 @@
 # Debian installation and acceptance
 
-Reviewed 2026-10-27. This runbook covers Cyberdeck Hub on an existing Debian 13
+Reviewed 2026-11-02. This runbook covers Cyberdeck Hub on an existing Debian 13
 amd64 or arm64 computer. The installer does not install an operating system,
 partition disks, or configure a particular Raspberry Pi model. ARM64 support in
 the source is not Raspberry Pi acceptance. For a new system, use the [guided
 Debian USB bootstrap](bootstrap-install.md); this runbook starts with an
-existing Debian installation. Docker is not a supported installation path.
+existing Debian installation. For containers, use the separate
+[Docker Compose guide](docker-compose.md).
 
 ## Prepare a source kit
 
@@ -55,10 +56,12 @@ with sudo:
 sudo bash scripts/debian/install.sh --apply --hostname cyberdeck
 ```
 
-For a disconnected installation, prepare the documented Debian package cache
-on a matching Debian 13 architecture before transfer and use the installer's
-`--offline` option. Do not use an unrelated package cache as proof of an
-offline installation.
+The installer's `--offline` option skips package downloads; required packages
+must already be installed on the target, including a compatible ZIM validator
+(libzim 9.4.0 or newer). It also skips CyberChef installation. This repository
+does not yet provide a complete package-cache preparation and restoration
+procedure for a fresh disconnected host. That workflow remains a
+[release acceptance gap](../releases/v0-2-0-candidate.md#remaining-release-gates).
 
 The installer creates the Hub and Kiwix services and a local TLS certificate.
 It leaves the optional Cyberdeck firewall module disabled by default. Admin's
@@ -88,12 +91,11 @@ Admin.
 
 ### Windows deployment launcher
 
-Run the launcher from this standalone Hub checkout. The parent `cyberdeck`
-repository's launcher and builder are compatibility wrappers that delegate to
-this checkout; `-HubSourceRoot` selects the entire runtime source. Application,
-installer, privileged helpers, sudoers policy, profiles, and systemd units must
-come from the same Hub checkout. A current app combined with the parent's old
-runtime files removes firewall operations and permissions during each update.
+Run the launcher from this checkout; `-HubSourceRoot` can select another complete
+Hub checkout. Application, installer, privileged helpers, sudoers policy,
+profiles, and systemd units must come from the same source revision. Mixing
+current application code with older runtime files can remove required firewall
+operations and permissions during an update.
 
 Commit the candidate first, then preview the intended target:
 
@@ -229,9 +231,8 @@ sudo apt install firmware-zd1211
 ```
 
 Debian lists `firmware-zd1211` in the `non-free-firmware` component. The
-package contains `zd1211/zd1211_ub` and supports the `zd1211rw` driver ([package
-details](https://packages.debian.org/trixie/kernel/firmware-zd1211), [file
-list](https://packages.debian.org/uk/trixie/all/firmware-zd1211/filelist)). The
+package contains `zd1211/zd1211_ub` and supports the `zd1211rw` driver; see the
+[Debian package details](https://packages.debian.org/trixie/kernel/firmware-zd1211). The
 general `firmware-linux` package did not provide this file on the observed
 Cyberdeck, so prefer the package indicated by the missing firmware path.
 
@@ -270,15 +271,26 @@ the replacement has been verified.
 There are two different backup scopes:
 
 - An exported Hub configuration preserves catalogue metadata and source links.
-  It does not package the remote PDF files those links point to.
+  Export can additionally package selected local documents and cached PDF
+  copies. It does not include the full database, credentials, or host setup.
 - The Debian recovery backup copies the configured data root. Files that were
   successfully downloaded before the backup, including acquired PDFs and
   their acquisition records, are copied and checksummed. A URL for a file that
   was never downloaded cannot restore that file without network access.
 
+**Current limitation:** the recovery command requires
+`<data-root>/recovery-packages/COMPLETE`, but this repository has no procedure
+that creates a verified recovery-package cache. It also copies `tests/` from
+its source tree, while the Debian source kit omits that directory. The commands
+below describe the existing interface; they are not yet a complete recovery
+procedure for a kit-installed system. Resolve these gaps and rehearse a restore
+before treating this path as release-ready. Do not create an empty `COMPLETE`
+marker to bypass the cache check.
+
 The recovery backup requires a mounted, identifiable physical disk separate
 from the library data disk, a completed recovery-package cache, and sufficient
-free space. Run it from the source kit as root, first checking that the mount
+free space. Until kit packaging is corrected, it also requires the full source
+checkout. Run it as root, first checking that the mount
 is the intended backup disk:
 
 ```sh
@@ -322,10 +334,12 @@ result. A source test or package inspection is not a target observation.
   connect a second client and verify local Hub access over Wi-Fi.
 - Import a profile containing successful and deliberately unavailable PDF
   sources; confirm per-file status, visible failure detail, and retry behavior.
-- Confirm the three optional starter profiles are present in the install kit;
-  preview each in settings-only mode and verify no content downloads start.
-- Confirm a profile export contains source links but not downloaded payloads;
-  confirm a full recovery backup includes acquired PDF payloads and hashes.
+- Confirm all five optional profiles are present in the install kit. Preview
+  each subject-only template and verify no content downloads start. For each
+  curated profile, verify content selection, download bounds, and failure handling.
+- Confirm a metadata-only export contains source links without downloaded
+  payloads; verify that selecting cached PDF copies includes those files.
+  Confirm a full recovery backup includes acquired payloads and hashes.
 - Complete checksum verification and a disconnected restore rehearsal on a
   separate data destination.
 - Measure idle and active memory, storage use, and responsiveness with

@@ -18,8 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 KIT_FILES = (
     'LICENSE',
     'README.md',
-    'docs/runbooks/bootstrap-install.md',
-    'docs/runbooks/debian-install.md',
+    'TODO.md',
     'scripts/debian/configure-deploy-cache.sh',
     'scripts/debian/build-kit.py',
     'scripts/debian/verify-runtime.py',
@@ -33,6 +32,7 @@ KIT_FILES = (
     'scripts/debian/http-redirect.py',
 )
 KIT_DIRECTORIES = (
+    'docs',
     'assets/hub',
     'config/debian',
     'app',

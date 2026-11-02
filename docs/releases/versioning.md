@@ -1,7 +1,7 @@
 # Hub versioning
 
 Cyberdeck Hub uses semantic versions in `MAJOR.MINOR.PATCH` form. Until the
-first stable public release, versions use a SemVer pre-release suffix:
+first public 0.2.0 release, versions use a SemVer pre-release suffix:
 
 - `alpha.N` while features or scope are still changing.
 - `beta.N` once the planned release scope is in place and candidates are being
@@ -18,9 +18,9 @@ should report the same app version and identify its source commit.
 Give every changed candidate a new version. Do not rebuild different contents
 under an existing candidate version. For each candidate, record its version,
 clean source commit, source-kit SHA-256, source checks, and dated target results
-in the release tracking record. Use an annotated Git tag such as
-`v0.2.0-beta.1` only after repository and release metadata are ready for review;
-do not configure or publish a remote as part of local candidate testing.
+in the [release tracking record](v0-2-0-candidate.md). Use an annotated Git tag
+such as `v0.2.0-beta.1` only after repository and release metadata are ready for
+review. Publish the final `v0.2.0` tag and artifacts after its release gates pass.
 
 The first candidate deployed as `0.2.0` predates this convention. The first
 pre-release candidate is `0.2.0-beta.1`; each later beta or release-candidate

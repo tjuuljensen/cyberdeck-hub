@@ -1,10 +1,13 @@
 # Starter profiles
 
 Cyberdeck Hub installs an empty generic starter configuration and optional
-profiles. Use **Admin > Import**, choose **Settings only**, and preview before
-applying a profile. This mode changes subject definitions without starting
-content downloads. Applying a full curated profile can queue its listed source
-files and ZIM libraries; review the sources and available storage first.
+profiles. The curated profiles are still being reviewed for 0.2.0. Use
+**Admin > Import**, select a profile, and preview it before applying. Review
+**Card mapping**, site settings, and the selected Documents and Kiwix libraries.
+To add only a subject structure, use one of the subject-only templates below.
+For a curated profile, clear the content selections if you do not want downloads.
+Applying selected sources can queue files and ZIM libraries; check available
+storage first.
 
 ## Curated profiles
 
@@ -15,7 +18,7 @@ files and ZIM libraries; review the sources and available storage first.
 
 The filename convention is `<purpose>-<language>-<region>.json`: use lowercase language and region codes, such as `da-dk` for Danish in Denmark or `en-int` for international English. The country code is ISO 3166-1 alpha-2; `int` denotes an international target. Lowercase filenames are required by the installer and profile selector. The profile `name` is the user-facing display name. Keep content selections aligned with the target; do not put device-specific manuals into regional preparedness profiles.
 
-The curated PDFs are intended as standalone handouts, checklists, posters, worksheets, or short guidance documents published for direct download. Book-length PDFs and local archive imports are not treated as downloadable handouts. See the [curation and exclusion record](profile-curation.md) for each excluded item and its reason. The record is a source-selection note, not a separate license grant; retain publisher, edition, date, and reuse terms when maintaining a profile.
+The curated PDFs are intended as standalone handouts, checklists, posters, worksheets, or short guidance documents published for direct download. Book-length PDFs and local archive imports are not treated as downloadable handouts. Follow the [profile curation checklist](profile-curation.md) when reviewing each source. Inclusion is not a separate license grant; retain publisher, edition, date, and reuse terms when maintaining a profile.
 
 ## Subject-only templates
 

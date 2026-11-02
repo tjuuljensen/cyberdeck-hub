@@ -1,12 +1,27 @@
 # Content refresh
 
-This is a manual, administrator-reviewed refresh path for Hub content. The
-Hub does not schedule unattended Wikipedia, map, or PDF updates. A new edition
-is downloaded under a new filename, checked against its manifest, then
-introduced through the normal Hub import flow. The old edition remains in
-place until the new one is verified and a backup is available.
+Content refresh is manual and administrator-reviewed. The Hub does not schedule
+unattended Wikipedia, map, or PDF updates. Keep a backup before replacing content.
 
-## Before acquisition
+## Refresh a document in Admin
+
+For a document added from a URL, open **Admin > Documents > Edit**, correct the
+Download URL or attachment URLs if necessary, and save. Saving metadata does
+not download a replacement. Reopen **Edit** and select **Update downloaded copy**
+to fetch and validate it. The current copy remains available if the update fails.
+
+For profile-based online PDFs, retain the same `document_id` when revising the
+source URL, destination filename, or edition of the same logical document.
+Preview the updated profile before applying it. A different document or format
+needs a different identity. See the [profile curation checklist](../content/profile-curation.md).
+
+## Refresh through an acquisition manifest
+
+The lower-level `app/library.py` workflow treats acquired paths as immutable.
+Download a new edition under a new filename, verify it, then introduce it through
+Admin import. Keep the old edition until the replacement and backup are verified.
+
+### Before acquisition
 
 1. Review the upstream publisher/catalogue, edition date, format, and reuse
    terms. Record the source page and the direct HTTPS download URL.
@@ -19,7 +34,7 @@ place until the new one is verified and a backup is available.
    later changes but does not prove who published the original bytes.
 4. Confirm available disk space and keep the current library intact.
 
-## Acquire and verify
+### Acquire and verify
 
 Run from the source kit on the Debian Hub. Replace the paths with the actual
 manifest and configured data root:
@@ -41,7 +56,7 @@ The first verified acquisition creates a local hash when the manifest has no
 trusted expected hash. Review the downloaded file itself and record its edition
 and source review; a successful transfer is not content or rights validation.
 
-## Promote and recover
+### Promote and recover
 
 1. Import the reviewed manifest or configuration through Admin. Preview the
    subject mapping, paths, conflicts, storage reserve, and selected Internet
@@ -49,9 +64,11 @@ and source review; a successful transfer is not content or rights validation.
 2. Confirm the new document opens and that its reader/search path works on the
    intended Hub. Raw map datasets are not useful offline unless a compatible
    viewer and its required assets are also installed and tested.
-3. Make and verify a recovery backup on a separate physical disk. The recovery
-   backup includes acquired PDF and ZIM files; configuration exports keep
-   online source links and do not include remote payloads.
+3. Make and verify a backup on a separate physical disk. Configuration exports
+   preserve source links and can include selected local files and cached PDFs;
+   they are not a complete system backup. The Debian recovery command is intended
+   to include the data root, but its [current prerequisites and kit limitations](debian-install.md#backup-and-restore)
+   must be resolved before relying on that workflow.
 4. Keep the prior version until a second-client offline check and a restore
    rehearsal have passed. Remove superseded files only through a reviewed
    retention procedure.

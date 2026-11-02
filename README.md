@@ -6,6 +6,11 @@ on a local network even when internet access is unavailable. It brings selected
 PDFs and offline Kiwix libraries together in a searchable catalogue, with an
 administrator area for managing content and the host.
 
+**Release status:** 0.2.0 is in preparation. The application currently identifies
+as `0.2.0-beta.54`; the included profiles are still being curated. See the
+[release readiness record](docs/releases/v0-2-0-candidate.md) for outstanding
+validation and the [TODO list](TODO.md) for remaining work.
+
 The project is designed for deliberate, curated collections rather than a
 replacement for the internet or a guaranteed emergency-alert service. Choose
 what to install based on how the library will be used:
@@ -213,9 +218,11 @@ tutorial](docs/content/survival-cyberdeck-hub-tutorial.md).
   erases the chosen disk; moving data restarts Hub and Kiwix. Keep a verified
   backup and do not unplug a disk while it is in use. A library disk is not a
   backup; use a separate physical disk for recovery copies.
-- Export configuration for metadata and source links. It does not include
-  downloaded PDF payloads. Use the Debian recovery backup for acquired content,
-  and perform a restore rehearsal before relying on it.
+- Export configuration for metadata and source links. Export can also package
+  selected local documents and cached PDF copies; check the export selections.
+  This is not a complete system backup. Review the [backup and restore
+  limitations](docs/runbooks/debian-install.md#backup-and-restore) and rehearse
+  recovery before relying on a backup.
 - Keep credentials, household records, and downloaded reference payloads out
   of Git. Store administrator credentials separately from the server.
 
@@ -258,3 +265,15 @@ container mode. For a host-integrated installation, use the Debian guide.
 - [Review the included profiles](docs/content/starter-profiles.md)
 - [Refresh content safely](docs/runbooks/content-refresh.md)
 - [Set up or remove device certificate trust](docs/certificate-trust.md)
+- [Configure Online Source and RSS cards](docs/content/online-crisis-links.md)
+- [Review architecture and migration work](docs/architecture-review.md)
+- [Track 0.2.0 release readiness](docs/releases/v0-2-0-candidate.md)
+
+## License
+
+Repository files are licensed under the [MIT License](LICENSE), including code,
+documentation, configuration, profiles, and deployment files, unless a file
+explicitly carries separate license terms. External third-party material linked
+to, referenced by, or downloaded through the project remains subject to its own
+licenses and terms. A link in a profile or guide does not make its destination
+content MIT-licensed.

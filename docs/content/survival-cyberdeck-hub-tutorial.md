@@ -30,7 +30,7 @@ protection, health, weather, and local-government sources instead.
 
 ## Decide whether something should be stored or linked
 
-- **Documents** are for PDF reference material you want stored on the Hub.
+- **Documents** are for PDF, DOCX, and packaged HTML material stored on the Hub.
   Upload a permitted copy, not just the webpage URL. Add a useful title and
   keep the source and edition information with the item.
 - **Kiwix libraries** are `.zim` files. Add the archive through **Admin > Kiwix
@@ -44,11 +44,10 @@ protection, health, weather, and local-government sources instead.
   linked articles. A cached view may be old; check its retrieval time and the
   publisher's page.
 
-The online-source and RSS cards are pointers to live services. Do not count
-them as part of your offline reference set. The built-in Danish police RSS
-reader can show recent official operational updates while online, but does not
-replace S!RENEN, physical warning sirens, DR/TV 2 emergency information, or
-other official alert channels.
+Online Source and RSS cards are pointers to live services. Do not count them
+as part of your offline reference set. If you configure official news or police
+feeds, use them as supplemental information; they do not replace official
+alert channels. See [Online Source and RSS cards](online-crisis-links.md).
 
 ## A simple curation workflow
 
@@ -74,7 +73,9 @@ other official alert channels.
    Confirm that the material itself is present and readable; a working link
    while online is not an offline test.
 7. **Back up and review.** Export configuration for catalogue metadata and
-   source links, and use the Debian recovery backup for downloaded files.
+   source links, selecting local files or cached PDF copies when needed. Review
+   the [recovery limitations](../runbooks/debian-install.md#backup-and-restore)
+   before relying on the Debian backup command.
    Schedule a review date for official, medical, map, and equipment guidance.
    Replace stale files only after the new copy has been checked.
 

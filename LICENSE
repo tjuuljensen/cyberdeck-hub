@@ -2,15 +2,19 @@ MIT License
 
 Copyright (c) 2026 Torsten Juul-Jensen
 
-Scope: For this license, "Software" means original software source code in the
-`app/`, `scripts/`, and `tests/` directories, except for files that carry their own license or
-copyright notice. This license does not apply to documentation, manifests,
-downloaded reference material, personal files, or third-party code and assets.
-Those materials remain subject to their own terms and notices; their presence
-in this repository does not grant additional reuse rights.
+Scope: This MIT License applies to the files in this repository, including
+source code, documentation, configuration, profiles, manifests, deployment
+files, and assets, unless a file explicitly carries separate license terms.
+
+External third-party material is not covered by this license. Websites,
+repositories, documents, datasets, software, and other material linked to,
+referenced by, or downloaded through this project remain subject to their
+respective licenses and terms. Including a link or source reference in a
+repository file does not grant rights to the external material.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of the Software, to deal in the Software without restriction, including
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including
 without limitation the rights to use, copy, modify, merge, publish,
 distribute, sublicense, and/or sell copies of the Software, and to permit
 persons to whom the Software is furnished to do so, subject to the following

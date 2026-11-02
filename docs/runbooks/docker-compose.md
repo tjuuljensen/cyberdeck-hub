@@ -6,6 +6,9 @@ host. Caddy provides HTTPS with a local certificate authority (CA); each client
 must trust that CA before using the Hub. Docker mode does not manage host Wi-Fi,
 firewall, power, hostname, or storage devices.
 
+This path is included in the 0.2.0 candidate. Final lifecycle and recovery
+acceptance remains open in the [release readiness record](../releases/v0-2-0-candidate.md).
+
 ## Prepare the host
 
 Install Docker Engine with the Compose plugin on a Linux host. Ensure ports 80
@@ -69,12 +72,15 @@ and removal instructions.
 The `hub_data` volume stores acquired public documents and ZIM files;
 `hub_private` stores the database, credentials, and private uploads. `caddy_data`
 contains Caddy's CA and private signing material; `caddy_ca` contains only the
-public root certificate. Back up all five named volumes before replacing or
-removing them. Do not distribute `caddy_data` or the `.env` file.
+public root certificate, and `caddy_config` stores Caddy configuration state.
+Stop the stack before taking a consistent backup of all five named volumes.
+Retain the matching source revision, Compose configuration, and private `.env`
+file for restoration. Test restoring the volumes to a separate stack before
+relying on the backup. Do not distribute `caddy_data` or the `.env` file.
 
 The `cyberdeck` network is shared by the services and can be extended with
-separate addon containers and Caddy routes. This stack does not install or
-integrate CyberChef, FlatNotes, or other addons. Container mode intentionally
+separate addon containers and Caddy routes. Additional tools must be configured
+separately; the shipped stack does not install or integrate addons. Container mode
 does not expose Debian host controls.
 
 To stop without deleting persistent data:

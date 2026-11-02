@@ -62,7 +62,7 @@ the same network. Once the CA is trusted, open `https://cyberdeck.local/`.
 
 ## Start with an existing Debian 13 install
 
-If Debian 13 is already installed, skip the USB and Debian Installer sections and begin at **Preview and install** in the [manual Debian install guide](debian-install.md). That path builds/transfers a source kit, previews host changes, and applies the Hub installer. It does not install Debian or repartition disks.
+If Debian 13 is already installed, skip the USB and Debian Installer sections and begin at [Prepare a source kit](debian-install.md#prepare-a-source-kit). That path builds/transfers a source kit, previews host changes, and applies the Hub installer. It does not install Debian or repartition disks.
 
 ## Failure and recovery
 
