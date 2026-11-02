@@ -60,7 +60,6 @@ class BuildKitTests(unittest.TestCase):
             'scripts/debian/admin-helper.py',
             'scripts/debian/host_identity.py',
             'scripts/debian/http-redirect.py',
-            'scripts/debian/configure-gnome-power.py',
             'app/cyberchef_server.py',
             'app/webapp.py',
             'app/legacy_card_translations.json',

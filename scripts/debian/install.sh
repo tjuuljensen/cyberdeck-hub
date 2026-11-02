@@ -183,7 +183,6 @@ fi
    -f "$repo_root/config/debian/systemd/cyberdeck-hotspot-autostart.service" &&
    -f "$repo_root/config/debian/systemd/cyberdeck-hotspot-autostart.timer" &&
    -f "$repo_root/config/debian/cyberdeck-hotspot-dns.conf" &&
-   -f "$repo_root/scripts/debian/configure-gnome-power.py" &&
    -f "$repo_root/config/debian/tmpfiles.d/cyberdeck-storage.conf" &&
    -f "$repo_root/scripts/debian/storage-helper.py" &&
    -f "$repo_root/scripts/debian/wifi-diagnostics.py" &&
@@ -278,7 +277,7 @@ if (( ! apply )); then
         'Would install Cyberdeck Hub on HTTPS port 443, certificate bootstrap and HTTP redirect on port 80, and Kiwix on loopback port 8080.' \
         'Would enable cyberdeck-web, cyberdeck-kiwix, the hotspot fallback timer, and avahi-daemon; NetworkManager provides nmcli for interface reporting and hotspot management.' \
         'The allowlisted reboot and poweroff controls are available to the Hub administrator.' \
-        'Would disable system sleep and logind idle suspend so the headless library stays available; GNOME idle-suspend locks apply only when dconf is installed.' \
+        'Would disable system sleep and logind idle suspend so the headless library stays available.' \
         'Online setup installs the pinned CyberChef module for isolated HTTPS port 8445 and leaves the service disabled; --offline omits it because the archive cannot be downloaded.' \
         'After first boot, create an administrator and import a configuration profile through the admin page.'
     exit 0
@@ -621,9 +620,6 @@ install -o root -g root -m 0644 "$repo_root/config/debian/systemd/cyberdeck-hots
 install -d -o root -g root -m 0755 /etc/systemd/sleep.conf.d /etc/systemd/logind.conf.d
 install -o root -g root -m 0644 "$sleep_source" /etc/systemd/sleep.conf.d/90-cyberdeck.conf
 install -o root -g root -m 0644 "$logind_source" /etc/systemd/logind.conf.d/90-cyberdeck.conf
-if command -v dconf >/dev/null 2>&1; then
-    python3 "$repo_root/scripts/debian/configure-gnome-power.py"
-fi
 install -o root -g root -m 0644 "$service_source/cyberdeck-storage-migration.service" \
     /etc/systemd/system/cyberdeck-storage-migration.service
 install -o root -g root -m 0644 "$service_source/cyberdeck-storage-initialize.service" \

@@ -31,7 +31,6 @@ KIT_FILES = (
     'scripts/debian/wifi-diagnostics.py',
     'scripts/debian/host_identity.py',
     'scripts/debian/http-redirect.py',
-    'scripts/debian/configure-gnome-power.py',
 )
 KIT_DIRECTORIES = (
     'assets/hub',
@@ -55,7 +54,6 @@ INSTALLER_REQUIRED_SOURCES = (
     'scripts/debian/storage-helper.py',
     'scripts/debian/wifi-diagnostics.py',
     'scripts/debian/http-redirect.py',
-    'scripts/debian/configure-gnome-power.py',
 )
 
 

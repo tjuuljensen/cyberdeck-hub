@@ -29,6 +29,7 @@
 *.7z
 *.tar
 *.gz
+/cyberdeck-hub-debian-kit*.tar.gz.sha256
 *.exe
 *.msi
 *.deb

@@ -20,7 +20,6 @@ BACKUP_ROOT = Path('/var/backups/cyberdeck/deployments')
 TREE_PATHS = (
     Path('/usr/local/lib/cyberdeck'),
     Path('/etc/cyberdeck'),
-    Path('/etc/dconf/db/local'),
     Path('/opt/cyberdeck/modules/cyberchef'),
     Path('/opt/cyberdeck/modules/cyberchef.previous'),
 )
@@ -42,6 +41,11 @@ FILE_PATHS = (
     Path('/etc/NetworkManager/dnsmasq-shared.d/cyberdeck.conf'),
     Path('/etc/systemd/sleep.conf.d/90-cyberdeck.conf'),
     Path('/etc/systemd/logind.conf.d/90-cyberdeck.conf'),
+)
+# Restore-only compatibility for snapshots created before the headless cleanup.
+# New snapshots must not manage desktop configuration.
+LEGACY_DESKTOP_PATHS = (
+    Path('/etc/dconf/db/local'),
     Path('/etc/dconf/profile/user'),
     Path('/etc/dconf/db/local.d/90-cyberdeck-power'),
     Path('/etc/dconf/db/local.d/locks/90-cyberdeck-power'),
@@ -171,9 +175,14 @@ def restore(expected_host: str, deployment_id: str) -> None:
     records = state.get('assets')
     expected_paths = [str(path) for path in (*TREE_PATHS, *FILE_PATHS)]
     expected = set(expected_paths)
-    if (not isinstance(records, list) or len(records) != len(expected_paths)
-            or {row.get('path') for row in records} != expected):
+    legacy_expected = expected | {str(path) for path in LEGACY_DESKTOP_PATHS}
+    if not isinstance(records, list) or not all(isinstance(row, dict) for row in records):
         raise ValueError('Deployment backup managed-path set is invalid.')
+    recorded_paths = {row.get('path') for row in records}
+    if (recorded_paths not in (expected, legacy_expected)
+            or len(records) != len(recorded_paths)):
+        raise ValueError('Deployment backup managed-path set is invalid.')
+    legacy_desktop = recorded_paths == legacy_expected
     services = state.get('services')
     # Older Hub snapshots predate recording the firewall unit state. Preserve
     # their existing compatibility without guessing the omitted state.
@@ -203,7 +212,7 @@ def restore(expected_host: str, deployment_id: str) -> None:
             raise ValueError(f'Deployment backup contains invalid service state: {unit}')
     for record in records:
         path = Path(record['path'])
-        if path not in (*TREE_PATHS, *FILE_PATHS):
+        if str(path) not in (legacy_expected if legacy_desktop else expected):
             raise ValueError(f'Unexpected managed path in snapshot: {path}')
         remove_node(path)
         if record['exists']:
@@ -211,7 +220,7 @@ def restore(expected_host: str, deployment_id: str) -> None:
             backup = directory / backup_name
             copy_node(backup, path)
     run('systemctl', 'daemon-reload')
-    if shutil.which('dconf'):
+    if legacy_desktop and shutil.which('dconf'):
         run('dconf', 'update')
     for unit, values in services.items():
         enabled_state = values['enabled']
