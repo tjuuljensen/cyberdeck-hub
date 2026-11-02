@@ -6,6 +6,8 @@ on a local network even when internet access is unavailable. It brings selected
 PDFs and offline Kiwix libraries together in a searchable catalogue, with an
 administrator area for managing content and the host.
 
+![Cyberdeck Hub front page showing Subject cards, local services, and online sources](docs/images/frontpage.png)
+
 **Release status:** 0.2.0 is in preparation. The application currently identifies
 as `0.2.0-beta.54`; the included profiles are still being curated. See the
 [release readiness record](docs/releases/v0-2-0-candidate.md) for outstanding
